@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} | Edu Tizim{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block extra_css %}
+<style>
+.content{padding:16px 20px!important;}
+.page-header{margin-bottom:14px!important;}
+.page-header-left h2{font-size:1.1rem!important;}
+.page-header-count{font-size:.72rem!important;}
+
+.stats-grid{gap:12px!important;margin-bottom:14px!important;}
+.stat-card{padding:14px 16px!important;border-radius:10px!important;gap:12px!important;}
+.stat-icon{width:40px!important;height:40px!important;border-radius:10px!important;font-size:1rem!important;}
+.stat-number{font-size:1.3rem!important;}
+.stat-label{font-size:.75rem!important;}
+
+.filter-bar{padding:10px 14px!important;margin-bottom:14px!important;border-radius:10px!important;}
+.filter-form{gap:8px!important;align-items:end;}
+.filter-group{min-width:100px!important;}
+.filter-group label{font-size:.65rem!important;margin-bottom:3px!important;}
+.filter-select,.filter-input{height:32px!important;font-size:.78rem!important;padding:0 8px!important;border-radius:6px!important;}
+.filter-search{height:32px!important;font-size:.78rem!important;width:140px!important;border-radius:6px!important;}
+.filter-search:focus{width:180px!important;}
+.filter-group-actions{min-width:auto!important;gap:4px!important;}
+.btn-sm{padding:6px 12px!important;font-size:.78rem!important;}
+
+.data-table-wrap{border-radius:10px!important;}
+.data-table thead th{padding:9px 12px!important;font-size:.65rem!important;letter-spacing:.4px!important;}
+.data-table tbody td{padding:8px 12px!important;font-size:.8rem!important;}
+.data-table{min-width:auto!important;}
+
+.col-num{width:32px!important;}
+.col-name{min-width:120px;}
+.col-course{min-width:80px;}
+.col-level{min-width:60px;}
+.col-day{min-width:80px;}
+.col-time{min-width:80px;}
+.col-range{min-width:130px;}
+.col-students{min-width:50px;}
+.col-teacher{min-width:90px;}
+.col-room{min-width:50px;}
+.col-tg{width:30px;}
+.col-davomat{min-width:100px!important;}
+.col-status{min-width:60px;}
+
+.status-badge{padding:2px 8px!important;font-size:.7rem!important;border-radius:10px!important;}
+.course-tag{padding:1px 8px!important;font-size:.72rem!important;border-radius:5px!important;}
+.level-badge{padding:1px 8px!important;font-size:.72rem!important;border-radius:5px!important;}
+.student-count{min-width:24px!important;height:20px!important;padding:0 6px!important;font-size:.75rem!important;border-radius:5px!important;}
+.day-text{font-size:.78rem!important;}
+.time-text{font-size:.78rem!important;}
+.range-text{font-size:.72rem!important;}
+.muted{font-size:.75rem!important;}
+.group-link{font-size:.82rem!important;}
+.tg-link{font-size:.95rem!important;}
+.actions{gap:4px!important;}
+.btn-icon{gap:4px!important;}
+
+.davomat-badge{padding:2px 7px!important;font-size:10px!important;border-radius:10px!important;gap:3px!important;}
+.davomat-badge i{font-size:9px!important;}
+
+@media(max-width:1200px){
+  .page-header-right .btn span{display:none!important;}
+  .filter-toggle{display:flex!important;}
+  .filter-form{display:none;}.filter-form.open{display:flex!important;flex-direction:column;gap:6px!important;}
+  .data-table-wrap{display:none!important;}
+  .group-cards{display:flex!important;flex-direction:column;gap:8px!important;}
+}
+@media(min-width:1201px){
+  .group-cards{display:none!important;}
+  .data-table-wrap{display:block!important;}
+}
+@media(min-width:1201px) and (max-width:1400px){
+  .col-num,.col-tg,.col-room,.col-level,.col-day,.col-status{display:none!important;}
+}
+@media(max-width:1200px){
+  .col-num,.col-tg,.col-room,.col-level,.col-day,.col-status{display:none!important;}
+}
+
+.filter-toggle{display:none;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:.8rem;font-weight:500;color:var(--text);transition:all .15s;width:100%;}
+.filter-toggle:hover{border-color:var(--primary);}
+.filter-toggle i{color:var(--text-muted);}
+.filter-toggle .ft-count{margin-left:auto;font-size:.7rem;color:var(--text-muted);background:var(--bg);padding:2px 6px;border-radius:4px;}
+
+.group-card{background:#fff;border-radius:10px;border:1px solid var(--border);overflow:hidden;transition:box-shadow .2s;}
+.group-card:hover{box-shadow:var(--shadow-md);}
+.group-card a{display:block;padding:12px 14px;text-decoration:none;color:inherit;}
+.group-card .gc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.group-card .gc-name{font-weight:700;font-size:14px;color:var(--text);}
+.group-card .gc-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;white-space:nowrap;}
+.group-card .gc-meta{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:12px;color:var(--text-light);}
+.group-card .gc-meta span{display:flex;align-items:center;gap:3px;}
+.group-card .gc-meta i{color:var(--primary);width:12px;font-size:10px;text-align:center;}
+.group-card .gc-foot{display:flex;justify-content:space-between;align-items:center;padding:6px 14px;border-top:1px solid #f1f5f9;font-size:11px;color:var(--text-muted);}
+.group-card .gc-foot .teacher-name{color:#6366f1;font-weight:500;}
+.group-card .gc-foot .teacher-name i{margin-right:3px;}
+.group-card .gc-foot .student-count{color:var(--primary);font-weight:600;}
+
+.col-check{width:36px!important;text-align:center!important;}
+.gc-check-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;}
+.gc-check-wrap input[type="checkbox"]{position:absolute;opacity:0;width:18px;height:18px;cursor:pointer;z-index:2;margin:0;}
+.gc-check-visual{width:16px;height:16px;border-radius:4px;border:2px solid #cbd5e1;background:#fff;transition:all .15s;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.gc-check-wrap input[type="checkbox"]:checked+.gc-check-visual{background:var(--primary);border-color:var(--primary);}
+.gc-check-wrap input[type="checkbox"]:checked+.gc-check-visual::after{content:'\f00c';font-family:'Font Awesome 6 Free';font-weight:900;font-size:8px;color:#fff;}
+.gc-check-wrap:hover .gc-check-visual{border-color:var(--primary);}
+
+.gc-bulk-bar{display:none;align-items:center;gap:12px;padding:10px 16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe;border-radius:12px;margin-bottom:14px;}
+.gc-bulk-bar.show{display:flex;}
+.gc-bulk-count{font-size:.82rem;font-weight:700;color:var(--primary);white-space:nowrap;}
+.gc-bulk-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.gc-bulk-btn{height:30px;padding:0 12px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:.75rem;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:4px;}
+.gc-bulk-btn:hover{background:#f1f5f9;border-color:#cbd5e1;}
+.gc-bulk-btn i{font-size:10px;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>{{ page_title }}</h2>
+        <span class="page-header-count">{{ groups|length }} ta guruh</span>
+    </div>
+    <div class="page-header-right">
+        {% if not request.GET.status %}
+        <a href="{% url 'group_create' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> <span>Qo'shish</span></a>
+        {% endif %}
+        <a href="{% url 'group_export_excel' %}" class="btn btn-sm btn-icon" style="background:#2001ff;color:#fff;" title="Excel"><i class="fas fa-file-excel"></i> <span>Excel</span></a>
+        <a href="{% url 'group_export_csv' %}" class="btn btn-sm btn-icon" style="background:#2001ff;color:#fff;" title="CSV"><i class="fas fa-file-csv"></i> <span>CSV</span></a>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <button class="filter-toggle" onclick="var f=this.nextElementSibling;f.classList.toggle('open');var i=this.querySelector('.ft-chevron');i.classList.toggle('fa-chevron-down');i.classList.toggle('fa-chevron-up')">
+        <i class="fas fa-filter"></i> Filtrlar
+        <span class="ft-count">{{ groups|length }} ta</span>
+        <i class="fas fa-chevron-down ft-chevron"></i>
+    </button>
+    <form method="GET" class="filter-form" id="filterForm">
+        <div class="filter-group">
+            <label>O'qituvchi</label>
+            <select name="teacher" class="filter-select">
+                <option value="">Barchasi</option>
+                {% for t in teachers %}
+                <option value="{{ t.pk }}" {% if request.GET.teacher == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.first_name }} {{ t.last_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Boshlanish</label>
+            <input type="time" name="time_from" value="{{ request.GET.time_from }}" class="filter-input">
+        </div>
+        <div class="filter-group">
+            <label>Tugash</label>
+            <input type="time" name="time_to" value="{{ request.GET.time_to }}" class="filter-input">
+        </div>
+        <div class="filter-group">
+            <label>Kun</label>
+            <select name="day" class="filter-select">
+                <option value="">Barchasi</option>
+                <option value="dushanba" {% if request.GET.day == 'dushanba' %}selected{% endif %}>Du</option>
+                <option value="seshanba" {% if request.GET.day == 'seshanba' %}selected{% endif %}>Se</option>
+                <option value="chorshanba" {% if request.GET.day == 'chorshanba' %}selected{% endif %}>Chor</option>
+                <option value="payshanba" {% if request.GET.day == 'payshanba' %}selected{% endif %}>Pay</option>
+                <option value="juma" {% if request.GET.day == 'juma' %}selected{% endif %}>Ju</option>
+                <option value="shanba" {% if request.GET.day == 'shanba' %}selected{% endif %}>Sha</option>
+                <option value="yakshanba" {% if request.GET.day == 'yakshanba' %}selected{% endif %}>Ya</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Kurs</label>
+            <select name="course" class="filter-select">
+                <option value="">Barchasi</option>
+                {% for c in courses %}
+                <option value="{{ c.pk }}" {% if request.GET.course == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Daraja</label>
+            <select name="level" class="filter-select">
+                <option value="">Barchasi</option>
+                {% for l in levels %}
+                <option value="{{ l.pk }}" {% if request.GET.level == l.pk|stringformat:'s' %}selected{% endif %}>{{ l.course.name }} - {{ l.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Xona</label>
+            <select name="room" class="filter-select">
+                <option value="">Barchasi</option>
+                {% for r in rooms %}
+                <option value="{{ r.pk }}" {% if request.GET.room == r.pk|stringformat:'s' %}selected{% endif %}>{{ r.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Holat</label>
+            <select name="status" class="filter-select" onchange="this.form.submit()">
+                <option value="">Barchasi</option>
+                <option value="aktiv" {% if request.GET.status == 'aktiv' %}selected{% endif %}>Aktiv</option>
+                <option value="kutilyotgan" {% if request.GET.status == 'kutilyotgan' %}selected{% endif %}>Kutilyotgan</option>
+                <option value="arxivlangan" {% if request.GET.status == 'arxivlangan' %}selected{% endif %}>Arxiv</option>
+            </select>
+        </div>
+        <div class="filter-group" style="min-width:130px;">
+            <label>Qidiruv</label>
+            <div class="filter-search-wrap">
+                <i class="fas fa-search"></i>
+                <input type="text" name="search" value="{{ request.GET.search }}" class="filter-search" placeholder="Nomi...">
+            </div>
+        </div>
+        <div class="filter-group filter-group-actions">
+            <label>&nbsp;</label>
+            <div style="display:flex;gap:4px;">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i></button>
+                <a href="{% url 'group_list' %}{% if request.GET.status %}?status={{ request.GET.status }}{% endif %}" class="btn btn-secondary btn-sm"><i class="fas fa-times"></i></a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div id="gcBulkBar" class="gc-bulk-bar">
+    <span id="gcBulkCount" class="gc-bulk-count">0 ta tanlangan</span>
+    <div class="gc-bulk-actions">
+        <button onclick="gcBulkExport()" class="gc-bulk-btn"><i class="fas fa-file-excel"></i> Excelga eksport</button>
+        <button onclick="gcClearSelection()" class="gc-bulk-btn"><i class="fas fa-times"></i> Bekor qilish</button>
+    </div>
+</div>
+
+<div class="data-table-wrap">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="col-check"><div class="gc-check-wrap"><input type="checkbox" id="gcSelectAll" onclick="gcToggleSelectAll(this)"><div class="gc-check-visual"></div></div></th>
+                <th class="col-num">№</th>
+                <th class="col-name">Nomi</th>
+                <th class="col-course">Kurs</th>
+                <th class="col-level">Daraja</th>
+                <th class="col-day">Kun</th>
+                <th class="col-time">Vaqt</th>
+                <th class="col-range">Muddat</th>
+                <th class="col-students">O'quv.</th>
+                <th class="col-teacher">O'qituvchi</th>
+                <th class="col-room">Xona</th>
+                <th class="col-tg"><i class="fab fa-telegram"></i></th>
+                <th class="col-davomat">Davomat</th>
+                <th class="col-status">Holat</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for group in groups %}
+            <tr class="{% if group.status == 'kutilyotgan' %}row-pending{% endif %}">
+                <td class="col-check"><div class="gc-check-wrap"><input type="checkbox" class="gc-group-check" value="{{ group.pk }}" onchange="gcUpdateBulkBar()"><div class="gc-check-visual"></div></div></td>
+                <td class="col-num">{{ forloop.counter }}</td>
+                <td class="col-name">
+                    <a href="{% url 'group_detail' group.pk %}" class="group-link">{{ group.name }}</a>
+                </td>
+                <td class="col-course"><span class="course-tag">{{ group.course.name }}</span></td>
+                <td class="col-level"><span class="level-badge">{% if group.level %}{{ group.level.name }}{% else %}—{% endif %}</span></td>
+                <td class="col-day">
+                    {% with lt=group.lesson_times.all|first %}
+                        {% if lt %}<span class="day-text">{{ lt.get_days_display }}</span>{% else %}<span class="muted">-</span>{% endif %}
+                    {% endwith %}
+                </td>
+                <td class="col-time">
+                    {% with lt=group.lesson_times.all|first %}
+                        {% if lt %}<span class="time-text">{{ lt.start_time|time:"H:i" }}-{{ lt.end_time|time:"H:i" }}</span>{% else %}<span class="muted">-</span>{% endif %}
+                    {% endwith %}
+                </td>
+                <td class="col-range">
+                    {% if group.is_date_overdue or group.is_ending_soon %}
+                    <span class="range-text" style="background:#dc2626;color:#fff;padding:2px 6px;border-radius:4px;font-weight:600;">{{ group.start_date|date:"d.m" }}-{{ group.end_date|date:"d.m" }}</span>
+                    {% else %}
+                    <span class="range-text">{{ group.start_date|date:"d.m" }}-{{ group.end_date|date:"d.m" }}</span>
+                    {% endif %}
+                </td>
+                <td class="col-students">
+                    <span class="student-count">{{ group.student_count }}</span>
+                </td>
+                <td class="col-teacher">
+                    {% if group.teacher %}<span>{{ group.teacher.first_name }} {{ group.teacher.last_name }}</span>{% else %}<span class="muted">-</span>{% endif %}
+                </td>
+                <td class="col-room">
+                    {% if group.room %}<span>{{ group.room.name }}</span>{% else %}<span class="muted">-</span>{% endif %}
+                </td>
+                <td class="col-tg">
+                    {% if group.telegram_link %}<a href="{{ group.telegram_link }}" target="_blank" class="tg-link"><i class="fab fa-telegram-plane"></i></a>{% else %}<span class="muted">-</span>{% endif %}
+                </td>
+                <td class="col-davomat">
+                    {% load dict_filters %}
+                    {% with ds=today_attendance_dict|get_item:group.id %}
+                        {% if ds == "done" %}<span class="davomat-badge davomat-done"><i class="fas fa-check"></i> O'tqazildi</span>
+                        {% elif ds == "pending" %}<span class="davomat-badge davomat-pending"><i class="fas fa-clock"></i> Kutilmoqda</span>
+                        {% elif ds == "partial" %}<span class="davomat-badge davomat-partial"><i class="fas fa-half-alt"></i> Qisman</span>
+                        {% elif ds == "missed" %}<span class="davomat-badge davomat-missed"><i class="fas fa-times"></i> O'tqazilmadi</span>
+                        {% elif ds == "no_lesson" %}<span class="davomat-badge davomat-no_lesson"><i class="fas fa-minus"></i> Dars yo'q</span>
+                        {% elif ds == "expired" %}<span class="davomat-badge davomat-expired"><i class="fas fa-ban"></i> Tugagan</span>
+                        {% else %}<span class="davomat-badge davomat-no_lesson"><i class="fas fa-minus"></i> -</span>{% endif %}
+                    {% endwith %}
+                </td>
+                <td class="col-status">
+                    <span class="status-badge status-{{ group.status }}">{{ group.get_status_display }}</span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="14" class="empty">{{ page_title }} mavjud emas</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="group-cards">
+    {% for group in groups %}
+    <div class="group-card">
+        <a href="{% url 'group_detail' group.pk %}">
+            <div class="gc-top">
+                <div class="gc-name">{{ group.name }}</div>
+                <span class="gc-badge status-badge status-{{ group.status }}">{{ group.get_status_display }}</span>
+            </div>
+            <div class="gc-meta">
+                <span><i class="fas fa-book"></i> {{ group.course.name }}</span>
+                <span><i class="far fa-calendar-alt"></i>
+                    {% with lt=group.lesson_times.all|first %}{% if lt %}{{ lt.get_days_display }}{% else %}-{% endif %}{% endwith %}
+                </span>
+                <span><i class="far fa-clock"></i>
+                    {% with lt=group.lesson_times.all|first %}{% if lt %}{{ lt.start_time|time:"H:i" }}-{{ lt.end_time|time:"H:i" }}{% else %}-{% endif %}{% endwith %}
+                </span>
+                <span><i class="fas fa-layer-group"></i> {% if group.level %}{{ group.level.name }}{% else %}—{% endif %}</span>
+                <span><i class="far fa-calendar-check"></i> {{ group.start_date|date:"d.m" }}-{{ group.end_date|date:"d.m" }}</span>
+                <span><i class="fas fa-door-open"></i> {{ group.room.name|default:"-" }}</span>
+                {% load dict_filters %}
+                {% with ds=today_attendance_dict|get_item:group.id %}
+                    {% if ds == "done" %}<span class="davomat-badge davomat-done" style="display:inline-flex!important;"><i class="fas fa-check"></i> O'tqazildi</span>
+                    {% elif ds == "pending" %}<span class="davomat-badge davomat-pending" style="display:inline-flex!important;"><i class="fas fa-clock"></i> Kutilmoqda</span>
+                    {% elif ds == "partial" %}<span class="davomat-badge davomat-partial" style="display:inline-flex!important;"><i class="fas fa-half-alt"></i> Qisman</span>
+                    {% elif ds == "missed" %}<span class="davomat-badge davomat-missed" style="display:inline-flex!important;"><i class="fas fa-times"></i> O'tqazilmadi</span>
+                    {% elif ds == "no_lesson" %}<span class="davomat-badge davomat-no_lesson" style="display:inline-flex!important;"><i class="fas fa-minus"></i> Dars yo'q</span>
+                    {% elif ds == "expired" %}<span class="davomat-badge davomat-expired" style="display:inline-flex!important;"><i class="fas fa-ban"></i> Tugagan</span>
+                    {% endif %}
+                {% endwith %}
+            </div>
+        </a>
+        <div class="gc-foot">
+            <span class="student-count"><i class="fas fa-user-graduate"></i> {{ group.student_count }}</span>
+            {% if group.teacher %}<span class="teacher-name"><i class="fas fa-chalkboard-teacher"></i> {{ group.teacher.first_name }} {{ group.teacher.last_name }}</span>{% endif %}
+            {% if group.telegram_link %}<a href="{{ group.telegram_link }}" target="_blank" style="color:#0088cc;"><i class="fab fa-telegram-plane"></i></a>{% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align:center;padding:40px 20px;color:var(--text-light);">
+        <i class="fas fa-folder-open" style="font-size:2.5rem;opacity:.2;color:var(--primary);display:block;margin-bottom:8px;"></i>
+        <p style="font-size:.85rem;">{{ page_title }} mavjud emas</p>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+function gcToggleSelectAll(el) {
+    document.querySelectorAll('.gc-group-check').forEach(function(cb) { cb.checked = el.checked; });
+    gcUpdateBulkBar();
+}
+function gcUpdateBulkBar() {
+    var checked = document.querySelectorAll('.gc-group-check:checked');
+    var count = checked.length;
+    var bar = document.getElementById('gcBulkBar');
+    var countEl = document.getElementById('gcBulkCount');
+    if (count > 0) {
+        bar.classList.add('show');
+        countEl.textContent = count + ' ta tanlangan';
+    } else {
+        bar.classList.remove('show');
+    }
+    var selectAll = document.getElementById('gcSelectAll');
+    var allBoxes = document.querySelectorAll('.gc-group-check');
+    selectAll.checked = allBoxes.length > 0 && count === allBoxes.length;
+}
+function gcClearSelection() {
+    document.querySelectorAll('.gc-group-check').forEach(function(cb) { cb.checked = false; });
+    document.getElementById('gcSelectAll').checked = false;
+    gcUpdateBulkBar();
+}
+function gcBulkExport() {
+    var ids = [];
+    document.querySelectorAll('.gc-group-check:checked').forEach(function(cb) { ids.push(cb.value); });
+    if (ids.length === 0) return;
+    window.location.href = '{% url "group_export_excel" %}?ids=' + ids.join(',');
+}
+</script>
+{% endblock %}

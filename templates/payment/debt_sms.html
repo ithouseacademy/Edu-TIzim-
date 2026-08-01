@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+{% block title %}Qarzorlarga SMS | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+.sms-tabs{display:flex;gap:0;margin-bottom:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.sms-tab{flex:1;padding:14px 20px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:0.88rem;font-weight:600;color:var(--text-muted);cursor:pointer;transition:all .15s;border:none;background:none;border-bottom:2px solid transparent;}
+.sms-tab:hover{color:var(--text);background:#f8fafc;}
+.sms-tab.active{color:var(--primary);border-bottom-color:var(--primary);background:#f0f5ff;}
+.sms-tab i{font-size:1rem;}
+
+.debt-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
+.debt-stats{display:flex;gap:12px;flex-wrap:wrap;}
+.debt-stat{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.82rem;}
+.debt-stat .num{font-weight:700;font-size:1.1rem;}
+.debt-stat.danger .num{color:var(--danger);}
+.debt-stat.warn .num{color:var(--primary);}
+
+.shared-table{width:100%;border-collapse:collapse;}
+.shared-table th{text-align:left;padding:10px 14px;font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;background:#fafbfc;border-bottom:1.5px solid var(--border);}
+.shared-table td{padding:10px 14px;font-size:0.85rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+.shared-table tr:hover{background:#f8fafc;}
+
+.debt-amount{font-weight:700;color:var(--danger);white-space:nowrap;}
+.debt-phone{color:var(--text-light);font-size:0.82rem;}
+.debt-parent{font-size:0.78rem;color:var(--text-muted);}
+.debt-parent strong{color:var(--text-light);font-weight:600;}
+.debt-empty{text-align:center;padding:60px 20px;color:var(--text-muted);}
+.debt-empty i{font-size:3rem;margin-bottom:12px;display:block;color:var(--success);}
+
+.send-sms-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;font-size:13px;border-radius:8px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;color:#fff;cursor:pointer;font-weight:600;transition:all .2s;box-shadow:0 2px 8px rgba(37,99,235,0.3);}
+.send-sms-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,99,235,0.4);}
+.send-sms-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none;box-shadow:none;}
+
+.avatar-sm{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.7rem;color:#fff;flex-shrink:0;}
+.avatar-sm.red{background:#ef4444;}
+.name-cell{display:flex;align-items:center;gap:10px;}
+
+.history-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;}
+.history-badge.sent{background:#d1fae5;color:#065f46;}
+.history-badge.error{background:#fee2e2;color:#991b1b;}
+.history-badge.skipped{background:#f3f4f6;color:#6b7280;}
+.history-empty{text-align:center;padding:40px 20px;color:var(--text-muted);}
+.history-empty i{font-size:2rem;margin-bottom:8px;display:block;color:var(--text-muted);}
+
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.filter-bar select,.filter-bar input{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;background:#fff;color:var(--text);transition:border-color .15s;}
+.filter-bar select:focus,.filter-bar input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,0.08);}
+.filter-bar .filter-btn{padding:8px 16px;border:none;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all .15s;}
+.filter-btn-primary{background:var(--primary);color:#fff;}
+.filter-btn-primary:hover{background:var(--primary-dark);}
+.filter-btn-reset{background:var(--border);color:var(--text-light);}
+.filter-btn-reset:hover{background:#d1d5db;}
+
+.sms-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9998;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
+.sms-overlay.show{display:flex;}
+.sms-modal{background:#fff;border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;animation:smsModalIn .25s ease;}
+@keyframes smsModalIn{from{transform:scale(0.9);opacity:0;}to{transform:scale(1);opacity:1;}}
+.sms-modal-icon{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:1.6rem;}
+.sms-modal-icon.confirm{background:#dbeafe;color:#2563eb;}
+.sms-modal-icon.loading{background:#dbeafe;color:#2563eb;}
+.sms-modal-icon.success{background:#d1fae5;color:#059669;}
+.sms-modal-icon.error{background:#fee2e2;color:#dc2626;}
+.sms-modal h3{font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--text);}
+.sms-modal p{font-size:0.88rem;color:var(--text-light);margin-bottom:20px;line-height:1.5;}
+.sms-modal-btns{display:flex;gap:10px;justify-content:center;}
+.sms-modal-btns .btn{padding:10px 24px;font-size:0.85rem;border-radius:8px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.sms-btn-cancel{background:var(--border);color:var(--text-light);}
+.sms-btn-cancel:hover{background:#d1d5db;}
+.sms-btn-confirm{background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,0.3);}
+.sms-btn-confirm:hover{box-shadow:0 4px 12px rgba(37,99,235,0.4);}
+.sms-spinner{display:inline-block;width:40px;height:40px;border:4px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;animation:smsSpin .8s linear infinite;margin-bottom:16px;}
+@keyframes smsSpin{to{transform:rotate(360deg);}}
+
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2><i class="fas fa-sms" style="color:var(--primary);"></i> Qarzorlarga SMS yuborish</h2>
+  </div>
+</div>
+
+<div class="sms-tabs">
+  <button class="sms-tab {% if active_tab != 'history' %}active{% endif %}" onclick="switchTab('debtors')">
+    <i class="fas fa-paper-plane"></i> SMS yuborish
+  </button>
+  <button class="sms-tab {% if active_tab == 'history' %}active{% endif %}" onclick="switchTab('history')">
+    <i class="fas fa-history"></i> SMS tarixi
+  </button>
+</div>
+
+<div class="sms-overlay" id="smsOverlay">
+  <div class="sms-modal" id="smsModal"></div>
+</div>
+
+<div class="tab-panel {% if active_tab != 'history' %}active{% endif %}" id="tab-debtors">
+  <form class="filter-bar" method="get">
+    <input type="hidden" name="tab" value="debtors">
+    <select name="phone">
+      <option value="">Barchasi</option>
+      <option value="bor" {% if filter_phone == 'bor' %}selected{% endif %}>Nomer bor</option>
+      <option value="yoq" {% if filter_phone == 'yoq' %}selected{% endif %}>Nomer yo'q</option>
+    </select>
+    <button type="submit" class="filter-btn filter-btn-primary"><i class="fas fa-search"></i> Qidirish</button>
+    <a href="{% url 'debt_sms_page' %}" class="filter-btn filter-btn-reset"><i class="fas fa-times"></i> Tozalash</a>
+  </form>
+
+  <div class="debt-header">
+    <div class="debt-stats">
+      <div class="debt-stat danger">
+        <i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i>
+        <div>
+          <div class="num">{{ debtors|length }}</div>
+          <div style="color:var(--text-muted);font-size:0.72rem;">Jami qarzdorlar</div>
+        </div>
+      </div>
+      <div class="debt-stat warn">
+        <i class="fas fa-sms" style="color:var(--primary);"></i>
+        <div>
+          <div class="num">{{ debtors|length }}</div>
+          <div style="color:var(--text-muted);font-size:0.72rem;">SMS yuborish mumkin</div>
+        </div>
+      </div>
+    </div>
+    {% if user.is_superuser %}
+    <div>
+      <button class="send-sms-btn" id="sendAllSmsBtn" onclick="sendAllDebtSms()">
+        <i class="fas fa-paper-plane"></i> Barchaga SMS yuborish
+      </button>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:0;">
+      <div style="overflow-x:auto;">
+        <table class="shared-table">
+          <thead>
+            <tr>
+              <th style="width:40px;">#</th>
+              <th>O'quvchi</th>
+              <th>Guruh</th>
+              <th>Telefon</th>
+              <th>Ota/Ona telefon</th>
+              <th style="text-align:right;">Qarz</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in debtors %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>
+                <div class="name-cell">
+                  <div class="avatar-sm red">{{ d.first_name|first|upper }}{{ d.last_name|first|upper }}</div>
+                  <div>
+                    <div style="font-weight:600;">{{ d.first_name }} {{ d.last_name }}</div>
+                    {% if d.father_name or d.mother_name %}
+                    <div class="debt-parent">
+                      {% if d.father_name %}<strong>Ota:</strong> {{ d.father_name }}{% endif %}
+                      {% if d.father_name and d.mother_name %} / {% endif %}
+                      {% if d.mother_name %}<strong>Ona:</strong> {{ d.mother_name }}{% endif %}
+                    </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+              <td><span style="font-size:0.8rem;color:var(--text-light);">{{ d.group_name }}</span></td>
+              <td><span class="debt-phone">+998 {{ d.phone }}</span></td>
+              <td>
+                {% if d.father_phone %}<span class="debt-phone"><i class="fas fa-phone" style="font-size:0.7rem;margin-right:3px;"></i>{{ d.father_phone }}</span>{% endif %}
+                {% if d.father_phone and d.mother_phone %}<br>{% endif %}
+                {% if d.mother_phone %}<span class="debt-phone"><i class="fas fa-phone" style="font-size:0.7rem;margin-right:3px;"></i>{{ d.mother_phone }}</span>{% endif %}
+                {% if not d.father_phone and not d.mother_phone %}<span style="color:var(--text-muted);font-size:0.78rem;">-</span>{% endif %}
+              </td>
+              <td style="text-align:right;"><span class="debt-amount">{{ d.balance|floatformat:"0"|intcomma }} so'm</span></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6">
+                <div class="debt-empty">
+                  <i class="fas fa-check-circle"></i>
+                  <div style="font-size:1rem;font-weight:600;margin-bottom:4px;">Qarzdorlar yo'q</div>
+                  <div style="font-size:0.85rem;">Barcha o'quvchilarning balansi musbat yoki nol</div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-panel {% if active_tab == 'history' %}active{% endif %}" id="tab-history">
+  <form class="filter-bar" method="get" id="historyFilterForm">
+    <input type="hidden" name="tab" value="history">
+    <select name="status">
+      <option value="">Barcha holatlar</option>
+      <option value="yuborildi" {% if filter_status == 'yuborildi' %}selected{% endif %}>Yuborildi</option>
+      <option value="xatolik" {% if filter_status == 'xatolik' %}selected{% endif %}>Xatolik</option>
+      <option value="otkazildi" {% if filter_status == 'otkazildi' %}selected{% endif %}>O'tkazildi</option>
+    </select>
+    <input type="date" name="date_from" value="{{ filter_date_from }}" placeholder="Dan">
+    <input type="date" name="date_to" value="{{ filter_date_to }}" placeholder="Gacha">
+    <input type="text" name="search" value="{{ filter_search }}" placeholder="Qidirish..." style="min-width:180px;">
+    <button type="submit" class="filter-btn filter-btn-primary"><i class="fas fa-search"></i> Qidirish</button>
+    <a href="{% url 'debt_sms_page' %}?tab=history" class="filter-btn filter-btn-reset"><i class="fas fa-times"></i> Tozalash</a>
+  </form>
+  <div class="card">
+    <div class="card-body" style="padding:0;">
+      <div style="overflow-x:auto;">
+        <table class="shared-table">
+          <thead>
+            <tr>
+              <th style="width:40px;">#</th>
+              <th>O'quvchi</th>
+              <th>Qabul qiluvchi</th>
+              <th>Telefon</th>
+              <th>Xabar</th>
+              <th>Holat</th>
+              <th>Sana</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in sms_history %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td style="font-weight:600;">{{ h.student_name }}</td>
+              <td>{{ h.recipient_name }}</td>
+              <td><span class="debt-phone">{{ h.recipient_phone }}</span></td>
+              <td style="max-width:280px;"><span style="font-size:0.78rem;color:var(--text-light);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ h.message }}</span></td>
+              <td>
+                {% if h.status == 'yuborildi' %}
+                  <span class="history-badge sent"><i class="fas fa-check" style="margin-right:3px;"></i>Yuborildi</span>
+                {% elif h.status == 'xatolik' %}
+                  <span class="history-badge error"><i class="fas fa-times" style="margin-right:3px;"></i>Xatolik</span>
+                {% else %}
+                  <span class="history-badge skipped"><i class="fas fa-ban" style="margin-right:3px;"></i>O'tkazildi</span>
+                {% endif %}
+              </td>
+              <td><span style="font-size:0.78rem;color:var(--text-muted);white-space:nowrap;">{{ h.created_at|date:"d.m.Y H:i" }}</span></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7">
+                <div class="history-empty">
+                  <i class="fas fa-inbox"></i>
+                  <div>Hali SMS yuborilmagan</div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCookie(n){var v=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return v?v.pop():'';}
+
+function switchTab(tab){
+  document.querySelectorAll('.sms-tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+  if(tab==='debtors'){
+    document.querySelectorAll('.sms-tab')[0].classList.add('active');
+    document.getElementById('tab-debtors').classList.add('active');
+  } else {
+    document.querySelectorAll('.sms-tab')[1].classList.add('active');
+    document.getElementById('tab-history').classList.add('active');
+  }
+  history.replaceState(null,null,'#'+tab);
+}
+
+window.addEventListener('load',function(){
+  var hash=location.hash.replace('#','');
+  var params=new URLSearchParams(location.search);
+  var tab=params.get('tab')||hash;
+  if(tab==='history'){switchTab('history');}
+});
+
+function showModal(html){
+  var overlay=document.getElementById('smsOverlay');
+  var modal=document.getElementById('smsModal');
+  modal.innerHTML=html;
+  overlay.classList.add('show');
+}
+function hideModal(){
+  document.getElementById('smsOverlay').classList.remove('show');
+}
+
+function showConfirm(){
+  var count={{ debtors|length }};
+  if(count===0){
+    showModal(
+      '<div class="sms-modal-icon confirm"><i class="fas fa-info-circle"></i></div>'+
+      '<h3>Qarzdorlar yo\'q</h3>'+
+      '<p>Barcha o\'quvchilarning balansi musbat yoki nol.</p>'+
+      '<div class="sms-modal-btns"><button class="btn sms-btn-cancel" onclick="hideModal()">Yopish</button></div>'
+    );
+    return;
+  }
+  showModal(
+    '<div class="sms-modal-icon confirm"><i class="fas fa-sms"></i></div>'+
+    '<h3>SMS yuborishni tasdiqlaysizmi?</h3>'+
+    '<p>Barcha <strong>'+count+'</strong> ta qarzdor o\'quvchilarning ota-onalariga SMS yuborilsinmi?</p>'+
+    '<div class="sms-modal-btns">'+
+      '<button class="btn sms-btn-cancel" onclick="hideModal()">Bekor qilish</button>'+
+      '<button class="btn sms-btn-confirm" onclick="startSendSms()">Ha, yuborish</button>'+
+    '</div>'
+  );
+}
+
+function showLoading(){
+  showModal(
+    '<div class="sms-spinner"></div>'+
+    '<h3>Yuborilmoqda...</h3>'+
+    '<p>SMS xabarlari yuborilmoqda, iltimos kuting.</p>'
+  );
+}
+
+function showResult(success, msg){
+  var iconClass=success?'success':'error';
+  var iconName=success?'fa-check-circle':'fa-exclamation-circle';
+  showModal(
+    '<div class="sms-modal-icon '+iconClass+'"><i class="fas '+iconName+'"></i></div>'+
+    '<h3>'+(success?'Muvaffaqiyatli!':'Xatolik!')+'</h3>'+
+    '<p>'+msg+'</p>'+
+    '<div class="sms-modal-btns"><button class="btn sms-btn-confirm" onclick="hideModal();location.reload();">OK</button></div>'
+  );
+}
+
+function startSendSms(){
+  showLoading();
+  fetch('{% url "send_debt_reminders_to_all" %}',{
+    method:'POST',
+    headers:{'X-CSRFToken':getCookie('csrftoken'),'Content-Type':'application/json'}
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.success){showResult(true,d.message);}
+    else{showResult(false,d.error||'Xatolik yuz berdi');}
+  })
+  .catch(function(e){
+    showResult(false,'Xatolik: '+(e.message||'Server bilan bog\'lanib bo\'lmadi'));
+  });
+}
+
+function sendAllDebtSms(){showConfirm();}
+</script>
+{% endblock %}

@@ -1,0 +1,667 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Chek sozlamalari | Edu Tizim{% endblock %}
+{% block extra_css %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --rs-primary: {{ settings.accent_color|default:"#2001FF" }};
+  }
+  .rs-body { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 1200px) { .rs-body { grid-template-columns: 1fr; } }
+  .rs-form { min-width: 0; }
+  .rs-card { background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }
+  .rs-card-header { padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
+  .rs-card-header i { color: var(--rs-primary); font-size: 18px; }
+  .rs-card-header h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
+  .rs-card-body { padding: 20px 24px; }
+  .rs-field { margin-bottom: 16px; }
+  .rs-field:last-child { margin-bottom: 0; }
+  .rs-field label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+  .rs-field .help { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .rs-input { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 13px; outline: none; transition: all .15s; background: #fff; color: #0f172a; }
+  .rs-input:focus { border-color: var(--rs-primary); box-shadow: 0 0 0 3px rgba(32,1,255,0.1); }
+  .rs-textarea { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 13px; outline: none; transition: all .15s; background: #fff; color: #0f172a; resize: vertical; min-height: 80px; font-family: inherit; }
+  .rs-textarea:focus { border-color: var(--rs-primary); box-shadow: 0 0 0 3px rgba(32,1,255,0.1); }
+  .rs-color-wrap { display: flex; align-items: center; gap: 10px; }
+  .rs-color-wrap input[type="color"] { width: 44px; height: 44px; padding: 3px; border-radius: 10px; border: 1.5px solid #e2e8f0; cursor: pointer; background: none; }
+  .rs-color-wrap input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .rs-color-wrap input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
+  .rs-color-wrap .rs-input { flex: 1; }
+  .rs-check-wrap { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 10px; border: 1.5px solid #e2e8f0; cursor: pointer; transition: all .15s; }
+  .rs-check-wrap:hover { border-color: var(--rs-primary); background: #f8f7ff; }
+  .rs-check-wrap input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--rs-primary); }
+  .rs-check-wrap .label-text { font-size: 13px; font-weight: 600; color: #0f172a; }
+  .rs-check-wrap .help { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+  .rs-logo-upload { border: 2px dashed #e2e8f0; border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; transition: all .2s; }
+  .rs-logo-upload:hover { border-color: var(--rs-primary); background: #f8f7ff; }
+  .rs-logo-upload.drag-over { border-color: var(--rs-primary); background: #eff6ff; }
+  .rs-logo-upload i { font-size: 32px; color: #94a3b8; margin-bottom: 8px; }
+  .rs-logo-upload p { font-size: 13px; color: #64748b; }
+  .rs-logo-preview { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #f8fafc; border-radius: 10px; margin-top: 12px; }
+  .rs-logo-preview img { max-height: 60px; max-width: 120px; border-radius: 8px; }
+  .rs-logo-preview .info { flex: 1; }
+  .rs-logo-preview .info .name { font-size: 13px; font-weight: 600; color: #0f172a; }
+  .rs-logo-preview .info .size { font-size: 11px; color: #94a3b8; }
+  .rs-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }
+  .rs-btn-primary { background: var(--rs-primary); color: white; }
+  .rs-btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(32,1,255,0.25); }
+  .rs-btn-secondary { background: #f1f5f9; color: #374151; }
+  .rs-btn-secondary:hover { background: #e2e8f0; }
+  .rs-btn-danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  .rs-btn-danger:hover { background: #fee2e2; }
+  .rs-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+  /* Live Preview */
+  .rs-preview-wrap { position: sticky; top: 20px; }
+  .rs-preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .rs-preview-header h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .rs-preview-header h3 i { color: var(--rs-primary); }
+  .rs-preview-tools { display: flex; gap: 6px; }
+  .rs-preview-tools button { padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; font-size: 12px; color: #64748b; transition: all .15s; }
+  .rs-preview-tools button:hover { border-color: var(--rs-primary); color: var(--rs-primary); }
+  .rs-preview-tools button.active { background: var(--rs-primary); color: white; border-color: var(--rs-primary); }
+
+  .rs-receipt {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+    overflow: hidden;
+    transition: all .3s;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+  }
+  .rs-receipt.dark-mode { background: #1e1e2e; color: #e0e0e0; }
+  .rs-receipt.dark-mode .rc-divider { border-color: #3a3a4e; }
+  .rs-receipt.dark-mode .rc-section-title { color: #a0a0b8; }
+  .rs-receipt.dark-mode .rc-label { color: #8888a0; }
+
+  .rs-receipt-inner { padding: 32px; }
+  @media (max-width: 600px) { .rs-receipt-inner { padding: 20px; } }
+  .rs-receipt.compact .rs-receipt-inner { padding: 20px; }
+  .rs-receipt.compact { font-size: 12px; }
+
+  .rc-logo-wrap { text-align: center; margin-bottom: 12px; }
+  .rc-logo-wrap img { max-height: 64px; max-width: 180px; border-radius: 8px; }
+  .rc-academy { text-align: center; margin-bottom: 4px; }
+  .rc-academy .name { font-size: 20px; font-weight: 900; letter-spacing: 1px; color: #0f172a; }
+  .rs-receipt.dark-mode .rc-academy .name { color: #e0e0e0; }
+  .rc-academy .tagline { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--rs-primary); margin-top: 2px; }
+  .rc-receipt-no { text-align: center; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 8px; letter-spacing: 0.3px; }
+  .rs-receipt.dark-mode .rc-receipt-no { color: #8888a0; }
+  .rc-title { text-align: center; font-size: 13px; font-weight: 800; color: var(--rs-primary); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+  .rc-divider { border: none; border-top: 1.5px dashed #e2e8f0; margin: 12px 0; }
+  .rc-divider.solid { border-top-style: solid; border-color: var(--rs-primary); border-width: 2px; }
+  .rc-section-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .rc-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+  .rc-row .rc-label { color: #64748b; font-weight: 500; }
+  .rc-row .rc-value { font-weight: 600; color: #0f172a; text-align: right; }
+  .rs-receipt.dark-mode .rc-row .rc-value { color: #e0e0e0; }
+  .rc-amount-box { text-align: center; padding: 12px 0; }
+  .rc-amount-box .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+  .rc-amount-box .value { font-size: 28px; font-weight: 900; color: var(--rs-primary); letter-spacing: 0.5px; margin-top: 4px; }
+  .rc-balance { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 4px 0; }
+  .rc-balance .lbl { color: #64748b; }
+  .rc-balance .val { color: #0f172a; }
+  .rs-receipt.dark-mode .rc-balance .val { color: #e0e0e0; }
+  .rc-message { text-align: center; padding: 8px 0; }
+  .rc-message .main { font-weight: 800; font-size: 12px; color: #0f172a; }
+  .rs-receipt.dark-mode .rc-message .main { color: #e0e0e0; }
+  .rc-message .sub { font-size: 10px; color: #64748b; margin-top: 2px; }
+  .rc-footer { text-align: center; font-size: 11px; font-weight: 500; color: #94a3b8; margin-top: 8px; }
+  .rc-thanks { text-align: center; font-size: 13px; font-weight: 700; color: var(--rs-primary); margin: 8px 0; }
+  .rc-notes { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 4px; }
+  .rc-contact { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; font-size: 10px; color: #64748b; margin-top: 8px; }
+  .rc-contact a { color: var(--rs-primary); text-decoration: none; }
+  .rc-contact a:hover { text-decoration: underline; }
+  .rc-contact i { margin-right: 3px; }
+  .rc-qr-wrap { text-align: center; margin-top: 12px; }
+  .rc-qr-wrap #qrcode { display: inline-block; padding: 8px; background: white; border-radius: 8px; }
+
+  .rs-tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+  .rs-tab { padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; font-size: 12px; font-weight: 600; color: #64748b; transition: all .15s; }
+  .rs-tab:hover { border-color: var(--rs-primary); color: var(--rs-primary); }
+  .rs-tab.active { background: var(--rs-primary); color: white; border-color: var(--rs-primary); }
+  .rs-section { display: none; }
+  .rs-section.active { display: block; animation: fadeIn .2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .rs-toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; color: white; background: #10b981; box-shadow: 0 4px 20px rgba(16,185,129,0.3); z-index: 9999; opacity: 0; transform: translateY(20px); transition: all .3s; }
+  .rs-toast.show { opacity: 1; transform: translateY(0); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rs-body" x-data="{ tab: 'branding', darkMode: false, compact: false }">
+  <div class="rs-form">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <h2 style="font-size:20px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:10px;margin:0;">
+        <i class="fas fa-receipt" style="color:var(--rs-primary)"></i>
+        Chek sozlamalari
+      </h2>
+    </div>
+
+    {% if messages %}
+      {% for msg in messages %}
+        <div style="padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;
+          {% if msg.tags == 'success' %}background:#dcfce7;color:#166534;{% else %}background:#fef2f2;color:#dc2626;{% endif %}">
+          <i class="fas {% if msg.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+          {{ msg }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="rs-tabs">
+      <button class="rs-tab active" data-tab="branding"><i class="fas fa-palette"></i> Branding</button>
+      <button class="rs-tab" data-tab="receipt"><i class="fas fa-receipt"></i> Chek</button>
+      <button class="rs-tab" data-tab="print"><i class="fas fa-print"></i> Chop etish</button>
+      <button class="rs-tab" data-tab="contact"><i class="fas fa-address-card"></i> Kontakt</button>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="receiptSettingsForm">
+      {% csrf_token %}
+
+      <div class="rs-section active" id="section-branding">
+        <div class="rs-card">
+          <div class="rs-card-header">
+            <i class="fas fa-image"></i>
+            <h3>Logo</h3>
+          </div>
+          <div class="rs-card-body">
+            <div class="rs-logo-upload" id="logoDropZone" onclick="document.getElementById('logoInput').click()">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <p>Logoni yuklash uchun bosing yoki sudrab tashlang</p>
+              <p style="font-size:11px;color:#94a3b8;margin-top:4px;">PNG, JPG, SVG. Maksimal 2MB</p>
+              <input type="file" id="logoInput" name="logo" accept="image/*" style="display:none" onchange="previewLogo(this)">
+            </div>
+            {% if settings.logo %}
+            <div class="rs-logo-preview" id="logoPreview">
+              <img src="{{ settings.logo.url }}" alt="Logo">
+              <div class="info">
+                <div class="name">Hozirgi logo</div>
+              </div>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid #fecaca;background:#fef2f2;color:#dc2626;font-size:12px;font-weight:600;">
+                <input type="checkbox" name="remove_logo" value="1" onchange="this.closest('label').style.opacity=this.checked?'0.6':'1'">
+                O'chirish
+              </label>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="rs-card">
+          <div class="rs-card-header">
+            <i class="fas fa-building-columns"></i>
+            <h3>Markaz ma'lumotlari</h3>
+          </div>
+          <div class="rs-card-body">
+            <div class="rs-field">
+              <label>Markaz nomi</label>
+              <input type="text" name="academy_name" class="rs-input" value="{{ settings.academy_name }}" oninput="updatePreview()">
+            </div>
+            <div class="rs-field">
+              <label>Tagline</label>
+              <input type="text" name="tagline" class="rs-input" value="{{ settings.tagline }}" oninput="updatePreview()">
+              <div class="help">Logo ostida ko'rinadigan qisqa matn</div>
+            </div>
+            <div class="rs-field">
+              <label>Asosiy rang</label>
+              <div class="rs-color-wrap">
+                <input type="color" name="accent_color" value="{{ settings.accent_color }}" oninput="updateAccentColor(this.value)">
+                <input type="text" class="rs-input" value="{{ settings.accent_color }}" oninput="updateAccentColor(this.value)" style="font-family:monospace">
+              </div>
+              <div class="help">Chek dizaynidagi asosiy rang (#2001FF)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rs-section" id="section-receipt">
+        <div class="rs-card">
+          <div class="rs-card-header">
+            <i class="fas fa-pen"></i>
+            <h3>Chek matnlari</h3>
+          </div>
+          <div class="rs-card-body">
+            <div class="rs-field">
+              <label>Chek sarlavhasi</label>
+              <input type="text" name="receipt_title" class="rs-input" value="{{ settings.receipt_title }}" oninput="updatePreview()">
+            </div>
+            <div class="rs-field">
+              <label>Chek prefiksi</label>
+              <input type="text" name="receipt_prefix" class="rs-input" value="{{ settings.receipt_prefix }}" oninput="updatePreview()">
+              <div class="help">Masalan: "Chek #", "ITH-", "PAY-", "TRX-"</div>
+            </div>
+            <div class="rs-field">
+              <label>Chek formati</label>
+              <input type="text" name="receipt_format" class="rs-input" value="{{ settings.receipt_format }}" oninput="updatePreview()">
+              <div class="help">Masalan: "000000" yoki "000" (0 raqam bilan almashtiriladi)</div>
+            </div>
+            <div class="rs-field">
+              <label>Footer matni</label>
+              <textarea name="footer_text" class="rs-textarea" rows="3" oninput="updatePreview()">{{ settings.footer_text }}</textarea>
+            </div>
+            <div class="rs-field">
+              <label>Rahmat yozuvi</label>
+              <input type="text" name="thank_you_text" class="rs-input" value="{{ settings.thank_you_text }}" oninput="updatePreview()">
+            </div>
+            <div class="rs-field">
+              <label>To'lov matni</label>
+              <input type="text" name="payment_text" class="rs-input" value="{{ settings.payment_text }}" oninput="updatePreview()">
+              <div class="help">Summa ustidagi matn (masalan: "To'lov summasi")</div>
+            </div>
+            <div class="rs-field">
+              <label>Xabar matni</label>
+              <textarea name="message_text" class="rs-textarea" rows="2" oninput="updatePreview()">{{ settings.message_text|default:"" }}</textarea>
+              <div class="help">Chek o'rtasidagi maxsus xabar (ixtiyoriy)</div>
+            </div>
+            <div class="rs-field">
+              <label>Qo'shimcha izoh</label>
+              <textarea name="extra_notes" class="rs-textarea" rows="3" oninput="updatePreview()">{{ settings.extra_notes|default:"" }}</textarea>
+              <div class="help">Chek pastki qismidagi qo'shimcha matn</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rs-section" id="section-print">
+        <div class="rs-card">
+          <div class="rs-card-header">
+            <i class="fas fa-print"></i>
+            <h3>Chop etish sozlamalari</h3>
+          </div>
+          <div class="rs-card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div class="rs-field">
+                <label><i class="fas fa-arrows-alt-h" style="margin-right:4px;color:var(--rs-primary)"></i> Qog'oz eni</label>
+                <input type="text" name="paper_width" class="rs-input" value="{{ settings.paper_width }}" placeholder="58mm" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label><i class="fas fa-arrows-alt-v" style="margin-right:4px;color:var(--rs-primary)"></i> Qog'oz bo'yi</label>
+                <input type="text" name="paper_height" class="rs-input" value="{{ settings.paper_height }}" placeholder="210mm" oninput="updatePreview()">
+              </div>
+            </div>
+            <div class="rs-field">
+              <label><i class="fas fa-border-all" style="margin-right:4px;color:var(--rs-primary)"></i> Chek ichki cheti</label>
+              <input type="text" name="paper_padding" class="rs-input" value="{{ settings.paper_padding }}" placeholder="2mm" oninput="updatePreview()">
+              <div class="help">Masalan: 2mm, 3mm, 4mm</div>
+            </div>
+            <div style="margin-top:16px;font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;"><i class="fas fa-font"></i> Shrift o'lchamlari</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div class="rs-field">
+                <label>Markaz nomi</label>
+                <input type="text" name="font_name" class="rs-input" value="{{ settings.font_name }}" placeholder="18px" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label>Tagline</label>
+                <input type="text" name="font_tagline" class="rs-input" value="{{ settings.font_tagline }}" placeholder="11px" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label>Sarlavha</label>
+                <input type="text" name="font_title" class="rs-input" value="{{ settings.font_title }}" placeholder="14px" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label>Qator</label>
+                <input type="text" name="font_row" class="rs-input" value="{{ settings.font_row }}" placeholder="10px" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label>To'lov yozuvi</label>
+                <input type="text" name="font_amount_label" class="rs-input" value="{{ settings.font_amount_label }}" placeholder="10px" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label>Summa</label>
+                <input type="text" name="font_amount" class="rs-input" value="{{ settings.font_amount }}" placeholder="22px" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label>Balans</label>
+                <input type="text" name="font_balance" class="rs-input" value="{{ settings.font_balance }}" placeholder="10px" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label>Rahmat</label>
+                <input type="text" name="font_thanks" class="rs-input" value="{{ settings.font_thanks }}" placeholder="14px" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label>Footer</label>
+                <input type="text" name="font_footer" class="rs-input" value="{{ settings.font_footer }}" placeholder="10px" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label>Kontakt</label>
+                <input type="text" name="font_contact" class="rs-input" value="{{ settings.font_contact }}" placeholder="9px" oninput="updatePreview()">
+              </div>
+              <div class="rs-field">
+                <label>Izoh</label>
+                <input type="text" name="font_notes" class="rs-input" value="{{ settings.font_notes }}" placeholder="10px" oninput="updatePreview()">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rs-section" id="section-contact">
+        <div class="rs-card">
+          <div class="rs-card-header">
+            <i class="fas fa-address-card"></i>
+            <h3>Kontakt ma'lumotlari</h3>
+          </div>
+          <div class="rs-card-body">
+            <div class="rs-field">
+              <label><i class="fab fa-telegram-plane" style="margin-right:4px;color:var(--rs-primary)"></i> Telegram</label>
+              <input type="text" name="telegram" class="rs-input" value="{{ settings.telegram }}" placeholder="@username" oninput="updatePreview()">
+            </div>
+            <div class="rs-field">
+              <label><i class="fab fa-instagram" style="margin-right:4px;color:var(--rs-primary)"></i> Instagram</label>
+              <input type="text" name="instagram" class="rs-input" value="{{ settings.instagram }}" placeholder="@username" oninput="updatePreview()">
+            </div>
+            <div class="rs-field">
+              <label><i class="fas fa-globe" style="margin-right:4px;color:var(--rs-primary)"></i> Website</label>
+              <input type="url" name="website" class="rs-input" value="{{ settings.website }}" placeholder="https://example.com" oninput="updatePreview()">
+            </div>
+            <div class="rs-field">
+              <label><i class="fas fa-location-dot" style="margin-right:4px;color:var(--rs-primary)"></i> Manzil</label>
+              <textarea name="address" class="rs-textarea" rows="2" oninput="updatePreview()">{{ settings.address }}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rs-actions">
+        <button type="submit" class="rs-btn rs-btn-primary"><i class="fas fa-save"></i> Saqlash</button>
+        <button type="button" class="rs-btn rs-btn-secondary" onclick="resetForm()"><i class="fas fa-undo"></i> Reset</button>
+        <button type="button" class="rs-btn rs-btn-secondary" onclick="window.open('{% url 'receipt_builder' %}', '_blank')"><i class="fas fa-receipt"></i> Shablonlar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="rs-preview-wrap">
+    <div class="rs-preview-header">
+      <h3><i class="fas fa-eye"></i> Live Preview</h3>
+      <div class="rs-preview-tools">
+        <button onclick="toggleDarkMode()" id="darkModeBtn" title="Dark Mode"><i class="fas fa-moon"></i></button>
+        <button onclick="toggleCompact()" id="compactBtn" title="Compact"><i class="fas fa-compress"></i></button>
+        <button onclick="printPreview()" title="Chop etish"><i class="fas fa-print"></i></button>
+      </div>
+    </div>
+
+    <div class="rs-receipt" id="receiptPreview">
+      <div class="rs-receipt-inner">
+        <div class="rc-logo-wrap" id="previewLogo">
+          {% if settings.logo %}
+            <img src="{{ settings.logo.url }}" alt="Logo" id="previewLogoImg">
+          {% endif %}
+        </div>
+        <div class="rc-academy">
+          <div class="name" id="previewAcademy">{{ settings.academy_name }}</div>
+          <div class="tagline" id="previewTagline">{{ settings.tagline }}</div>
+        </div>
+        <div class="rc-title" id="previewTitle">{{ settings.receipt_title }}</div>
+        <div class="rc-receipt-no" id="previewReceiptNo">{{ settings.receipt_prefix }}136</div>
+        <hr class="rc-divider">
+        <div class="rc-section-title">To'lov ma'lumotlari</div>
+        <div class="rc-row"><span class="rc-label">Sana:</span><span class="rc-value">01.07.2026 14:30</span></div>
+        <div class="rc-row"><span class="rc-label">Kassir:</span><span class="rc-value">Admin</span></div>
+        <div class="rc-row"><span class="rc-label">O'quvchi:</span><span class="rc-value">Ism Familiya</span></div>
+        <div class="rc-row"><span class="rc-label">Telefon:</span><span class="rc-value">+998 00 000 00 00</span></div>
+        <div class="rc-row"><span class="rc-label">To'lov turi:</span><span class="rc-value">Naqt</span></div>
+        <div class="rc-row"><span class="rc-label">Miqdori:</span><span class="rc-value">50 000 so'm</span></div>
+        <hr class="rc-divider">
+        <div class="rc-amount-box">
+          <div class="label" id="previewPaymentText">{{ settings.payment_text }}</div>
+          <div class="value">50 000 so'm</div>
+        </div>
+        <hr class="rc-divider">
+        <div class="rc-balance">
+          <span class="lbl">Joriy balans:</span>
+          <span class="val">100 000 so'm</span>
+        </div>
+        {% if settings.message_text %}
+        <hr class="rc-divider">
+        <div class="rc-message">
+          <div class="main" id="previewMessage">{{ settings.message_text }}</div>
+        </div>
+        {% endif %}
+        <hr class="rc-divider solid">
+        <div class="rc-thanks" id="previewThanks">{{ settings.thank_you_text }}</div>
+        <div class="rc-footer" id="previewFooter">{{ settings.footer_text }}</div>
+        {% if settings.extra_notes %}
+        <div class="rc-notes" id="previewNotes">{{ settings.extra_notes }}</div>
+        {% endif %}
+        <div class="rc-contact" id="previewContact">
+          {% if settings.phone %}<span><i class="fas fa-phone"></i> {{ settings.phone }}</span>{% endif %}
+          {% if settings.telegram %}<span><i class="fab fa-telegram-plane"></i> {{ settings.telegram }}</span>{% endif %}
+          {% if settings.instagram %}<span><i class="fab fa-instagram"></i> {{ settings.instagram }}</span>{% endif %}
+          {% if settings.website %}<span><i class="fas fa-globe"></i> {{ settings.website }}</span>{% endif %}
+        </div>
+        {% if settings.address %}
+        <div class="rc-notes" style="margin-top:2px;">{{ settings.address }}</div>
+        {% endif %}
+        <div class="rc-qr-wrap">
+          <div id="qrcode"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rs-toast" id="rsToast">Sozlamalar saqlandi</div>
+
+<script>
+  var accentColor = '{{ settings.accent_color|default:"#2001FF" }}';
+  var qrInstance = null;
+
+  function updateAccentColor(val) {
+    accentColor = val;
+    document.querySelectorAll('input[name="accent_color"]').forEach(function(el) { el.value = val; });
+    document.documentElement.style.setProperty('--rs-primary', val);
+    updatePreview();
+  }
+
+  function updatePreview() {
+    var academy = document.querySelector('input[name="academy_name"]').value;
+    var tagline = document.querySelector('input[name="tagline"]').value;
+    var title = document.querySelector('input[name="receipt_title"]').value;
+    var prefix = document.querySelector('input[name="receipt_prefix"]').value;
+    var format = document.querySelector('input[name="receipt_format"]').value;
+    var footer = document.querySelector('textarea[name="footer_text"]').value;
+    var thanks = document.querySelector('input[name="thank_you_text"]').value;
+    var paymentText = document.querySelector('input[name="payment_text"]').value;
+    var message = document.querySelector('textarea[name="message_text"]').value;
+    var extra = document.querySelector('textarea[name="extra_notes"]').value;
+    var phone = document.querySelector('input[name="phone"]').value;
+    var telegram = document.querySelector('input[name="telegram"]').value;
+    var instagram = document.querySelector('input[name="instagram"]').value;
+    var website = document.querySelector('input[name="website"]').value;
+    var address = document.querySelector('textarea[name="address"]').value;
+
+    document.getElementById('previewAcademy').textContent = academy || 'IT HOUSE ACADEMY';
+    document.getElementById('previewTagline').textContent = tagline || "SIFATLI TA'LIM MARKAZI";
+    document.getElementById('previewTitle').textContent = title || "TO'LOV CHEKI";
+    document.getElementById('previewReceiptNo').textContent = (prefix || 'Chek #') + '136';
+    document.getElementById('previewFooter').textContent = footer || '';
+    document.getElementById('previewThanks').textContent = thanks || 'Rahmat!';
+    document.getElementById('previewPaymentText').textContent = paymentText || "To'lov summasi";
+
+    var msgEl = document.getElementById('previewMessage');
+    if (message && message.trim()) {
+      msgEl.textContent = message;
+      msgEl.closest('.rc-message').style.display = '';
+    } else {
+      var msgWrap = msgEl.closest('.rc-message');
+      if (msgWrap) msgWrap.style.display = 'none';
+    }
+
+    var notesEl = document.getElementById('previewNotes');
+    if (extra && extra.trim()) {
+      notesEl.textContent = extra;
+      notesEl.style.display = '';
+    } else {
+      notesEl.style.display = 'none';
+    }
+
+    var contactHtml = '';
+    if (phone) contactHtml += '<span><i class="fas fa-phone"></i> ' + phone + '</span>';
+    if (telegram) contactHtml += '<span><i class="fab fa-telegram-plane"></i> ' + telegram + '</span>';
+    if (instagram) contactHtml += '<span><i class="fab fa-instagram"></i> ' + instagram + '</span>';
+    if (website) contactHtml += '<span><i class="fas fa-globe"></i> ' + website + '</span>';
+    document.getElementById('previewContact').innerHTML = contactHtml;
+
+    var addrEl = document.querySelector('.rc-notes:last-child');
+    if (address && address.trim()) {
+      addrEl.textContent = address;
+      addrEl.style.display = '';
+    } else if (addrEl) {
+      addrEl.style.display = 'none';
+    }
+
+    document.querySelectorAll('.rc-amount-box .value').forEach(function(el) {
+      el.style.color = accentColor;
+    });
+    document.querySelectorAll('.rc-title').forEach(function(el) {
+      el.style.color = accentColor;
+    });
+    document.querySelectorAll('.rc-thanks').forEach(function(el) {
+      el.style.color = accentColor;
+    });
+  }
+
+  function updateQR() {
+    var link = document.querySelector('input[name="qr_link"]').value;
+    var autoGen = document.getElementById('auto_generate_qr').checked;
+    if (!autoGen) return;
+    var container = document.getElementById('qrcode');
+    container.innerHTML = '';
+    if (link && link.trim()) {
+      qrInstance = new QRCode(container, {
+        text: link.trim(),
+        width: 120,
+        height: 120,
+        colorDark: '#0f172a',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+  }
+
+  function toggleDarkMode() {
+    var el = document.getElementById('receiptPreview');
+    el.classList.toggle('dark-mode');
+    document.getElementById('darkModeBtn').classList.toggle('active');
+  }
+
+  function toggleCompact() {
+    var el = document.getElementById('receiptPreview');
+    el.classList.toggle('compact');
+    document.getElementById('compactBtn').classList.toggle('active');
+  }
+
+  function printPreview() {
+    var content = document.getElementById('receiptPreview').innerHTML;
+    var win = window.open('', '', 'width=800,height=600');
+    win.document.write('<html><head><title>Chek</title>');
+    win.document.write('<link rel="preconnect" href="https://fonts.googleapis.com">');
+    win.document.write('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>');
+    win.document.write('<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">');
+    win.document.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">');
+    win.document.write('<style>');
+    win.document.write('body { font-family: "Inter", sans-serif; margin: 0; padding: 24px; background: #fff; }');
+    win.document.write('.rc-divider.solid { border-color: ' + accentColor + '; }');
+    win.document.write('.rc-title { color: ' + accentColor + '; }');
+    win.document.write('.rc-amount-box .value { color: ' + accentColor + '; }');
+    win.document.write('.rc-thanks { color: ' + accentColor + '; }');
+    win.document.write('.rc-academy .tagline { color: ' + accentColor + '; }');
+    win.document.write('.rc-amount-box .value { font-size: 28px; font-weight: 900; }');
+    win.document.write('.rs-receipt-inner { max-width: 500px; margin: 0 auto; }');
+    win.document.write('.rc-contact a { color: ' + accentColor + '; text-decoration: none; }');
+    win.document.write('.rc-divider { border: none; border-top: 1.5px dashed #e2e8f0; margin: 12px 0; }');
+    win.document.write('.rc-divider.solid { border-top-style: solid; border-width: 2px; }');
+    win.document.write('.rc-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }');
+    win.document.write('.rc-row .rc-label { color: #64748b; }');
+    win.document.write('.rc-row .rc-value { font-weight: 600; text-align: right; }');
+    win.document.write('.rc-balance { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 4px 0; }');
+    win.document.write('.rc-balance .lbl { color: #64748b; }');
+    win.document.write('.rc-contact { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; font-size: 10px; color: #64748b; margin-top: 8px; }');
+    win.document.write('.rc-notes { text-align: center; font-size: 10px; color: #94a3b8; }');
+    win.document.write('.rc-qr-wrap { text-align: center; margin-top: 12px; }');
+    win.document.write('.rc-qr-wrap #qrcode { display: inline-block; }');
+    win.document.write('.rs-receipt { max-width: 500px; margin: 0 auto; }');
+    win.document.write('.rc-logo-wrap { text-align: center; margin-bottom: 12px; }');
+    win.document.write('.rc-logo-wrap img { max-height: 64px; max-width: 180px; }');
+    win.document.write('.rc-academy { text-align: center; margin-bottom: 4px; }');
+    win.document.write('.rc-academy .name { font-size: 20px; font-weight: 900; }');
+    win.document.write('.rc-academy .tagline { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }');
+    win.document.write('.rc-receipt-no { text-align: center; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 8px; }');
+    win.document.write('.rc-title { text-align: center; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }');
+    win.document.write('.rc-section-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }');
+    win.document.write('.rc-amount-box { text-align: center; padding: 12px 0; }');
+    win.document.write('.rc-amount-box .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }');
+    win.document.write('.rc-footer { text-align: center; font-size: 11px; font-weight: 500; color: #94a3b8; margin-top: 8px; }');
+    win.document.write('.rc-thanks { text-align: center; font-size: 13px; font-weight: 700; margin: 8px 0; }');
+    win.document.write('@media print { @page { margin: 10mm; } }');
+    win.document.write('</style>');
+    win.document.write('</head><body>');
+    win.document.write('<div class="rs-receipt"><div class="rs-receipt-inner">');
+    win.document.write(content);
+    win.document.write('</div></div>');
+    win.document.write('<script>window.print();window.close();<' + '/script>');
+    win.document.write('</body></html>');
+    win.document.close();
+  }
+
+  function previewLogo(input) {
+    if (input.files && input.files[0]) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var wrap = document.getElementById('previewLogo');
+        wrap.innerHTML = '<img src="' + e.target.result + '" alt="Logo" id="previewLogoImg" style="max-height:64px;max-width:180px;border-radius:8px;">';
+        updatePreview();
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+
+  document.getElementById('logoDropZone').addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.classList.add('drag-over');
+  });
+  document.getElementById('logoDropZone').addEventListener('dragleave', function(e) {
+    this.classList.remove('drag-over');
+  });
+  document.getElementById('logoDropZone').addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+    var files = e.dataTransfer.files;
+    if (files.length > 0) {
+      document.getElementById('logoInput').files = files;
+      previewLogo(document.getElementById('logoInput'));
+    }
+  });
+
+  document.querySelectorAll('.rs-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.rs-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.rs-section').forEach(function(s) { s.classList.remove('active'); });
+      this.classList.add('active');
+      document.getElementById('section-' + this.dataset.tab).classList.add('active');
+    });
+  });
+
+  function showToast(msg) {
+    var el = document.getElementById('rsToast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function() { el.classList.remove('show'); }, 3000);
+  }
+
+  function resetForm() {
+    if (!confirm('Barcha maydonlarni standart qiymatlarga qaytarishni xohlaysizmi?')) return;
+    window.location.reload();
+  }
+
+  // Init QR
+  setTimeout(function() {
+    updateQR();
+    updatePreview();
+  }, 500);
+</script>
+{% endblock %}

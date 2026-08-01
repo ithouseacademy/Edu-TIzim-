@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Filtrlash | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+.f-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.f-stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);transition:.2s;cursor:pointer;}
+.f-stat:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
+.f-stat.active{border-color:var(--primary);background:#eef2ff;}
+.f-stat .icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.f-stat .icon.blue{background:#eef0ff;color:#2001ff;}
+.f-stat .icon.red{background:#fef2f2;color:#dc2626;}
+.f-stat .icon.green{background:#ecfdf5;color:#059669;}
+.f-stat .icon.gray{background:#f1f3f5;color:#6c757d;}
+.f-stat .info .num{font-size:1.3rem;font-weight:800;color:var(--text);line-height:1.2;}
+.f-stat .info .lbl{font-size:0.7rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;}
+
+.f-table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:900px;}
+.f-table thead th{padding:10px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;background:#f8f9fb;border-bottom:1.5px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.f-table thead th:nth-child(1){width:36px;}
+.f-table thead th:nth-child(2){width:20%;}
+.f-table thead th:nth-child(3){width:12%;}
+.f-table thead th:nth-child(4){width:14%;}
+.f-table thead th:nth-child(5){width:11%;}
+.f-table thead th:nth-child(6){width:11%;}
+.f-table thead th:nth-child(7){width:11%;}
+.f-table thead th:nth-child(8){width:10%;}
+.f-table thead th:nth-child(9){width:70px;}
+.f-table tbody tr{transition:all .15s;cursor:pointer;}
+.f-table tbody tr:nth-child(even){background:rgba(0,0,0,0.015);}
+.f-table tbody tr:hover{background:#eef2ff;}
+.f-table tbody td{padding:8px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.f-table .name-cell{display:flex;align-items:center;gap:10px;}
+.f-table .avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+.f-table .avatar.blue{background:var(--primary);}
+.f-table .avatar.green{background:var(--success);}
+.f-table .avatar.red{background:var(--danger);}
+.f-table .group-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#eef2ff;color:#2563eb;margin:1px 2px;}
+.f-table .amount{font-weight:700;font-variant-numeric:tabular-nums;}
+.f-table .amount.green{color:var(--success);}
+.f-table .amount.red{color:var(--danger);}
+.f-table .amount.zero{color:var(--text-muted);}
+.f-table .action-btns{display:flex;gap:4px;}
+.f-table .action-btn{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s;text-decoration:none;}
+.f-table .action-btn:hover{border-color:var(--primary);color:var(--primary);background:#eef2ff;}
+.f-table .action-btn.pay:hover{border-color:var(--success);color:var(--success);background:#ecfdf5;}
+
+.f-empty{text-align:center;padding:50px 20px;color:var(--text-muted);}
+.f-empty i{font-size:2.5rem;margin-bottom:10px;opacity:0.2;}
+.f-empty p{font-size:14px;font-weight:500;}
+
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;}
+
+.modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:#fff;border-radius:16px;width:480px;max-width:94vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.25);animation:modalSlide .25s ease;overflow:hidden;}
+@keyframes modalSlide{from{opacity:0;transform:translateY(16px) scale(0.96);}to{opacity:1;transform:translateY(0) scale(1);}}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--border);}
+.modal-head h3{margin:0;font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;}
+.modal-close{width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;transition:all .15s;}
+.modal-close:hover{background:#e2e8f0;color:var(--text);}
+.modal-body{padding:18px 22px;overflow-y:auto;flex:1;}
+.modal-foot{padding:14px 22px 18px;border-top:1px solid var(--border);background:#f8fafc;}
+
+.info-grid{background:#f8fafc;border-radius:8px;padding:14px 16px;margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;}
+.info-grid .item{display:flex;flex-direction:column;gap:2px;}
+.info-grid .item.full{grid-column:1/-1;}
+.info-grid .item .lbl{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;}
+.info-grid .item .val{font-size:14px;font-weight:600;color:var(--text);}
+.info-grid .item .val.green{color:var(--success);}
+.info-grid .item .val.red{color:var(--danger);}
+
+.remaining-box{border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;display:flex;gap:10px;line-height:1.5;}
+.remaining-box.warning{background:#fffbeb;border:1px solid #fde68a;color:#92400e;}
+.remaining-box.success{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;}
+.remaining-box i{font-size:1rem;margin-top:2px;flex-shrink:0;}
+.remaining-box .row{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.remaining-box .row+.row{margin-top:4px;padding-top:4px;border-top:1px dashed rgba(0,0,0,0.1);}
+.remaining-box .r-lbl{font-size:12px;}
+.remaining-box .r-val{font-weight:700;font-size:13px;white-space:nowrap;}
+
+.pay-form-group{margin-bottom:14px;}
+.pay-form-group label{display:block;font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:5px;}
+.pay-form-group label i{margin-right:4px;}
+.pay-form-group input,.pay-form-group textarea{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;transition:border-color .15s;background:#fff;color:var(--text);outline:none;box-sizing:border-box;}
+.pay-form-group input:focus,.pay-form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(32,1,255,0.08);}
+.pay-form-group .hint{font-size:11px;color:var(--text-muted);margin-top:3px;}
+.method-options{display:flex;gap:8px;}
+.method-option{flex:1;position:relative;}
+.method-option input{position:absolute;opacity:0;pointer-events:none;}
+.method-option label{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;background:#f8fafc;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-light);transition:all .15s;margin:0;}
+.method-option label i{font-size:14px;}
+.method-option input:checked+label{border-color:var(--primary);background:#eef2ff;color:var(--primary);font-weight:600;}
+.method-option label:hover{border-color:var(--primary);}
+.pay-error{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--danger);margin-bottom:14px;display:none;align-items:center;gap:8px;}
+.pay-error.show{display:flex;}
+
+@media(max-width:768px){.f-stats{grid-template-columns:1fr 1fr;}.info-grid{grid-template-columns:1fr;}}
+@media(max-width:480px){.f-stats{grid-template-columns:1fr;}}
+
+@media print{
+@page{margin:0;size:{{ paper_width|default:"58mm" }} {{ paper_height|default:"210mm" }};}
+body *{visibility:hidden;}
+.modal-overlay#receiptModal.printing{display:block;position:absolute;top:0;left:0;width:{{ paper_width|default:"58mm" }};background:#fff;z-index:999999;}
+.modal-overlay#receiptModal.printing .modal-box{visibility:visible;position:static;max-width:none;box-shadow:none;border-radius:0;background:#fff;display:block;max-height:none;width:{{ paper_width|default:"58mm" }};padding:0;}
+.modal-overlay#receiptModal.printing .modal-box>div:last-child{display:none;}
+.modal-overlay#receiptModal.printing #receiptBody,.modal-overlay#receiptModal.printing #receiptBody *{visibility:visible;}
+.modal-overlay#receiptModal.printing #receiptBody{padding:{{ paper_padding|default:"2mm" }};width:100%;margin:0 auto;text-align:center;font-family:'Courier New',Courier,monospace;color:#000;}
+.modal-overlay#receiptModal.printing #receiptBody *{color:#000!important;border-color:#000!important;background:transparent!important;letter-spacing:0!important;font-family:'Courier New',Courier,monospace!important;font-weight:900!important;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-logo-wrap{display:none;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-academy .name{font-size:{{ font_name|default:"20px" }};text-align:center;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-academy .tagline{font-size:{{ font_tagline|default:"9px" }};text-align:center;text-transform:uppercase;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-title{font-size:{{ font_title|default:"12px" }};text-align:center;text-transform:uppercase;margin:4px 0 2px;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-receipt-no{font-size:{{ font_row|default:"9px" }};text-align:center;margin-bottom:4px;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-divider{margin:5px 0;border-top:1px dashed #000!important;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-row{display:flex;justify-content:space-between;padding:1.5px 0;font-size:{{ font_row|default:"9px" }};}
+.modal-overlay#receiptModal.printing #receiptBody .rc-row .rc-value{text-align:right;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-amount-box{text-align:center;padding:6px 0;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-amount-box .value{font-size:{{ font_amount|default:"22px" }};}
+.modal-overlay#receiptModal.printing #receiptBody .rc-balance{display:flex;justify-content:space-between;font-size:{{ font_balance|default:"9px" }};padding:2px 0;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-thanks{font-size:{{ font_thanks|default:"11px" }};text-align:center;margin:5px 0 2px;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-footer{font-size:{{ font_footer|default:"8px" }};text-align:center;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-contact{font-size:{{ font_contact|default:"8px" }};text-align:center;line-height:1.5;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-contact i{display:none;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-notes{font-size:{{ font_notes|default:"8px" }};text-align:center;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-qr-wrap{display:none;}
+}
+
+#receiptBody{font-family:'Inter','Segoe UI',sans-serif;color:#0f172a;}
+#receiptBody .rc-academy{text-align:center;margin-bottom:4px;}
+#receiptBody .rc-academy .name{font-size:20px;font-weight:900;letter-spacing:1px;color:#0f172a;}
+#receiptBody .rc-academy .tagline{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+#receiptBody .rc-title{text-align:center;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;}
+#receiptBody .rc-receipt-no{text-align:center;font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;}
+#receiptBody .rc-divider{border:none;border-top:1.5px dashed #e2e8f0;margin:12px 0;}
+#receiptBody .rc-row{display:flex;justify-content:space-between;padding:3px 0;font-size:12px;}
+#receiptBody .rc-row .rc-label{color:#64748b;font-weight:500;}
+#receiptBody .rc-row .rc-value{font-weight:600;color:#0f172a;text-align:right;}
+#receiptBody .rc-amount-box{text-align:center;padding:12px 0;}
+#receiptBody .rc-amount-box .label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;}
+#receiptBody .rc-amount-box .value{font-size:28px;font-weight:900;letter-spacing:0.5px;margin-top:4px;}
+#receiptBody .rc-balance{display:flex;justify-content:space-between;font-size:13px;font-weight:600;padding:4px 0;}
+#receiptBody .rc-balance .lbl{color:#64748b;}
+#receiptBody .rc-balance .val{color:#0f172a;font-weight:700;}
+#receiptBody .rc-message{text-align:center;padding:8px 0;}
+#receiptBody .rc-message .main{font-weight:800;font-size:12px;color:#0f172a;}
+#receiptBody .rc-footer{text-align:center;font-size:11px;font-weight:500;color:#94a3b8;margin-top:8px;}
+#receiptBody .rc-thanks{text-align:center;font-size:13px;font-weight:700;margin:8px 0;}
+#receiptBody .rc-notes{text-align:center;font-size:10px;color:#94a3b8;margin-top:4px;}
+#receiptBody .rc-contact{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;font-size:10px;color:#64748b;margin-top:8px;}
+#receiptBody .rc-contact a{text-decoration:none;}
+#receiptBody .rc-contact i{margin-right:3px;}
+#receiptBody .rc-qr-wrap{text-align:center;margin-top:12px;}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Filtrlash</h2>
+        <span class="page-header-count" id="resultCount">{{ filtered_count }} ta natija</span>
+    </div>
+    <div class="page-header-right">
+        <a href="{% url 'student_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Orqaga</a>
+    </div>
+</div>
+
+<div class="f-stats">
+    <div class="f-stat {% if not active_filters.debtor_only and not active_filters.balance_filter %}active{% endif %}" onclick="toggleFilter('')">
+        <div class="icon blue"><i class="fas fa-users"></i></div>
+        <div class="info"><div class="num">{{ total_count }}</div><div class="lbl">Jami</div><div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:2px;">Balans: {{ total_credit|floatformat:"0"|intcomma }} so'm</div></div>
+    </div>
+    <div class="f-stat {% if active_filters.debtor_only == '1' or active_filters.balance_filter == 'debtor' %}active{% endif %}" onclick="toggleFilter('1')">
+        <div class="icon red"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="info"><div class="num">{{ debtor_count }}</div><div class="lbl">Qarzdorlar</div><div style="font-size:11px;color:var(--danger);font-weight:700;margin-top:2px;">{{ total_debt|floatformat:"0"|intcomma }} so'm</div></div>
+    </div>
+    <div class="f-stat {% if active_filters.balance_filter == 'creditor' %}active{% endif %}" onclick="toggleBalance('creditor')">
+        <div class="icon green"><i class="fas fa-check-circle"></i></div>
+        <div class="info"><div class="num">{{ creditor_count }}</div><div class="lbl">Haqdorlar</div><div style="font-size:11px;color:var(--success);font-weight:700;margin-top:2px;">{{ total_credit|floatformat:"0"|intcomma }} so'm</div></div>
+    </div>
+    <div class="f-stat {% if active_filters.balance_filter == 'zero' %}active{% endif %}" onclick="toggleBalance('zero')">
+        <div class="icon gray"><i class="fas fa-minus-circle"></i></div>
+        <div class="info"><div class="num">{{ zero_count }}</div><div class="lbl">Nol</div><div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:2px;">0 so'm</div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header between">
+        <h3><i class="fas fa-filter"></i> Filtr parametrlari</h3>
+        {% if active_filters.search or active_filters.status or active_filters.group or active_filters.date_from or active_filters.date_to or active_filters.debtor_only or active_filters.balance_filter %}
+        <a href="{% url 'student_filter' %}" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;cursor:pointer;font-size:13px;color:var(--text-light);transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:4px;"><i class="fas fa-times"></i> Tozalash</a>
+        {% endif %}
+    </div>
+    <form method="GET" style="display:flex;gap:10px;padding:16px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border);background:#fafbfc;">
+        <input type="text" name="search" placeholder="Ism, familya yoki telefon..." value="{{ active_filters.search }}" style="flex:1;min-width:160px;padding:9px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;">
+        <select name="status" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">
+            <option value="">Barcha holat</option>
+            <option value="aktiv" {% if active_filters.status == 'aktiv' %}selected{% endif %}>Aktiv</option>
+            <option value="muzlatilgan" {% if active_filters.status == 'muzlatilgan' %}selected{% endif %}>Muzlatilgan</option>
+            <option value="kutilyotgan" {% if active_filters.status == 'kutilyotgan' %}selected{% endif %}>Kutilyotgan</option>
+            <option value="chiqarilgan" {% if active_filters.status == 'chiqarilgan' %}selected{% endif %}>Chiqarilgan</option>
+        </select>
+        <select name="group" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">
+            <option value="">Barcha guruhlar</option>
+            {% for g in groups %}
+            <option value="{{ g.id }}" {% if active_filters.group == g.id|stringformat:"d" %}selected{% endif %}>{{ g.name }}</option>
+            {% endfor %}
+        </select>
+        <input type="date" name="date_from" value="{{ active_filters.date_from }}" placeholder="Dan" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">
+        <input type="date" name="date_to" value="{{ active_filters.date_to }}" placeholder="Gacha" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">
+        <select name="balance_filter" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff;">
+            <option value="">Barcha balans</option>
+            <option value="debtor" {% if active_filters.balance_filter == 'debtor' %}selected{% endif %}>Qarzdorlar</option>
+            <option value="creditor" {% if active_filters.balance_filter == 'creditor' %}selected{% endif %}>Haqdorlar</option>
+            <option value="zero" {% if active_filters.balance_filter == 'zero' %}selected{% endif %}>Nol balans</option>
+        </select>
+        <input type="hidden" name="debtor_only" value="{{ active_filters.debtor_only }}">
+        <button type="submit" class="btn btn-primary" style="padding:9px 18px;font-size:13px;"><i class="fas fa-search"></i> Qidirish</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header" style="gap:20px;display:flex;align-items:center;">
+        <h3><i class="fas fa-user-graduate"></i> Natijalar</h3>
+        {% if active_filters.debtor_only == '1' or active_filters.balance_filter == 'debtor' %}
+        <span style="color:var(--danger);font-weight:700;font-size:13px;">Qarzdorlar: {{ total_debt|floatformat:"0"|intcomma }} so'm</span>
+        {% elif active_filters.balance_filter == 'creditor' %}
+          <span style="color:var(--success);font-weight:700;font-size:13px;">Haqdorlar: {{ total_credit|floatformat:"0"|intcomma }} so'm</span>
+        {% else %}
+        <span style="color:var(--danger);font-weight:700;font-size:13px;">Qarzdorlar: {{ total_debt|floatformat:"0"|intcomma }} so'm</span>
+        <span style="color:var(--success);font-weight:700;font-size:13px;">Haqdorlar: {{ total_credit|floatformat:"0"|intcomma }} so'm</span>
+        {% endif %}
+    </div>
+     
+    <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+        <table class="f-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>O'quvchi</th>
+                    <th>Telefon</th>
+                    <th>Guruhlar</th>
+                    <th>Oylik to'lov</th>
+                    <th>Balans</th>
+                    <th>Qarz</th>
+                    <th>Qoldiq</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody id="filterTableBody">
+                {% for s in students %}
+                <tr class="f-row" data-id="{{ s.id }}" data-balance="{{ s.balance }}" data-name="{{ s.first_name|lower }} {{ s.last_name|lower }}" data-phone="{{ s.phone }}">
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <a href="{% url 'student_profile' s.id %}" onclick="event.stopPropagation()" style="text-decoration:none;color:inherit;">
+                        <div class="name-cell">
+                            <div class="avatar {% if s.balance < 0 %}red{% elif s.balance > 0 %}green{% else %}blue{% endif %}">{{ s.first_name|first|upper }}{{ s.last_name|first|upper }}</div>
+                            <div>
+                                <div style="font-weight:600;">{{ s.first_name }} {{ s.last_name }}</div>
+                                {% if s.previous_debt > 0 %}<div style="font-size:11px;color:var(--danger);">Qarz: {{ s.previous_debt|floatformat:"0"|intcomma }} so'm</div>{% endif %}
+                            </div>
+                        </div>
+                        </a>
+                    </td>
+                    <td></td>
+                    <td>{% with ph=s.phone|cut:" "|default:"" %}{% with phn=ph|cut:"+" %}{% if phn|slice:":3" == "998" %}+998 {{ phn|slice:"3:" }}{% else %}+998 {{ phn }}{% endif %}{% endwith %}{% endwith %}</td>
+                    <td>{% for g in s.groups %}<span class="group-badge">{{ g.name }}</span>{% endfor %}</td>
+                    <td class="amount" style="color:#6366f1;">
+                        {{ s.monthly_payment|floatformat:"0"|intcomma }} so'm
+                    </td>
+                    <td class="amount {% if s.balance > 0 %}green{% elif s.balance < 0 %}red{% else %}zero{% endif %}">
+                        {% if s.balance > 0 %}+{% endif %}{{ s.balance|floatformat:"0"|intcomma }} so'm
+                    </td>
+                    <td>
+                        {% if s.debt_amount > 0 %}
+                        <span style="color:var(--danger);font-weight:700;font-size:14px;">{{ s.debt_amount|floatformat:"0"|intcomma }} so'm</span>
+                        {% else %}
+                        <span style="color:var(--success);font-size:12px;">Yo'q</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if s.remaining_month_payment > 0 %}
+                        <span style="color:#d97706;font-weight:600;">{{ s.remaining_month_payment|floatformat:"0"|intcomma }} so'm</span>
+                        {% else %}
+                        <span style="color:var(--success);">To'liq</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn pay" onclick="event.stopPropagation();selectStudent({{ s.id }})" title="To'lov qilish"><i class="fas fa-money-bill-wave"></i></button>
+                            <a href="{% url 'student_balance_view' s.id %}" class="action-btn" title="Balans tarixi" onclick="event.stopPropagation()"><i class="fas fa-history"></i></a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9">
+                        <div class="f-empty">
+                            <i class="fas fa-search"></i>
+                            <p>Filtr bo'yicha hech qanday o'quvchi topilmadi</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal-overlay" id="paymentModal" onclick="if(event.target===this)closePaymentModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3><i class="fas fa-wallet" style="color:var(--primary)"></i> To'lov ma'lumotlari</h3>
+      <button class="modal-close" onclick="closePaymentModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="info-grid" id="studentInfo"></div>
+      <div class="remaining-box" id="remainingInfo"></div>
+      <div class="pay-error" id="payError"><i class="fas fa-exclamation-circle"></i> <span id="payErrorText"></span></div>
+      <div class="pay-form-group">
+        <label><i class="fas fa-money-bill-wave" style="color:var(--success)"></i> To'lov summasi</label>
+        <input type="text" id="payAmount" placeholder="Masalan: 50 000" inputmode="numeric" oninput="formatPayAmount(this)">
+        <div class="hint">Eng kam to'lov: 1 000 so'm</div>
+      </div>
+      <div class="pay-form-group">
+        <label><i class="fas fa-credit-card" style="color:var(--primary)"></i> To'lov usuli</label>
+        <div class="method-options">
+          {% for pm in payment_methods %}
+          <div class="method-option">
+            <input type="radio" name="payment_method" id="pm{{ pm.pk }}" value="{{ pm.name|lower }}" {% if forloop.first %}checked{% endif %}>
+            <label for="pm{{ pm.pk }}">{{ pm.name }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="pay-form-group">
+        <label><i class="fas fa-pen" style="color:var(--text-muted)"></i> Izoh (ixtiyoriy)</label>
+        <textarea id="payDescription" rows="2" placeholder="To'lov haqida izoh..."></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" id="paySubmit" onclick="submitPayment()" style="width:100%;padding:12px;">
+        <i class="fas fa-check-circle"></i> To'lovni tasdiqlash
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt Modal -->
+<div class="modal-overlay" id="receiptModal" onclick="if(event.target===this)closeReceipt()">
+  <div class="modal-box" style="max-width:500px;overflow:hidden;padding:0;">
+    <div id="receiptBody" style="padding:20px 24px;">
+      <div class="rc-academy">
+        <div class="name">IT HOUSE ACADEMY</div>
+        <div class="tagline">SIFATLI TA'LIM MARKAZI</div>
+      </div>
+      <div class="rc-title">TO'LOV CHEKI</div>
+      <div class="rc-receipt-no">Chek #<span id="rcptId"></span></div>
+      <hr class="rc-divider">
+      <div id="rcptRows"></div>
+    </div>
+    <div style="display:flex;gap:8px;padding:12px 24px 20px;border-top:1px solid var(--border);background:#f8fafc;">
+      <button class="btn btn-secondary" onclick="closeReceipt()" style="flex:1;padding:10px;"><i class="fas fa-times"></i> Yopish</button>
+      <button class="btn btn-primary" onclick="printReceipt()" style="flex:1;padding:10px;"><i class="fas fa-print"></i> Chop etish</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var students = {{ students_json|safe }};
+var selectedStudent = null;
+
+function toggleFilter(v) {
+  var h = document.querySelector('input[name="debtor_only"]');
+  h.value = v;
+  var b = document.querySelector('select[name="balance_filter"]');
+  if (b) b.value = '';
+  h.closest('form').submit();
+}
+
+function toggleBalance(v) {
+  var h = document.querySelector('input[name="debtor_only"]');
+  h.value = '';
+  var b = document.querySelector('select[name="balance_filter"]');
+  if (b) b.value = v;
+  h.closest('form').submit();
+}
+
+function formatNum(n) { return Math.round(Number(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+function getCookie(n){var v='; '+document.cookie,p=v.split('; '+n+'=');return p.length===2?p.pop().split(';').shift():'';}
+
+function selectStudent(id) {
+  for (var i = 0; i < students.length; i++) { if (students[i].id === id) { selectedStudent = students[i]; break; } }
+  if (!selectedStudent) return;
+  document.getElementById('payError').classList.remove('show');
+  var info = document.getElementById('studentInfo');
+  var bCls = selectedStudent.balance > 0 ? 'green' : (selectedStudent.balance < 0 ? 'red' : '');
+  var gHtml = '';
+  if (selectedStudent.groups.length > 0) {
+    var gs = [];
+    for (var j = 0; j < selectedStudent.groups.length; j++) gs.push(selectedStudent.groups[j].name + ' (' + formatNum(selectedStudent.groups[j].price) + ' so\'m)');
+    gHtml = '<div class="item full"><span class="lbl">Guruhlar</span><span class="val">' + gs.join(', ') + '</span></div>';
+  }
+  var pdHtml = '';
+  if (selectedStudent.previous_debt > 0) pdHtml = '<div class="item"><span class="lbl">O\'tgan oydan qarz</span><span class="val red">' + formatNum(selectedStudent.previous_debt) + ' so\'m</span></div>';
+  info.innerHTML = '<div class="item"><span class="lbl">Ism familiya</span><span class="val">'+selectedStudent.first_name+' '+selectedStudent.last_name+'</span></div>' +
+    '<div class="item"><span class="lbl">Telefon</span><span class="val">+998 '+selectedStudent.phone+'</span></div>' +
+    '<div class="item"><span class="lbl">Joriy balans</span><span class="val '+bCls+'">'+formatNum(selectedStudent.balance)+' so\'m</span></div>' + pdHtml + gHtml;
+
+  var rem = document.getElementById('remainingInfo');
+  var exp = selectedStudent.expected_up_to_today, rv = selectedStudent.remaining_month_payment, isPaid = rv <= 0;
+  rem.className = 'remaining-box ' + (isPaid ? 'success' : 'warning');
+  rem.style.display = '';
+  rem.innerHTML = '<i class="fas '+(isPaid?'fa-check-circle':'fa-info-circle')+'"></i><div style="flex:1"><div class="row"><span class="r-lbl">'+(isPaid?'Oy uchun to\'lovlar to\'liq':'Oxirigacha to\'lanadigan')+'</span><span class="r-val" style="color:'+(isPaid?'var(--success)':'#d97706')+'">'+formatNum(rv)+' so\'m</span></div><div class="row"><span class="r-lbl">Bugungacha kutilgan</span><span class="r-val" style="color:'+(exp>0?'#d97706':'var(--success)')+'">'+formatNum(exp)+' so\'m</span></div></div>';
+
+  document.getElementById('payAmount').value = '';
+  document.getElementById('payDescription').value = '';
+  document.getElementById('paySubmit').disabled = false;
+  document.getElementById('paymentModal').classList.add('show');
+}
+
+function closePaymentModal() { document.getElementById('paymentModal').classList.remove('show'); document.getElementById('payError').classList.remove('show'); selectedStudent = null; }
+function showError(m) { document.getElementById('payErrorText').textContent = m; document.getElementById('payError').classList.add('show'); }
+function formatPayAmount(i) { var r=i.value.replace(/\s/g,''),n=r.replace(/\D/g,'');if(n!==r){i.value=n;return;}i.value=n.replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
+
+function submitPayment() {
+  document.getElementById('payError').classList.remove('show');
+  var amount = document.getElementById('payAmount').value.replace(/\s/g, '');
+  var desc = document.getElementById('payDescription').value;
+  if (!amount || parseFloat(amount) <= 0) { showError('Iltimos, summani kiriting!'); return; }
+  var btn = document.getElementById('paySubmit');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Jarayonda...';
+  var fd = new FormData();
+  fd.append('student_id', selectedStudent.id);
+  fd.append('amount', amount);
+  fd.append('description', desc);
+  var me = document.querySelector('input[name="payment_method"]:checked');
+  fd.append('payment_method', me ? me.value : '');
+  fetch('{% url "payment_create" %}', { method:'POST', headers:{'X-CSRFToken':getCookie('csrftoken')}, body:fd })
+    .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error(t||'Server xatolik');});return r.json();})
+    .then(function(d){
+      btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';
+      if(d.success){closePaymentModal();showReceipt(d);updateStudentBalance(selectedStudent.id,parseFloat(amount));}
+      else showError(d.error||'Xatolik yuz berdi');
+    })
+    .catch(function(e){btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';showError(e.message||'Xatolik');});
+}
+
+function updateStudentBalance(id, amount) {
+  for (var i=0;i<students.length;i++){if(students[i].id===id){students[i].balance+=amount;students[i].remaining_month_payment=Math.max(0,students[i].remaining_month_payment-amount);if(students[i].balance<0){students[i].debt_amount=Math.abs(students[i].balance);}else{students[i].debt_amount=0;}break;}}
+  var row = document.querySelector('.f-row[data-id="'+id+'"]');
+  if(row){
+    var s=null;for(var k=0;k<students.length;k++){if(students[k].id===id){s=students[k];break;}}
+    if(s){
+      var bc=row.querySelectorAll('td')[5],dc=row.querySelectorAll('td')[6],rc=row.querySelectorAll('td')[7],av=row.querySelector('.avatar');
+      if(bc){bc.className='amount '+(s.balance>0?'green':(s.balance<0?'red':'zero'));bc.textContent=(s.balance>0?'+':'')+formatNum(s.balance)+' so\'m';}
+      if(dc){dc.innerHTML=s.debt_amount>0?'<span style="color:var(--danger);font-weight:700;font-size:14px;">'+formatNum(s.debt_amount)+' so\'m</span>':'<span style="color:var(--success);font-size:12px;">Yo\'q</span>';}
+      if(rc){rc.innerHTML=s.remaining_month_payment>0?'<span style="color:#d97706;font-weight:600;">'+formatNum(s.remaining_month_payment)+' so\'m</span>':'<span style="color:var(--success);">To\'liq</span>';}
+      if(av)av.className='avatar '+(s.balance>0?'green':(s.balance<0?'red':'blue'));
+    }
+  }
+}
+
+function showReceipt(d) {
+  var b=document.getElementById('receiptBody');
+  if(d.receipt_html){b.innerHTML=d.receipt_html;if(d.qr_link){var e=b.querySelector('#qrcode');if(e&&typeof QRCode!=='undefined')new QRCode(e,{text:d.qr_link,width:80,height:80,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H});}}
+  document.getElementById('receiptModal').classList.add('show');
+}
+function closeReceipt(){document.getElementById('receiptModal').classList.remove('show');}
+function printReceipt(){document.getElementById('receiptModal').classList.add('printing');setTimeout(function(){window.print();},100);}
+window.addEventListener('afterprint',function(){document.getElementById('receiptModal').classList.remove('printing');});
+</script>
+{% endblock %}

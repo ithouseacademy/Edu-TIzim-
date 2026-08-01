@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}To'lov qoidalari | Edu Tizim{% endblock %}
+{% block content %}
+<style>
+  .gc-body { max-width: 600px; }
+  .gc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .gc-header h2 { font-size: 18px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; margin: 0; }
+  .gc-card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+  .gc-card-body { padding: 24px; }
+  .gc-info { padding: 12px 16px; background: #eff6ff; border-radius: 10px; font-size: 13px; color: #1d4ed8; margin-top: 20px; }
+  .gc-rule { display: flex; align-items: flex-start; gap: 12px; padding: 16px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-bottom: 12px; }
+  .gc-rule i { font-size: 18px; margin-top: 2px; }
+  .gc-rule .gc-label-text { font-size: 14px; font-weight: 600; color: #0f172a; }
+  .gc-rule .gc-help { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+</style>
+
+<div class="gc-body">
+  <div class="gc-header">
+    <h2><i class="fas fa-sliders-h"></i> To'lov qoidalari</h2>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div style="padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; font-weight: 500; {% if msg.tags == 'success' %}background: #dcfce7; color: #166534;{% else %}background: #fef2f2; color: #dc2626;{% endif %}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="gc-card">
+    <div class="gc-card-body">
+      <div class="gc-rule">
+        <i class="fas fa-check-circle" style="color: #22c55e;"></i>
+        <div>
+          <div class="gc-label-text">Qatnashdi (Keldi)</div>
+          <div class="gc-help">Dars narxi balansdan yechiladi va qarzdorlikka qo'shiladi</div>
+        </div>
+      </div>
+      <div class="gc-rule">
+        <i class="fas fa-times-circle" style="color: #ef4444;"></i>
+        <div>
+          <div class="gc-label-text">Kelmadi / Sababli kelmadi</div>
+          <div class="gc-help">Pul yechilmaydi. Qarzdorlikka ham qo'shilmaydi</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gc-info">
+    <i class="fas fa-info-circle"></i>
+    Faqat davomat qilgan (Keldi belgilangan) kun hisoblanadi. Qaysi kuni davomat qilsa, o'sha kunning dars summasi balansga va umumiy qarzdorlikka qo'shiladi.
+  </div>
+</div>
+{% endblock %}

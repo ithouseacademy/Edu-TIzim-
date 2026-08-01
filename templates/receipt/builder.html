@@ -1,0 +1,1310 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Chek shablonlari | Edu Tizim{% endblock %}
+{% block extra_css %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+#receipt-builder * { box-sizing: border-box; }
+#receipt-builder .rz { resize: both; overflow: hidden; }
+#receipt-builder .can-drop { min-height: 400px; }
+#receipt-builder .drag-over { outline: 2px dashed #3b82f6; outline-offset: -2px; background: #eff6ff; }
+#receipt-builder .component-selected { outline: 2px solid #3b82f6; outline-offset: -2px; position: relative; }
+#receipt-builder .component-selected::after { content: '\f0b2'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; right: -8px; top: -8px; background: #3b82f6; color: #fff; width: 18px; height: 18px; border-radius: 50%; font-size: 9px; display: flex; align-items: center; justify-content: center; cursor: nw-resize; }
+#receipt-builder .palette-item { transition: all .15s; }
+#receipt-builder .palette-item:hover { border-color: #2563eb; background: #eff6ff; }
+#receipt-builder .palette-item:active { opacity: .7; }
+#receipt-builder [draggable="true"] { cursor: grab; }
+#receipt-builder [draggable="true"]:active { cursor: grabbing; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+#receipt-builder .anim-in { animation: fadeIn .2s ease; }
+#receipt-builder .tabs button { transition: all .15s; }
+#receipt-builder ::-webkit-scrollbar { width: 4px; height: 4px; }
+#receipt-builder ::-webkit-scrollbar-track { background: #f1f5f9; }
+#receipt-builder ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+#receipt-builder input[type="color"] { width: 36px; height: 36px; padding: 2px; border-radius: 6px; border: 1px solid #e2e8f0; cursor: pointer; }
+#receipt-builder input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+#receipt-builder input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+.print-receipt { width: 80mm; background: #fff; font-family: 'Courier New', monospace; font-size: 10px; line-height: 1.4; color: #000; padding: 8px; }
+.print-receipt .rc-header { text-align: center; margin-bottom: 8px; }
+.print-receipt .rc-header .logo { font-size: 16px; font-weight: 900; letter-spacing: 2px; }
+.print-receipt .rc-header .title { font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.print-receipt .rc-divider { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+.print-receipt .rc-divider.solid { border-top-style: solid; }
+.print-receipt .rc-info { display: flex; justify-content: space-between; padding: 2px 0; }
+.print-receipt .rc-info .lbl { font-weight: 700; }
+.print-receipt .rc-student { padding: 4px 0; }
+.print-receipt .rc-message { text-align: center; font-weight: 700; font-size: 11px; padding: 8px 0; }
+.print-receipt .rc-footer { text-align: center; font-size: 9px; margin-top: 6px; }
+.print-receipt .rc-qr { text-align: center; padding: 8px 0; }
+.print-receipt .rc-qr svg { width: 60px; height: 60px; }
+.receipt-list-wrap{animation:fadeUp .3s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+.rl-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;}
+.rl-stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);transition:all .2s;}
+.rl-stat:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
+.rl-stat .rl-stat-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+.rl-stat .rl-stat-icon.blue{background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#2563eb;}
+.rl-stat .rl-stat-icon.green{background:linear-gradient(135deg,#ecfdf5,#d1fae5);color:#059669;}
+.rl-stat .rl-stat-icon.purple{background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#7c3aed;}
+.rl-stat .rl-stat-num{font-size:1.5rem;font-weight:800;color:var(--text);line-height:1.1;}
+.rl-stat .rl-stat-lbl{font-size:0.72rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;}
+
+.rl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.rl-header h2{font-size:1.2rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;}
+.rl-header h2 i{color:var(--primary);}
+.rl-header-actions{display:flex;gap:8px;}
+
+.rl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px;margin-bottom:24px;}
+.rl-card{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);transition:all .25s;position:relative;}
+.rl-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:#cbd5e1;}
+.rl-card.is-default{border-color:#2563eb;box-shadow:0 0 0 1px rgba(37,99,235,0.1),var(--shadow);}
+.rl-card-badge{position:absolute;top:12px;right:12px;z-index:2;}
+.rl-card-default-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;box-shadow:0 2px 6px rgba(37,99,235,0.3);}
+
+.rl-card-preview{height:200px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;border-bottom:1px solid var(--border);}
+.rl-card-preview-inner{width:58mm;background:#fff;min-height:160px;padding:8px;font-family:'Courier New',monospace;font-size:6px;line-height:1.3;color:#000;transform:scale(0.85);transform-origin:top center;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid #e2e8f0;}
+.rl-card-preview-inner.width-80{width:80mm;}
+.rl-card-preview-overlay{position:absolute;inset:0;background:linear-gradient(180deg,transparent 60%,rgba(241,245,249,0.9));pointer-events:none;}
+
+.rl-card-body{padding:16px 18px;}
+.rl-card-name{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.rl-card-name i{color:var(--primary);font-size:0.85rem;}
+.rl-card-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.rl-card-meta-item{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);font-weight:500;}
+.rl-card-meta-item i{font-size:10px;opacity:0.6;}
+.rl-card-meta-item .dot{width:3px;height:3px;border-radius:50%;background:var(--text-muted);opacity:0.4;}
+
+.rl-card-actions{display:flex;gap:6px;padding-top:12px;border-top:1px solid #f1f5f9;}
+.rl-card-actions .rl-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;border:none;font-family:var(--font);}
+.rl-btn-primary{background:var(--primary);color:#fff;}
+.rl-btn-primary:hover{background:var(--primary-dark);box-shadow:0 2px 6px rgba(37,99,235,0.3);}
+.rl-btn-secondary{background:#f8fafc;color:var(--text-light);border:1px solid var(--border);}
+.rl-btn-secondary:hover{background:#f1f5f9;color:var(--text);border-color:#cbd5e1;}
+.rl-btn-danger{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+.rl-btn-danger:hover{background:#fee2e2;color:#b91c1c;}
+.rl-btn-star{background:#fffbeb;color:#d97706;border:1px solid #fde68a;}
+.rl-btn-star:hover{background:#fef3c7;color:#b45309;}
+
+.rl-empty{text-align:center;padding:80px 24px;color:var(--text-muted);}
+.rl-empty-icon{width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,#f1f5f9,#e2e8f0);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2rem;opacity:0.5;}
+.rl-empty h3{font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.rl-empty p{font-size:13px;max-width:400px;margin:0 auto;}
+
+.rl-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:fadeIn .15s ease;}
+.rl-modal{background:#fff;border-radius:16px;width:90%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.15);animation:slideUp .2s ease;}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.rl-modal-header{padding:20px 24px 0;display:flex;align-items:center;gap:10px;}
+.rl-modal-header h3{font-size:1rem;font-weight:700;color:var(--text);}
+.rl-modal-body{padding:16px 24px;}
+.rl-modal-body input{width:100%;height:42px;padding:0 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:var(--font);color:var(--text);outline:none;transition:all .2s;}
+.rl-modal-body input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,0.1);}
+.rl-modal-footer{padding:0 24px 20px;display:flex;gap:8px;justify-content:flex-end;}
+
+@media(max-width:768px){.rl-stats{grid-template-columns:1fr;}.rl-grid{grid-template-columns:1fr;}.rl-header{flex-direction:column;gap:10px;align-items:flex-start;}}
+</style>
+{% endblock %}
+{% block content %}
+<div id="receipt-builder">
+  {% if not template %}
+
+  <div class="receipt-list-wrap">
+    <div class="rl-header">
+      <h2><i class="fas fa-receipt"></i> Chek shablonlari</h2>
+      <div class="rl-header-actions">
+        <button onclick="openCreateModal()" class="btn btn-primary"><i class="fas fa-plus"></i> Yangi shablon</button>
+      </div>
+    </div>
+
+    <div class="rl-stats">
+      <div class="rl-stat">
+        <div class="rl-stat-icon blue"><i class="fas fa-file-invoice"></i></div>
+        <div><div class="rl-stat-num">{{ templates|length }}</div><div class="rl-stat-lbl">Jami shablonlar</div></div>
+      </div>
+      <div class="rl-stat">
+        <div class="rl-stat-icon green"><i class="fas fa-star"></i></div>
+        <div><div class="rl-stat-num">{% if default_template %}1{% else %}0{% endif %}</div><div class="rl-stat-lbl">Standart shablon</div></div>
+      </div>
+      <div class="rl-stat">
+        <div class="rl-stat-icon purple"><i class="fas fa-print"></i></div>
+        <div><div class="rl-stat-num">80mm</div><div class="rl-stat-lbl">Standart en</div></div>
+      </div>
+    </div>
+
+    <div class="rl-grid" id="templateGrid">
+      {% for t in templates %}
+      <div class="rl-card{% if t.is_default %} is-default{% endif %}" data-id="{{ t.pk }}">
+        {% if t.is_default %}
+        <div class="rl-card-badge"><span class="rl-card-default-badge"><i class="fas fa-star"></i> Standart</span></div>
+        {% endif %}
+        <div class="rl-card-preview">
+          <div class="rl-card-preview-inner{% if t.width == '80mm' %} width-80{% endif %}">
+            <div style="text-align:center;margin-bottom:6px;">
+              <div style="font-size:12px;font-weight:900;letter-spacing:2px;">🏫</div>
+              <div style="font-size:8px;font-weight:900;letter-spacing:1px;">IT HOUSE ACADEMY</div>
+              <div style="font-size:6px;font-weight:700;">SIFATLI TA'LIM MARKAZI</div>
+            </div>
+            <hr style="border:none;border-top:1px dashed #000;margin:4px 0;">
+            <div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:700;">Sana:</span><span>01.01.2025</span></div>
+            <div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:700;">Kassir:</span><span>Admin</span></div>
+            <div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:700;">O'quvchi:</span><span>Ism Familiya</span></div>
+            <div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:700;">Telefon:</span><span>+998 00 000 00 00</span></div>
+            <div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:700;">To'lov:</span><span>Naqt</span></div>
+            <hr style="border:none;border-top:1px dashed #000;margin:4px 0;">
+            <div style="text-align:center;font-size:5px;font-weight:700;">TO'LOV SUMMASI</div>
+            <div style="text-align:center;font-size:11px;font-weight:900;">50 000 so'm</div>
+            <hr style="border:none;border-top:1px dashed #000;margin:4px 0;">
+            <div style="text-align:center;font-size:5px;">HURMATLI O'QUVCHI!</div>
+            <div style="text-align:center;font-size:5px;">Rahmat!</div>
+          </div>
+          <div class="rl-card-preview-overlay"></div>
+        </div>
+        <div class="rl-card-body">
+          <div class="rl-card-name"><i class="fas fa-file-invoice"></i> {{ t.name }}</div>
+          <div class="rl-card-meta">
+            <span class="rl-card-meta-item"><i class="fas fa-arrows-left-right"></i> {{ t.width }}</span>
+            <span class="rl-card-meta-item"><i class="fas fa-palette"></i> {{ t.background_color|default:"#ffffff" }}</span>
+            <span class="rl-card-meta-item"><i class="fas fa-clock"></i> {{ t.updated_at|date:"d.m.Y H:i" }}</span>
+          </div>
+          <div class="rl-card-actions">
+            <a href="{% url 'receipt_builder_edit' t.pk %}" class="rl-btn rl-btn-primary" title="Tahrirlash"><i class="fas fa-pen"></i> Tahrirlash</a>
+            <button onclick="duplicateTemplate({{ t.pk }})" class="rl-btn rl-btn-secondary" title="Nusxa olish"><i class="fas fa-copy"></i></button>
+            <button onclick="setDefault({{ t.pk }})" class="rl-btn rl-btn-star" title="Standart qilish"><i class="fas fa-star"></i></button>
+            <button onclick="deleteTemplate({{ t.pk }})" class="rl-btn rl-btn-danger" title="O'chirish"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div style="grid-column:1/-1;">
+        <div class="rl-empty">
+          <div class="rl-empty-icon"><i class="fas fa-receipt"></i></div>
+          <h3>Shablonlar topilmadi</h3>
+          <p>Hali hech qanday chek shabloni yaratilmagan. Yangi shablon yaratish uchun tugmani bosing.</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div id="createModal" style="display:none;"></div>
+
+  <script>
+    function getCookie(name) {
+      var c = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return c ? c.pop() : '';
+    }
+
+    function openCreateModal() {
+      var html = '<div class="rl-modal-overlay" onclick="closeCreateModal(event)">' +
+        '<div class="rl-modal" onclick="event.stopPropagation()">' +
+        '<div class="rl-modal-header"><i class="fas fa-plus-circle" style="color:var(--primary);font-size:1.2rem;"></i><h3>Yangi shablon yaratish</h3></div>' +
+        '<div class="rl-modal-body"><input type="text" id="newTemplateName" placeholder="Shablon nomini kiriting..." autofocus></div>' +
+        '<div class="rl-modal-footer">' +
+        '<button onclick="closeCreateModal()" class="rl-btn rl-btn-secondary">Bekor qilish</button>' +
+        '<button onclick="submitCreateTemplate()" class="rl-btn rl-btn-primary"><i class="fas fa-plus"></i> Yaratish</button>' +
+        '</div></div></div>';
+      document.getElementById('createModal').innerHTML = html;
+      document.getElementById('createModal').style.display = 'block';
+      setTimeout(function(){ document.getElementById('newTemplateName').focus(); }, 100);
+      document.getElementById('newTemplateName').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') submitCreateTemplate();
+        if (e.key === 'Escape') closeCreateModal();
+      });
+    }
+
+    function closeCreateModal(e) {
+      if (e && e.target && !e.target.classList.contains('rl-modal-overlay')) return;
+      document.getElementById('createModal').style.display = 'none';
+      document.getElementById('createModal').innerHTML = '';
+    }
+
+    function submitCreateTemplate() {
+      var name = document.getElementById('newTemplateName').value.trim();
+      if (!name) { document.getElementById('newTemplateName').style.borderColor='#dc2626'; return; }
+      fetch('{% url "api_receipt_template_create" %}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify({name: name, is_default: false, components: [
+          {type:'logo', id:'h1', props:{size:28, align:'center'}, style:{x:0, y:0, w:80, h:18, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'academy', id:'h2', props:{text:'IT HOUSE ACADEMY', size:14, weight:'900', align:'center'}, style:{x:0, y:18, w:80, h:14, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'900', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:2, visible:true}},
+          {type:'title', id:'h3', props:{text:"SIFATLI TA'LIM MARKAZI", size:10, weight:'700', align:'center'}, style:{x:0, y:32, w:80, h:12, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'700', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'receiptNo', id:'h4', props:{prefix:'Chek #', format:'788799', size:9, align:'center'}, style:{x:0, y:44, w:80, h:10, margin:0, padding:0, fontSize:9, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'divider', id:'d1', props:{style:'dashed', thickness:1}, style:{x:0, y:54, w:80, h:6, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'text', id:'s1', props:{content:"To'lov ma'lumotlari", size:10, weight:'700', align:'left'}, style:{x:0, y:60, w:80, h:12, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'700', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'divider', id:'d1a', props:{style:'dashed', thickness:1}, style:{x:0, y:72, w:80, h:4, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'datetime', id:'i1', props:{label:'Sana:', size:9, align:'left'}, style:{x:0, y:76, w:80, h:8, margin:0, padding:0, fontSize:9, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'cashier', id:'i2', props:{label:'Kassir:', size:9, align:'left'}, style:{x:0, y:84, w:80, h:8, margin:0, padding:0, fontSize:9, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'branch', id:'i3', props:{label:'Kassa:', size:9, align:'left'}, style:{x:0, y:92, w:80, h:8, margin:0, padding:0, fontSize:9, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'student', id:'i4', props:{label:"O'quvchi:", size:9, align:'left'}, style:{x:0, y:100, w:80, h:8, margin:0, padding:0, fontSize:9, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'phone', id:'i5', props:{label:'Telefon:', size:9, align:'left'}, style:{x:0, y:108, w:80, h:8, margin:0, padding:0, fontSize:9, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'payMethod', id:'i6', props:{label:"To'lov turi:", size:9, align:'left'}, style:{x:0, y:116, w:80, h:8, margin:0, padding:0, fontSize:9, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'payType', id:'i7', props:{label:"Tranzaksiya turi:", size:9, align:'left'}, style:{x:0, y:124, w:80, h:8, margin:0, padding:0, fontSize:9, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'amount', id:'i8', props:{label:"Miqdori:", size:9, weight:'700', align:'left'}, style:{x:0, y:132, w:80, h:9, margin:0, padding:0, fontSize:9, fontFamily:"'Courier New', monospace", fontWeight:'700', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'divider', id:'d2', props:{style:'dashed', thickness:1}, style:{x:0, y:141, w:80, h:6, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'text', id:'a1', props:{content:'TO\'LOV SUMMASI', size:7, align:'center'}, style:{x:0, y:147, w:80, h:8, margin:0, padding:0, fontSize:7, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'amount', id:'a2', props:{label:'', size:14, weight:'900', align:'center'}, style:{x:0, y:155, w:80, h:16, margin:0, padding:0, fontSize:14, fontFamily:"'Courier New', monospace", fontWeight:'900', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'divider', id:'d3', props:{style:'dashed', thickness:1}, style:{x:0, y:171, w:80, h:6, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'balance', id:'b1', props:{label:"Joriy balans:", size:10, weight:'700', align:'left'}, style:{x:0, y:177, w:80, h:10, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'700', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'divider', id:'d4', props:{style:'solid', thickness:2}, style:{x:0, y:187, w:80, h:6, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'text', id:'m1', props:{content:'HURMATLI O\'QUVCHI!', size:11, align:'center', weight:'900'}, style:{x:0, y:193, w:80, h:14, margin:0, padding:0, fontSize:11, fontFamily:"'Courier New', monospace", fontWeight:'900', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'text', id:'m2', props:{content:"To'lovlarni har oyning 10-sanasidan kechiktirmang iltimos!", size:8, align:'center'}, style:{x:0, y:207, w:80, h:12, margin:0, padding:0, fontSize:8, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'divider', id:'d5', props:{style:'dashed', thickness:1}, style:{x:0, y:219, w:80, h:6, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'left', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'footer', id:'f1', props:{text:'Chekni tashlab yubormang!', size:8, align:'center'}, style:{x:0, y:225, w:80, h:10, margin:0, padding:0, fontSize:8, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'qrcode', id:'q1', props:{size:64, content:'{{receipt_id}}', align:'center'}, style:{x:0, y:235, w:80, h:76, margin:0, padding:0, fontSize:10, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:0, visible:true}},
+          {type:'text', id:'q2', props:{content:'QR kodni skanerlang', size:7, align:'center'}, style:{x:0, y:311, w:80, h:10, margin:0, padding:0, fontSize:7, fontFamily:"'Courier New', monospace", fontWeight:'400', color:'#000000', bgColor:'transparent', border:'none', borderRadius:0, textAlign:'center', lineHeight:1.4, letterSpacing:0, visible:true}},
+        ]})
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.success) { window.location.href = '/receipt-templates/' + d.id + '/'; }
+        else { alert('Xatolik: ' + (d.error || 'Noma\'lum xatolik')); }
+      });
+    }
+
+    function duplicateTemplate(id) {
+      fetch('/api/receipt-templates/' + id + '/duplicate/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify({})
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.success) { window.location.reload(); }
+      });
+    }
+
+    function setDefault(id) {
+      fetch('/api/receipt-templates/' + id + '/set-default/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCookie('csrftoken')}
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.success) { window.location.reload(); }
+      });
+    }
+
+    function deleteTemplate(id) {
+      if (!confirm('Bu shablonni o\'chirishni tasdiqlaysizmi?')) return;
+      fetch('/api/receipt-templates/' + id + '/', {
+        method: 'DELETE',
+        headers: {'X-CSRFToken': getCookie('csrftoken')}
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.success) { window.location.reload(); }
+      });
+    }
+  </script>
+
+  {% else %}
+
+  <!-- ============ BUILDER ============ -->
+  <div id="react-builder-root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script>
+    // Django template data (processed server-side)
+    var TEMPLATE_COMPONENTS = {{ template.components|default:"[]"|safe }};
+    var TEMPLATE_ID = {{ template.pk }};
+    var CSRF_TOKEN = '{{ csrf_token }}';
+    var TEMPLATE_WIDTH = '{{ template.width|default:"70mm" }}';
+    var TEMPLATE_BG = '{{ template.background_color|default:"#ffffff" }}';
+    var TEMPLATE_BW = {% if template.black_white %}true{% else %}false{% endif %};
+    var TEMPLATE_THERMAL = {% if template.thermal_mode %}true{% else %}false{% endif %};
+    var TEMPLATE_DPI = {{ template.print_dpi|default:"203" }};
+    var TEMPLATE_PADDING = {{ template.page_padding|default:"10" }};
+    var TEMPLATE_MARGIN = {{ template.paper_margin|default:"0" }};
+    var TEMPLATE_NAME = '{{ template.name|escapejs }}';
+    var RECEIPT_BUILDER_URL = '{% url "receipt_builder" %}';
+    var API_TEMPLATE_CREATE = '{% url "api_receipt_template_create" %}';
+  </script>
+
+  <script type="text/babel" data-presets="react">
+    {% verbatim %}
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    // ---- Data ----
+    const normalizeComponents = (comps) => comps.map(c => {
+      if (c.style) return c;
+      return { ...c, style: { ...defaultStyle, x: c.x || 0, y: c.y || 0, w: c.w || 80, h: c.h || 40 } };
+    });
+    const defaultComponents = normalizeComponents(TEMPLATE_COMPONENTS);
+    const templateId = TEMPLATE_ID;
+    const csrfToken = CSRF_TOKEN;
+
+    // ---- Component Registry ----
+    const COMPONENT_META = {
+      logo:      { label: 'Logo', icon: 'fa-image', category: 'header' },
+      academy:   { label: 'Akademiya nomi', icon: 'fa-building-columns', category: 'header' },
+      title:     { label: 'Sarlavha', icon: 'fa-heading', category: 'header' },
+      receiptNo: { label: 'Chek raqami', icon: 'fa-hashtag', category: 'header' },
+      datetime:  { label: 'Sana va vaqt', icon: 'fa-clock', category: 'info' },
+      branch:    { label: 'Filial', icon: 'fa-location-dot', category: 'info' },
+      cashier:   { label: 'Kassir', icon: 'fa-user', category: 'info' },
+      student:   { label: "O'quvchi", icon: 'fa-user-graduate', category: 'info' },
+      teacher:   { label: "O'qituvchi", icon: 'fa-chalkboard-user', category: 'info' },
+      course:    { label: 'Kurs', icon: 'fa-book', category: 'info' },
+      phone:     { label: 'Telefon', icon: 'fa-phone', category: 'info' },
+      payMethod: { label: "To'lov usuli", icon: 'fa-credit-card', category: 'payment' },
+      payType:   { label: "To'lov turi", icon: 'fa-money-bill-transfer', category: 'payment' },
+      amount:    { label: 'Summa', icon: 'fa-money-bill-wave', category: 'payment' },
+      discount:  { label: "Chegirma", icon: 'fa-tag', category: 'payment' },
+      balance:   { label: 'Qoldiq', icon: 'fa-scale-balanced', category: 'payment' },
+      text:      { label: 'Matn', icon: 'fa-font', category: 'custom' },
+      divider:   { label: 'Ajratkich', icon: 'fa-minus', category: 'custom' },
+      space:     { label: 'Bo\'sh joy', icon: 'fa-arrows-v', category: 'custom' },
+      qrcode:    { label: 'QR kod', icon: 'fa-qrcode', category: 'custom' },
+      barcode:   { label: 'Shtrix kod', icon: 'fa-barcode', category: 'custom' },
+      signature: { label: 'Imzo', icon: 'fa-pen', category: 'custom' },
+      footer:    { label: 'Footer matni', icon: 'fa-receipt', category: 'custom' },
+    };
+
+    const defaultPropsFor = (type) => {
+      switch(type) {
+        case 'logo': return { src: '', size: 28, align: 'center' };
+        case 'academy': return { text: 'IT HOUSE ACADEMY', size: 14, weight: '900', align: 'center' };
+        case 'title': return { text: "SIFATLI TA'LIM MARKAZI", size: 11, weight: '700', align: 'center' };
+        case 'receiptNo': return { prefix: 'Chek #', format: '788799', size: 10, align: 'center' };
+        case 'datetime': return { format: 'd/m/Y H:i', size: 10, align: 'left' };
+        case 'branch': return { label: 'Filial:', size: 10, align: 'left' };
+        case 'cashier': return { label: 'Kassir:', size: 10, align: 'left' };
+        case 'student': return { label: "O'quvchi:", size: 10, align: 'left' };
+        case 'teacher': return { label: "O'qituvchi:", size: 10, align: 'left' };
+        case 'course': return { label: 'Kurs:', size: 10, align: 'left' };
+        case 'phone': return { label: 'Telefon:', size: 10, align: 'left' };
+        case 'payMethod': return { label: "To'lov usuli:", size: 10, align: 'left' };
+        case 'payType': return { label: "Tranzaksiya turi:", size: 10, align: 'left' };
+        case 'amount': return { label: "Miqdori:", size: 11, weight: '700', align: 'left' };
+        case 'discount': return { label: "Chegirma:", size: 10, align: 'left' };
+        case 'balance': return { label: "Qoldiq:", size: 10, align: 'left' };
+        case 'text': return { content: 'Matn', size: 10, align: 'center' };
+        case 'divider': return { style: 'dashed', thickness: 1 };
+        case 'space': return { height: 10 };
+        case 'qrcode': return { size: 60, content: '{{receipt_id}}', align: 'center' };
+        case 'barcode': return { width: 200, height: 40, content: '1234567890', align: 'center' };
+        case 'signature': return { text: 'Imzo: _____________', size: 10, align: 'center' };
+        case 'footer': return { text: 'Chekni tashlab yubormang!', size: 9, align: 'center' };
+        default: return {};
+      }
+    };
+
+    // ---- Default styles ----
+    const defaultStyle = {
+      x: 0, y: 0, w: 80, h: 40, margin: 0, padding: 0,
+      fontSize: 10, fontFamily: "'Courier New', monospace", fontWeight: '400',
+      color: '#000000', bgColor: 'transparent', border: 'none', borderRadius: 0,
+      textAlign: 'left', lineHeight: 1.4, letterSpacing: 0, visible: true,
+    };
+
+    // ---- Receipt Canvas Component ----
+    function ReceiptCanvas({ components, selectedId, onSelect, onMove, onResize, onAdd, settings, liveData }) {
+      const canvasRef = useRef(null);
+      const mmPx = settings.width === '80mm' ? 3.78 : 2.74;
+
+      const handleDrop = (e) => {
+        e.preventDefault();
+        const type = e.dataTransfer.getData('componentType');
+        if (!type) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const x = Math.round((e.clientX - rect.left) / mmPx);
+        const y = Math.round((e.clientY - rect.top) / mmPx);
+        const newComp = {
+          id: 'c' + Date.now(),
+          type: type,
+          props: defaultPropsFor(type),
+          style: { ...defaultStyle, x, y },
+        };
+        onAdd(newComp);
+      };
+
+      const handleDragOver = (e) => { e.preventDefault(); };
+
+      let canvasStyle = {
+        width: settings.width,
+        minHeight: '500px',
+        background: settings.bgColor,
+        margin: '0 auto',
+        fontFamily: "'Inter', 'Segoe UI', Arial, Helvetica, sans-serif",
+        position: 'relative',
+        overflow: 'hidden',
+        border: '1px solid #000',
+        padding: settings.pagePadding + 'px',
+        borderTop: '3px double #000',
+      };
+
+      return (
+        <div
+          ref={canvasRef}
+          className="can-drop"
+          style={canvasStyle}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onClick={() => onSelect(null)}
+        >
+          {components.map((comp) => (
+            <CanvasComponent
+              key={comp.id}
+              component={comp}
+              isSelected={selectedId === comp.id}
+              onSelect={(e) => { e.stopPropagation(); onSelect(comp.id); }}
+              onMove={(dx, dy) => onMove(comp.id, dx, dy)}
+              onResize={(dw, dh) => onResize(comp.id, dw, dh)}
+              liveData={liveData}
+            />
+          ))}
+          {components.length === 0 && (
+            <div style={{textAlign:'center',padding:'100px 20px',color:'#94a3b8',fontSize:'13px'}}>
+              <i className="fas fa-plus-circle" style={{fontSize:'32px',display:'block',marginBottom:'12px',opacity:0.4}}></i>
+              Komponentlarni chap paneldan sudrab keltiring
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ---- Canvas Component Renderer ----
+    function CanvasComponent({ component, isSelected, onSelect, onMove, liveData }) {
+      const compRef = useRef(null);
+      const dragging = useRef(null);
+
+      const onMouseDown = (e) => {
+        if (e.target.closest('.resize-handle')) return;
+        onSelect(e);
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const origX = component.style.x;
+        const origY = component.style.y;
+        const onMouseMove = (ev) => {
+          const dx = Math.round((ev.clientX - startX) / 3.78);
+          const dy = Math.round((ev.clientY - startY) / 3.78);
+          onMove(origX + dx, origY + dy);
+        };
+        const onMouseUp = () => {
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+        };
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      };
+
+      const st = component.style || defaultStyle;
+      const mmPx = 3.78;
+
+      const compStyle = {
+        position: 'absolute',
+        left: (st.x || 0) * mmPx + 'px',
+        top: (st.y || 0) * mmPx + 'px',
+        width: (st.w || 320) * mmPx + 'px',
+        height: (st.h || 40) * mmPx + 'px',
+        margin: (st.margin || 0) + 'px',
+        padding: (st.padding || 0) + 'px',
+        fontSize: (st.fontSize || 10) + 'px',
+        fontFamily: st.fontFamily || "'Courier New', monospace",
+        fontWeight: st.fontWeight || '400',
+        color: st.color || '#000',
+        background: st.bgColor || 'transparent',
+        border: st.border || 'none',
+        borderRadius: (st.borderRadius || 0) + 'px',
+        textAlign: st.textAlign || 'left',
+        lineHeight: st.lineHeight || 1.4,
+        letterSpacing: (st.letterSpacing || 0) + 'px',
+        visibility: st.visible !== false ? 'visible' : 'hidden',
+        cursor: 'move',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: st.textAlign === 'center' ? 'center' : st.textAlign === 'right' ? 'flex-end' : 'flex-start',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+      };
+
+      const renderContent = () => {
+        switch(component.type) {
+          case 'logo':
+            return component.props.src
+              ? <img src={component.props.src} alt="Logo" style={{maxHeight:(component.props.size||40)+'px',maxWidth:'100%'}} />
+              : <span style={{fontSize:(component.props.size||28)+'px',fontWeight:'900',letterSpacing:'2px'}}>🏫</span>;
+          case 'academy':
+            return <span style={{fontSize:(component.props.size||14)+'px',fontWeight:component.props.weight||'900',letterSpacing:'2px'}}>{component.props.text||'IT HOUSE ACADEMY'}</span>;
+          case 'title':
+            return <span style={{fontSize:(component.props.size||11)+'px',fontWeight:component.props.weight||'700',textTransform:'uppercase'}}>{component.props.text||"SIFATLI TA'LIM MARKAZI"}</span>;
+          case 'receiptNo':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}>{(component.props.prefix||'Chek #')+(component.props.format||'788799')}</span>;
+          case 'datetime':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}>{(component.props.label||'Sana: ')+(liveData?.date||'01.01.2025 14:30')}</span>;
+          case 'branch':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}><strong>{component.props.label||'Filial:'}</strong> {liveData?.branch||'Bosh ofis'}</span>;
+          case 'cashier':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}><strong>{component.props.label||'Kassir:'}</strong> {liveData?.cashier||'Admin'}</span>;
+          case 'student':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}><strong>{component.props.label||"O'quvchi:"}</strong> {liveData?.student_name||'Ism Familiya'}</span>;
+          case 'teacher':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}><strong>{component.props.label||"O'qituvchi:"}</strong> {liveData?.teacher||'-'}</span>;
+          case 'course':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}><strong>{component.props.label||'Kurs:'}</strong> {liveData?.course||'-'}</span>;
+          case 'phone':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}><strong>{component.props.label||'Telefon:'}</strong> {liveData?.phone||'+998 00 000 00 00'}</span>;
+          case 'payMethod':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}><strong>{component.props.label||"To'lov usuli:"}</strong> {liveData?.payment_method||"Naqt"}</span>;
+          case 'payType':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}><strong>{component.props.label||"Tranzaksiya turi:"}</strong> {"To'lov"}</span>;
+          case 'amount':
+            return <span style={{fontSize:(component.props.size||11)+'px',fontWeight:component.props.weight||'700'}}><strong>{component.props.label||"Miqdori:"}</strong> {liveData?.amount||'0'} so'm</span>;
+          case 'discount':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}><strong>{component.props.label||"Chegirma:"}</strong> {liveData?.discount||'0'} so'm</span>;
+          case 'balance':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}><strong>{component.props.label||"Qoldiq:"}</strong> {liveData?.balance||'0'} so'm</span>;
+          case 'text':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}>{component.props.content||'Matn'}</span>;
+          case 'divider':
+            return <hr style={{width:'100%',border:'none',borderTop:(component.props.thickness||1)+'px '+component.props.style+' #000',margin:0}} />;
+          case 'space':
+            return <div style={{height:(component.props.height||10)+'px'}}></div>;
+          case 'qrcode':
+            return (
+              <div style={{textAlign:component.props.align||'center',width:'100%'}}>
+                <svg width={(component.props.size||60)} height={(component.props.size||60)} viewBox="0 0 100 100">
+                  <rect x="0" y="0" width="100" height="100" fill="white"/>
+                  <rect x="5" y="5" width="35" height="35" fill="black"/>
+                  <rect x="10" y="10" width="5" height="5" fill="white"/>
+                  <rect x="20" y="10" width="5" height="5" fill="white"/>
+                  <rect x="30" y="10" width="5" height="5" fill="white"/>
+                  <rect x="10" y="20" width="5" height="5" fill="white"/>
+                  <rect x="30" y="20" width="5" height="5" fill="white"/>
+                  <rect x="10" y="30" width="5" height="5" fill="white"/>
+                  <rect x="20" y="30" width="5" height="5" fill="white"/>
+                  <rect x="30" y="30" width="5" height="5" fill="white"/>
+                  <rect x="60" y="5" width="35" height="35" fill="black"/>
+                  <rect x="65" y="10" width="5" height="5" fill="white"/>
+                  <rect x="75" y="10" width="5" height="5" fill="white"/>
+                  <rect x="85" y="10" width="5" height="5" fill="white"/>
+                  <rect x="65" y="20" width="5" height="5" fill="white"/>
+                  <rect x="85" y="20" width="5" height="5" fill="white"/>
+                  <rect x="65" y="30" width="5" height="5" fill="white"/>
+                  <rect x="75" y="30" width="5" height="5" fill="white"/>
+                  <rect x="85" y="30" width="5" height="5" fill="white"/>
+                  <rect x="5" y="60" width="35" height="35" fill="black"/>
+                  <rect x="10" y="65" width="5" height="5" fill="white"/>
+                  <rect x="20" y="65" width="5" height="5" fill="white"/>
+                  <rect x="30" y="65" width="5" height="5" fill="white"/>
+                  <rect x="10" y="75" width="5" height="5" fill="white"/>
+                  <rect x="30" y="75" width="5" height="5" fill="white"/>
+                  <rect x="10" y="85" width="5" height="5" fill="white"/>
+                  <rect x="20" y="85" width="5" height="5" fill="white"/>
+                  <rect x="30" y="85" width="5" height="5" fill="white"/>
+                  <rect x="50" y="50" width="15" height="15" fill="black"/>
+                  <rect x="70" y="60" width="5" height="5" fill="black"/>
+                  <rect x="80" y="60" width="5" height="5" fill="black"/>
+                  <rect x="70" y="70" width="5" height="5" fill="white"/>
+                  <rect x="80" y="70" width="5" height="5" fill="black"/>
+                  <rect x="60" y="80" width="5" height="5" fill="black"/>
+                  <rect x="80" y="80" width="5" height="5" fill="black"/>
+                  <rect x="60" y="90" width="5" height="5" fill="black"/>
+                </svg>
+                <div style={{fontSize:'8px',marginTop:'2px'}}>QR kodni skanerlang</div>
+              </div>
+            );
+          case 'barcode':
+            return (
+              <div style={{textAlign:component.props.align||'center',width:'100%'}}>
+                <svg width={(component.props.width||200)} height={(component.props.height||40)}>
+                  {Array.from({length:20}, (_, i) => (
+                    <rect key={i} x={i*10} y="0" width={i%2===0?6:3} height="30" fill={i%2===0?'black':'#ddd'}/>
+                  ))}
+                </svg>
+              </div>
+            );
+          case 'signature':
+            return <span style={{fontSize:(component.props.size||10)+'px'}}>{component.props.text||'Imzo: _____________'}</span>;
+          case 'footer':
+            return <span style={{fontSize:(component.props.size||9)+'px'}}>{component.props.text||'Chekni tashlab yubormang!'}</span>;
+          // Old-type backward compatibility
+          case 'header':
+            return <div style={{textAlign:'center'}}>
+              <div style={{fontSize:'16px',fontWeight:'900',letterSpacing:'2px'}}>{component.props.academy||'IT HOUSE ACADEMY'}</div>
+              <div style={{fontSize:'11px',fontWeight:'700',textTransform:'uppercase',marginTop:'2px'}}>{component.props.title||"SIFATLI TA'LIM MARKAZI"}</div>
+            </div>;
+          case 'info':
+            return <div style={{padding:'4px 0'}}>
+              <div style={{display:'flex',justifyContent:'space-between',padding:'1px 0'}}><strong>Sana:</strong><span>{liveData?.date||'01.01.2025'}</span></div>
+              <div style={{display:'flex',justifyContent:'space-between',padding:'1px 0'}}><strong>Kassir:</strong><span>{liveData?.cashier||'Admin'}</span></div>
+              <div style={{display:'flex',justifyContent:'space-between',padding:'1px 0'}}><strong>O'quvchi:</strong><span>{liveData?.student_name||'Ism Familiya'}</span></div>
+              <div style={{display:'flex',justifyContent:'space-between',padding:'1px 0'}}><strong>Telefon:</strong><span>{liveData?.phone||'+998 00 000 00 00'}</span></div>
+              <div style={{display:'flex',justifyContent:'space-between',padding:'1px 0'}}><strong>To'lov usuli:</strong><span>{liveData?.payment_method||"Naqt"}</span></div>
+              <div style={{display:'flex',justifyContent:'space-between',padding:'1px 0',fontWeight:'700'}}><strong>Miqdori:</strong><span>{liveData?.amount||'0'} so'm</span></div>
+            </div>;
+          case 'message':
+            return <div style={{textAlign:'center',padding:'6px 0'}}>
+              <div style={{fontWeight:'900',fontSize:'11px',textTransform:'uppercase'}}>{component.props.text||'HURMATLI O\'QUVCHI!'}</div>
+              <div style={{fontSize:'9px',marginTop:'3px'}}>{component.props.sub||"To'lovlarni har oyning 10-sanasidan kechiktirmang iltimos!"}</div>
+            </div>;
+          default:
+            return <span style={{fontSize:'10px'}}>Noma'lum komponent</span>;
+        }
+      };
+
+      const classNames = 'receipt-comp' + (isSelected ? ' component-selected' : '');
+
+      return (
+        <div
+          ref={compRef}
+          className={classNames}
+          style={compStyle}
+          onMouseDown={onMouseDown}
+        >
+          {renderContent()}
+        </div>
+      );
+    }
+
+    // ---- Palette / Sidebar ----
+    function Palette({ onAdd, onImport }) {
+      const categories = [
+        { name: 'Sarlavha', key: 'header', items: ['logo','academy','title','receiptNo'] },
+        { name: "Ma'lumot", key: 'info', items: ['datetime','branch','cashier','student','teacher','course','phone'] },
+        { name: "To'lov", key: 'payment', items: ['payMethod','payType','amount','discount','balance'] },
+        { name: 'Maxsus', key: 'custom', items: ['text','divider','space','qrcode','barcode','signature','footer'] },
+      ];
+
+      const [activeTab, setActiveTab] = useState('header');
+      const [importText, setImportText] = useState('');
+
+      const handleDragStart = (e, type) => {
+        e.dataTransfer.setData('componentType', type);
+        e.dataTransfer.effectAllowed = 'copy';
+      };
+
+      return (
+        <div style={{padding:'12px',overflowY:'auto',maxHeight:'calc(100vh - 200px)'}}>
+          <div style={{display:'flex',gap:'4px',marginBottom:'10px',flexWrap:'wrap'}}>
+            {categories.map(cat => (
+              <button key={cat.key} onClick={() => setActiveTab(cat.key)}
+                style={{
+                  padding:'5px 10px', fontSize:'12px', borderRadius:'6px', border:'1px solid #e2e8f0',
+                  background: activeTab === cat.key ? '#2563eb' : '#fff',
+                  color: activeTab === cat.key ? '#fff' : '#374151',
+                  cursor:'pointer', fontWeight: activeTab === cat.key ? '600' : '400',
+                }}
+              >{cat.name}</button>
+            ))}
+          </div>
+
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+            {categories.find(c => c.key === activeTab)?.items.map(type => {
+              const meta = COMPONENT_META[type];
+              if (!meta) return null;
+              return (
+                <div key={type} className="palette-item"
+                  draggable="true"
+                  onDragStart={(e) => handleDragStart(e, type)}
+                  onClick={() => onAdd(type)}
+                  style={{
+                    padding:'10px 8px', borderRadius:'8px', border:'1px solid #e2e8f0',
+                    background:'#f8fafc', cursor:'grab', fontSize:'11px', textAlign:'center',
+                    userSelect:'none',
+                  }}
+                >
+                  <div style={{fontSize:'16px',marginBottom:'4px',color:'#2563eb'}}>
+                    <i className={'fas ' + meta.icon}></i>
+                  </div>
+                  <div style={{color:'#374151'}}>{meta.label}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <hr style={{margin:'16px 0',border:'none',borderTop:'1px solid #e2e8f0'}}/>
+
+          <div style={{fontSize:'11px',fontWeight:'600',color:'#374151',marginBottom:'6px'}}>
+            <i className="fas fa-file-import"></i> Import JSON
+          </div>
+          <textarea
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            placeholder="JSON ni joylashtiring..."
+            rows={3}
+            style={{width:'100%',padding:'6px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'11px',fontFamily:'monospace',resize:'vertical'}}
+          />
+          <button onClick={() => onImport(importText)}
+            style={{width:'100%',marginTop:'4px',padding:'6px',borderRadius:'6px',border:'1px solid #2563eb',background:'#eff6ff',color:'#2563eb',cursor:'pointer',fontSize:'11px',fontWeight:'600'}}
+          >Import qilish</button>
+        </div>
+      );
+    }
+
+    // ---- Properties Panel ----
+    function PropertiesPanel({ component, onChange, onDelete }) {
+      if (!component) {
+        return (
+          <div style={{padding:'20px',textAlign:'center',color:'#94a3b8',fontSize:'13px'}}>
+            <i className="fas fa-hand-pointer" style={{fontSize:'28px',display:'block',marginBottom:'10px',opacity:0.4}}></i>
+            Komponentni tanlang
+          </div>
+        );
+      }
+
+      const meta = COMPONENT_META[component.type];
+      const props = component.props || {};
+      const style = component.style || defaultStyle;
+
+      const setProp = (key, val) => {
+        onChange({ ...component, props: { ...props, [key]: val } });
+      };
+      const setStyle = (key, val) => {
+        onChange({ ...component, style: { ...style, [key]: val } });
+      };
+
+      return (
+        <div style={{padding:'12px',overflowY:'auto',maxHeight:'calc(100vh - 200px)',fontSize:'12px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px',paddingBottom:'8px',borderBottom:'1px solid #e2e8f0'}}>
+            <i className={'fas ' + (meta?.icon||'fa-cube')} style={{color:'#2563eb'}}></i>
+            <span style={{fontWeight:'600',color:'#0f172a'}}>{meta?.label||component.type}</span>
+            <button onClick={onDelete} style={{marginLeft:'auto',padding:'4px 8px',border:'none',borderRadius:'4px',background:'#fef2f2',color:'#dc2626',cursor:'pointer',fontSize:'11px'}}>
+              <i className="fas fa-trash"></i>
+            </button>
+          </div>
+
+          <div className="anim-in">
+            <Section title="Asosiy">
+              <Field label="X" type="number" value={style.x} onChange={(v) => setStyle('x', parseInt(v)||0)} />
+              <Field label="Y" type="number" value={style.y} onChange={(v) => setStyle('y', parseInt(v)||0)} />
+              <Field label="Kenglik (w)" type="number" value={style.w} onChange={(v) => setStyle('w', parseInt(v)||10)} />
+              <Field label="Balandlik (h)" type="number" value={style.h} onChange={(v) => setStyle('h', parseInt(v)||10)} />
+            </Section>
+
+            <Section title="Matn">
+              {component.type === 'logo' && (
+                <>
+                  <Field label="Rasm URL" value={props.src||''} onChange={(v) => setProp('src', v)} />
+                  <div style={{marginBottom:'6px'}}>
+                    <Label>Rasm yuklash</Label>
+                    <input type="file" accept="image/*" onChange={(e) => {
+                      var file = e.target.files[0];
+                      if (file) {
+                        var reader = new FileReader();
+                        reader.onload = function(ev) { setProp('src', ev.target.result); };
+                        reader.readAsDataURL(file);
+                      }
+                    }} style={{width:'100%',fontSize:'11px',padding:'4px',border:'1px solid #e2e8f0',borderRadius:'6px',background:'#fff'}} />
+                  </div>
+                  {props.src && props.src.indexOf('data:') === 0 && (
+                    <div style={{marginBottom:'6px'}}>
+                      <img src={props.src} alt="Logo" style={{maxWidth:'100%',maxHeight:'60px',display:'block',marginBottom:'4px',border:'1px solid #e2e8f0',borderRadius:'4px',padding:'4px'}} />
+                      <button onClick={function(){setProp('src','')}} style={{padding:'3px 8px',borderRadius:'4px',border:'1px solid #dc2626',background:'#fef2f2',color:'#dc2626',cursor:'pointer',fontSize:'10px'}}><i className="fas fa-times"></i> Olib tashlash</button>
+                    </div>
+                  )}
+                </>
+              )}
+              {props.text !== undefined && <Field label="Matn" value={props.text} onChange={(v) => setProp('text', v)} />}
+              {props.content !== undefined && <Field label="Matn" value={props.content} onChange={(v) => setProp('content', v)} />}
+              {props.label !== undefined && <Field label="Label" value={props.label} onChange={(v) => setProp('label', v)} />}
+              {props.prefix !== undefined && <Field label="Prefiks" value={props.prefix} onChange={(v) => setProp('prefix', v)} />}
+              {props.format !== undefined && <Field label="Format" value={props.format} onChange={(v) => setProp('format', v)} />}
+              {(props.size !== undefined || true) && <Field label="Shrift/Rasm hajmi" type="number" value={props.size||style.fontSize} onChange={(v) => { setProp('size', parseInt(v)||10); setStyle('fontSize', parseInt(v)||10); }} />}
+              {props.weight !== undefined && (
+                <div style={{marginBottom:'6px'}}>
+                  <Label>Shrift og'irligi</Label>
+                  <select value={props.weight} onChange={(e) => setProp('weight', e.target.value)}
+                    style={selStyle}>
+                    <option value="400">Normal</option>
+                    <option value="700">Qalin</option>
+                    <option value="900">Juda qalin</option>
+                  </select>
+                </div>
+              )}
+              <Field label="Harf oralig'i" type="number" value={style.letterSpacing} onChange={(v) => setStyle('letterSpacing', parseFloat(v)||0)} step="0.5" />
+            </Section>
+
+            <Section title="Ko'rinish">
+              <div style={{marginBottom:'6px'}}>
+                <Label>Hizalash</Label>
+                <select value={props.align||style.textAlign||'left'} onChange={(e) => { setProp('align', e.target.value); setStyle('textAlign', e.target.value); }}
+                  style={selStyle}>
+                  <option value="left">Chap</option>
+                  <option value="center">Markaz</option>
+                  <option value="right">O'ng</option>
+                </select>
+              </div>
+              <Field label="Shrift rangi" type="color" value={style.color||'#000000'} onChange={(v) => setStyle('color', v)} />
+              <Field label="Fon rangi" type="color" value={style.bgColor||'transparent'} onChange={(v) => setStyle('bgColor', v)} />
+              <Field label="Chekka (padding)" type="number" value={style.padding} onChange={(v) => setStyle('padding', parseInt(v)||0)} />
+              <Field label="Tashqi chekka (margin)" type="number" value={style.margin} onChange={(v) => setStyle('margin', parseInt(v)||0)} />
+              <Field label="Chegara radiusi" type="number" value={style.borderRadius} onChange={(v) => setStyle('borderRadius', parseInt(v)||0)} />
+            </Section>
+
+            <Section title="QR & Maxsus">
+              {props.size !== undefined && component.type === 'qrcode' && (
+                <Field label="QR o'lchami" type="number" value={props.size} onChange={(v) => setProp('size', parseInt(v)||20)} />
+              )}
+              {props.content !== undefined && <Field label="QR tarkibi" value={props.content} onChange={(v) => setProp('content', v)} />}
+              {props.style !== undefined && component.type === 'divider' && (
+                <div style={{marginBottom:'6px'}}>
+                  <Label>Ajratkich uslubi</Label>
+                  <select value={props.style} onChange={(e) => setProp('style', e.target.value)} style={selStyle}>
+                    <option value="dashed">Chiziqli</option>
+                    <option value="solid">To'liq</option>
+                  </select>
+                </div>
+              )}
+              {props.height !== undefined && component.type === 'space' && (
+                <Field label="Balandlik" type="number" value={props.height} onChange={(v) => setProp('height', parseInt(v)||5)} />
+              )}
+              {component.type === 'barcode' && (
+                <>
+                  <Field label="Kenglik" type="number" value={props.width||200} onChange={(v) => setProp('width', parseInt(v)||50)} />
+                  <Field label="Balandlik" type="number" value={props.height||40} onChange={(v) => setProp('height', parseInt(v)||10)} />
+                </>
+              )}
+            </Section>
+
+            <div style={{marginTop:'10px',display:'flex',gap:'6px'}}>
+              <label style={{display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',cursor:'pointer'}}>
+                <input type="checkbox" checked={style.visible !== false} onChange={(e) => setStyle('visible', e.target.checked)} />
+                Ko'rinadigan
+              </label>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---- Helper Components ----
+    const Label = ({ children }) => (
+      <div style={{fontSize:'11px',fontWeight:'600',color:'#374151',marginBottom:'2px'}}>{children}</div>
+    );
+    const selStyle = {
+      width:'100%',padding:'5px 6px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'11px',
+      background:'#fff',color:'#0f172a',outline:'none',
+    };
+    function Field({ label, type='text', value, onChange, step }) {
+      return (
+        <div style={{marginBottom:'6px'}}>
+          <Label>{label}</Label>
+          {type === 'color' ? (
+            <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+              <input type="color" value={value} onChange={(e) => onChange(e.target.value)} />
+              <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
+                style={{flex:1,padding:'5px 6px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'11px',outline:'none'}} />
+            </div>
+          ) : (
+            <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
+              step={step}
+              style={{width:'100%',padding:'5px 6px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'11px',outline:'none'}} />
+          )}
+        </div>
+      );
+    }
+    function Section({ title, children }) {
+      const [open, setOpen] = useState(true);
+      return (
+        <div style={{marginBottom:'8px'}}>
+          <div onClick={() => setOpen(!open)}
+            style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 0',cursor:'pointer',borderBottom:'1px solid #f1f5f9',fontSize:'12px',fontWeight:'600',color:'#0f172a',userSelect:'none'}}>
+            <i className={'fas fa-chevron-' + (open?'down':'right')} style={{fontSize:'9px',color:'#94a3b8'}}></i>
+            {title}
+          </div>
+          {open && <div style={{padding:'4px 0'}}>{children}</div>}
+        </div>
+      );
+    }
+
+    // ---- Settings Panel ----
+    function SettingsPanel({ settings, onChange }) {
+      return (
+        <div style={{padding:'12px',overflowY:'auto',maxHeight:'calc(100vh - 200px)',fontSize:'12px'}}>
+          <div style={{fontWeight:'600',color:'#0f172a',marginBottom:'10px',paddingBottom:'8px',borderBottom:'1px solid #e2e8f0'}}>
+            <i className="fas fa-gear" style={{color:'#2563eb',marginRight:'6px'}}></i>
+            Chek sozlamalari
+          </div>
+
+          <div className="anim-in">
+            <div style={{marginBottom:'8px'}}>
+              <Label>Chek eni</Label>
+              <select value={settings.width} onChange={(e) => onChange({...settings, width: e.target.value})} style={selStyle}>
+                <option value="58mm">58 mm</option>
+                <option value="80mm">80 mm</option>
+              </select>
+            </div>
+
+            <div style={{marginBottom:'8px'}}>
+              <Label>Fon rangi</Label>
+              <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                <input type="color" value={settings.bgColor} onChange={(e) => onChange({...settings, bgColor: e.target.value})} />
+                <input type="text" value={settings.bgColor} onChange={(e) => onChange({...settings, bgColor: e.target.value})}
+                  style={{flex:1,padding:'5px 6px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'11px',outline:'none'}} />
+              </div>
+            </div>
+
+            <div style={{marginBottom:'8px'}}>
+              <Label>Sahifa ichki cheti (px)</Label>
+              <input type="number" value={settings.pagePadding} onChange={(e) => onChange({...settings, pagePadding: parseInt(e.target.value)||0})}
+                style={{width:'100%',padding:'5px 6px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'11px',outline:'none'}} />
+            </div>
+
+            <div style={{marginBottom:'8px'}}>
+              <Label>Qog'oz cheti (mm)</Label>
+              <input type="number" value={settings.paperMargin} onChange={(e) => onChange({...settings, paperMargin: parseInt(e.target.value)||0})}
+                style={{width:'100%',padding:'5px 6px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'11px',outline:'none'}} />
+            </div>
+
+            <div style={{marginBottom:'8px'}}>
+              <Label>Chop etish DPI</Label>
+              <select value={settings.printDpi} onChange={(e) => onChange({...settings, printDpi: parseInt(e.target.value)})} style={selStyle}>
+                <option value="203">203 DPI</option>
+                <option value="300">300 DPI</option>
+              </select>
+            </div>
+
+            <div style={{display:'flex',flexDirection:'column',gap:'6px',marginTop:'10px'}}>
+              <label style={{display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',cursor:'pointer'}}>
+                <input type="checkbox" checked={settings.thermalMode} onChange={(e) => onChange({...settings, thermalMode: e.target.checked})} />
+                Termal printer rejimi
+              </label>
+              <label style={{display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',cursor:'pointer'}}>
+                <input type="checkbox" checked={settings.blackWhite} onChange={(e) => onChange({...settings, blackWhite: e.target.checked})} />
+                Qora-oq rejim
+              </label>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---- Zoom Controls ----
+    function ZoomControls({ zoom, onChange }) {
+      const levels = [25, 50, 75, 100, 150, 200];
+      return (
+        <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
+          <button onClick={() => onChange(Math.max(25, zoom-25))}
+            style={{padding:'4px 8px',borderRadius:'6px',border:'1px solid #e2e8f0',background:'#fff',cursor:'pointer',fontSize:'11px'}}>
+            <i className="fas fa-minus"></i>
+          </button>
+          <select value={zoom} onChange={(e) => onChange(parseInt(e.target.value))}
+            style={{padding:'4px 6px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'11px',outline:'none'}}>
+            {levels.map(l => <option key={l} value={l}>{l}%</option>)}
+          </select>
+          <button onClick={() => onChange(Math.min(200, zoom+25))}
+            style={{padding:'4px 8px',borderRadius:'6px',border:'1px solid #e2e8f0',background:'#fff',cursor:'pointer',fontSize:'11px'}}>
+            <i className="fas fa-plus"></i>
+          </button>
+        </div>
+      );
+    }
+
+    // ---- Main App ----
+    function App() {
+      const [components, setComponents] = useState(defaultComponents);
+      const [selectedId, setSelectedId] = useState(null);
+      const [tab, setTab] = useState('builder');
+      const [zoom, setZoom] = useState(100);
+      const [activePanel, setActivePanel] = useState('palette');
+      const [unsaved, setUnsaved] = useState(false);
+      const [saving, setSaving] = useState(false);
+      const [message, setMessage] = useState('');
+
+      const [settings, setSettings] = useState({
+        width: TEMPLATE_WIDTH,
+        bgColor: TEMPLATE_BG,
+        blackWhite: TEMPLATE_BW,
+        thermalMode: TEMPLATE_THERMAL,
+        printDpi: TEMPLATE_DPI,
+        pagePadding: TEMPLATE_PADDING,
+        paperMargin: TEMPLATE_MARGIN,
+      });
+
+      const [liveData, setLiveData] = useState({
+        date: new Date().toLocaleDateString('uz-UZ') + ' ' + new Date().toLocaleTimeString('uz-UZ', {hour:'2-digit',minute:'2-digit'}),
+        branch: 'Bosh ofis',
+        cashier: 'Admin',
+        student_name: 'Ism Familiya',
+        phone: '+998 00 000 00 00',
+        payment_method: "Naqt",
+        amount: '50 000',
+        balance: '100 000',
+        discount: '0',
+      });
+
+      const selectedComponent = components.find(c => c.id === selectedId) || null;
+
+      const showMsg = (text) => { setMessage(text); setTimeout(() => setMessage(''), 3000); };
+
+      const handleAdd = (type) => {
+        const maxY = components.reduce((m, c) => Math.max(m, (c.style?.y||0)+(c.style?.h||40)), 0);
+        const newComp = {
+          id: 'c' + Date.now(),
+          type: type,
+          props: defaultPropsFor(type),
+          style: { ...defaultStyle, y: maxY + 10 },
+        };
+        setComponents([...components, newComp]);
+        setSelectedId(newComp.id);
+        setUnsaved(true);
+      };
+
+      const handleAddFromPalette = (type) => {
+        // Called from palette onclick - adds at default position
+        handleAdd(type);
+      };
+
+      const handleImport = (jsonStr) => {
+        try {
+          const data = JSON.parse(jsonStr);
+          if (Array.isArray(data)) {
+            setComponents(data);
+            setUnsaved(true);
+            showMsg('Import muvaffaqiyatli!');
+          } else if (data.components) {
+            setComponents(data.components);
+            if (data.width) setSettings(s => ({...s, width: data.width}));
+            if (data.bgColor) setSettings(s => ({...s, bgColor: data.bgColor}));
+            setUnsaved(true);
+            showMsg('Import muvaffaqiyatli!');
+          }
+        } catch(e) { showMsg('Xato: JSON noto\'g\'ri'); }
+      };
+
+      const handleComponentChange = (updated) => {
+        setComponents(components.map(c => c.id === updated.id ? updated : c));
+        setUnsaved(true);
+      };
+
+      const handleMove = (id, x, y) => {
+        setComponents(components.map(c => c.id === id ? {...c, style: {...c.style, x, y}} : c));
+        setUnsaved(true);
+      };
+
+      const handleResize = (id, w, h) => {
+        setComponents(components.map(c => c.id === id ? {...c, style: {...c.style, w, h}} : c));
+        setUnsaved(true);
+      };
+
+      const handleDelete = () => {
+        if (!selectedComponent) return;
+        setComponents(components.filter(c => c.id !== selectedId));
+        setSelectedId(null);
+        setUnsaved(true);
+      };
+
+      const handleSave = () => {
+        setSaving(true);
+        const data = {
+          components: components,
+          width: settings.width,
+          background_color: settings.bgColor,
+          black_white: settings.blackWhite,
+          thermal_mode: settings.thermalMode,
+          print_dpi: settings.printDpi,
+          page_padding: settings.pagePadding,
+          paper_margin: settings.paperMargin,
+        };
+        fetch('/api/receipt-templates/' + templateId + '/', {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+          body: JSON.stringify(data),
+        }).then(r => r.json()).then(d => {
+          if (d.success) { setUnsaved(false); showMsg('Shablon saqlandi!'); }
+          else { showMsg('Xatolik: ' + (d.error||'')); }
+        }).catch(() => showMsg('Server xatoligi')).finally(() => setSaving(false));
+      };
+
+      const handleSaveAs = () => {
+        const name = prompt('Yangi shablon nomi:', TEMPLATE_NAME + ' (nusxa)');
+        if (!name) return;
+        setSaving(true);
+        const data = {
+          name: name, components: components,
+          width: settings.width, background_color: settings.bgColor,
+          black_white: settings.blackWhite, thermal_mode: settings.thermalMode,
+          print_dpi: settings.printDpi, page_padding: settings.pagePadding, paper_margin: settings.paperMargin,
+        };
+        fetch(API_TEMPLATE_CREATE, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+          body: JSON.stringify(data),
+        }).then(r => r.json()).then(d => {
+          if (d.success) { window.location.href = '/receipt-templates/' + d.id + '/'; }
+          else { showMsg('Xatolik: ' + (d.error||'')); }
+        }).catch(() => showMsg('Server xatoligi')).finally(() => setSaving(false));
+      };
+
+      const handleExport = () => {
+        const data = { ...settings, components };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'receipt-template-' + templateId + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        showMsg('JSON eksport qilindi!');
+      };
+
+      const handleReset = () => {
+        if (!confirm('Shablonni tiklashni tasdiqlaysizmi?')) return;
+        setComponents(defaultComponents);
+        setUnsaved(true);
+        showMsg('Shablon tiklandi');
+      };
+
+      const handlePrintTest = () => {
+        const w = window.open('', '', 'width=400,height=600');
+        const receiptHTML = renderReceiptHTML(components, liveData, settings);
+        w.document.write(receiptHTML);
+        w.document.close();
+        setTimeout(() => w.print(), 500);
+      };
+
+      // ---- Toolbar ----
+      return (
+        <div style={{display:'flex',flexDirection:'column',height:'calc(100vh - 140px)'}}>
+          {/* Message toast */}
+          {message && (
+            <div style={{
+              position:'fixed',top:'16px',right:'16px',zIndex:9999,
+              padding:'10px 18px',borderRadius:'8px',background:'#0f172a',color:'#fff',
+              fontSize:'13px',fontWeight:'500',boxShadow:'0 4px 12px rgba(0,0,0,0.15)',
+              animation:'fadeIn .2s ease',
+            }}>
+              {message}
+            </div>
+          )}
+
+          {/* Top Toolbar */}
+          <div style={{
+            display:'flex',alignItems:'center',gap:'8px',padding:'10px 16px',
+            background:'#fff',borderBottom:'1px solid #e2e8f0',flexWrap:'wrap',
+          }}>
+            <div style={{fontWeight:'700',fontSize:'15px',color:'#0f172a',marginRight:'8px'}}>
+              {{ template.name|escapejs }}
+            </div>
+
+            <div style={{flex:1}}></div>
+
+            <ZoomControls zoom={zoom} onChange={setZoom} />
+
+            <button onClick={handleSave} disabled={saving}
+              style={{padding:'7px 14px',borderRadius:'6px',border:'none',background:saving?'#94a3b8':'#2563eb',color:'#fff',cursor:'pointer',fontSize:'12px',fontWeight:'600'}}>
+              <i className="fas fa-save"></i> {saving?'Saqlanmoqda...':'Saqlash'}
+            </button>
+            <button onClick={handleSaveAs}
+              style={{padding:'7px 14px',borderRadius:'6px',border:'1px solid #e2e8f0',background:'#fff',color:'#374151',cursor:'pointer',fontSize:'12px',fontWeight:'500'}}>
+              <i className="fas fa-copy"></i> Yangi saqlash
+            </button>
+            <button onClick={handleExport}
+              style={{padding:'7px 14px',borderRadius:'6px',border:'1px solid #e2e8f0',background:'#fff',color:'#374151',cursor:'pointer',fontSize:'12px',fontWeight:'500'}}>
+              <i className="fas fa-download"></i> Export
+            </button>
+            <button onClick={handleReset}
+              style={{padding:'7px 14px',borderRadius:'6px',border:'1px solid #e2e8f0',background:'#fff',color:'#dc2626',cursor:'pointer',fontSize:'12px',fontWeight:'500'}}>
+              <i className="fas fa-rotate-left"></i> Tiklash
+            </button>
+            <button onClick={handlePrintTest}
+              style={{padding:'7px 14px',borderRadius:'6px',border:'1px solid #e2e8f0',background:'#fff',color:'#374151',cursor:'pointer',fontSize:'12px',fontWeight:'500'}}>
+              <i className="fas fa-print"></i> Chop etish
+            </button>
+            <a href="{% url 'receipt_builder' %}"
+              style={{padding:'7px 14px',borderRadius:'6px',border:'1px solid #e2e8f0',background:'#fff',color:'#64748b',cursor:'pointer',fontSize:'12px',fontWeight:'500',textDecoration:'none'}}>
+              <i className="fas fa-arrow-left"></i> Orqaga
+            </a>
+
+            {unsaved && <span style={{fontSize:'11px',color:'#f59e0b',fontWeight:'600'}}><i className="fas fa-circle"></i> Saqlanmagan</span>}
+          </div>
+
+          {/* Main Content */}
+          <div style={{display:'flex',flex:1,overflow:'hidden',background:'#f8fafc'}}>
+            {/* Left Sidebar - Palette & Settings tabs */}
+            <div style={{width:'260px',background:'#fff',borderRight:'1px solid #e2e8f0',display:'flex',flexDirection:'column',flexShrink:0}}>
+              <div style={{display:'flex',borderBottom:'1px solid #e2e8f0'}}>
+                {[
+                  {key:'palette',icon:'fa-cubes',label:'Komponentlar'},
+                  {key:'settings',icon:'fa-gear',label:'Sozlamalar'},
+                ].map(t => (
+                  <button key={t.key} onClick={() => setActivePanel(t.key)}
+                    style={{
+                      flex:1, padding:'8px 4px', textAlign:'center', fontSize:'11px', fontWeight:'500',
+                      border:'none', borderBottom: activePanel === t.key ? '2px solid #2563eb' : '2px solid transparent',
+                      background: activePanel === t.key ? '#eff6ff' : '#fff',
+                      color: activePanel === t.key ? '#2563eb' : '#64748b',
+                      cursor:'pointer', transition:'all .15s',
+                    }}>
+                    <i className={'fas ' + t.icon} style={{display:'block',fontSize:'14px',marginBottom:'2px'}}></i>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{flex:1,overflow:'hidden'}}>
+                {activePanel === 'palette' && <Palette onAdd={handleAddFromPalette} onImport={handleImport} />}
+                {activePanel === 'settings' && <SettingsPanel settings={settings} onChange={(s) => { setSettings(s); setUnsaved(true); }} />}
+              </div>
+            </div>
+
+            {/* Center - Canvas */}
+            <div style={{flex:1,overflow:'auto',padding:'20px',display:'flex',justifyContent:'center',alignItems:'flex-start'}}>
+              <div style={{transform:'scale(' + (zoom/100) + ')',transformOrigin:'top center',width:settings.width,flexShrink:0}}>
+                <ReceiptCanvas
+                  components={components}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  onMove={handleMove}
+                  onResize={handleResize}
+                  settings={settings}
+                  liveData={liveData}
+                />
+              </div>
+            </div>
+
+            {/* Right Sidebar - Properties */}
+            <div style={{width:'280px',background:'#fff',borderLeft:'1px solid #e2e8f0',overflow:'auto',flexShrink:0}}>
+              <PropertiesPanel
+                component={selectedComponent}
+                onChange={handleComponentChange}
+                onDelete={handleDelete}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---- Render Receipt HTML for printing ----
+    function renderReceiptHTML(components, data, settings) {
+      const renderComp = (comp) => {
+        const p = comp.props || {};
+        const s = comp.style || defaultStyle;
+        const st = `font-size:${s.fontSize||10}px;font-family:${s.fontFamily||"'Courier New', monospace"};color:${s.color||'#000'};text-align:${s.textAlign||'left'};line-height:${s.lineHeight||1.4};`;
+        switch(comp.type) {
+          case 'logo': return `<div style="text-align:${p.align||'center'};${st}font-size:${p.size||40}px;font-weight:900;">🏫</div>`;
+          case 'academy': return `<div style="text-align:${p.align||'center'};${st}font-size:${p.size||14}px;font-weight:${p.weight||'900'};letter-spacing:2px;">${p.text||'IT HOUSE ACADEMY'}</div>`;
+          case 'title': return `<div style="text-align:${p.align||'center'};${st}font-size:${p.size||11}px;font-weight:${p.weight||'700'};text-transform:uppercase;">${p.text||"SIFATLI TA'LIM MARKAZI"}</div>`;
+          case 'receiptNo': return `<div style="text-align:${p.align||'center'};${st}">${p.prefix||'Chek #'}${p.format||'788799'}</div>`;
+          case 'datetime': return `<div style="${st}"><strong>${p.label||'Sana: '}</strong>${data?.date||'01.01.2025 14:30'}</div>`;
+          case 'branch': return `<div style="${st}display:flex;justify-content:space-between"><strong>${p.label||'Filial:'}</strong><span>${data?.branch||'Bosh ofis'}</span></div>`;
+          case 'cashier': return `<div style="${st}display:flex;justify-content:space-between"><strong>${p.label||'Kassir:'}</strong><span>${data?.cashier||'Admin'}</span></div>`;
+          case 'student': return `<div style="${st}display:flex;justify-content:space-between"><strong>${p.label||"O'quvchi:"}</strong><span>${data?.student_name||'Ism Familiya'}</span></div>`;
+          case 'phone': return `<div style="${st}display:flex;justify-content:space-between"><strong>${p.label||'Telefon:'}</strong><span>${data?.phone||'+998 00 000 00 00'}</span></div>`;
+          case 'payMethod': return `<div style="${st}display:flex;justify-content:space-between"><strong>${p.label||"To'lov usuli:"}</strong><span>${data?.payment_method||'Naqt'}</span></div>`;
+          case 'payType': return `<div style="${st}display:flex;justify-content:space-between"><strong>${p.label||"Tranzaksiya turi:"}</strong><span>To'lov</span></div>`;
+          case 'amount': return `<div style="${st}display:flex;justify-content:space-between;font-weight:700"><strong>${p.label||"Miqdori:"}</strong><span>${(data?.amount||'0').toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')} so'm</span></div>`;
+          case 'balance': return `<div style="${st}display:flex;justify-content:space-between"><strong>${p.label||"Qoldiq:"}</strong><span>${(data?.balance||'0').toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')} so'm</span></div>`;
+          case 'text': return `<div style="text-align:${p.align||'center'};${st}">${p.content||'Matn'}</div>`;
+          case 'divider': return `<hr style="border:none;border-top:${p.thickness||1}px ${p.style||'dashed'} #000;margin:4px 0;">`;
+          case 'space': return `<div style="height:${p.height||10}px"></div>`;
+          case 'qrcode': return `<div style="text-align:${p.align||'center'};padding:8px 0;"><svg width="${p.size||60}" height="${p.size||60}" viewBox="0 0 100 100"><rect fill="#fff" width="100" height="100"/><rect fill="#000" x="5" y="5" width="35" height="35"/><rect fill="#fff" x="10" y="10" width="5" height="5"/><rect fill="#fff" x="20" y="10" width="5" height="5"/><rect fill="#fff" x="30" y="10" width="5" height="5"/><rect fill="#fff" x="10" y="20" width="5" height="5"/><rect fill="#fff" x="30" y="20" width="5" height="5"/><rect fill="#fff" x="10" y="30" width="5" height="5"/><rect fill="#fff" x="20" y="30" width="5" height="5"/><rect fill="#fff" x="30" y="30" width="5" height="5"/><rect fill="#000" x="60" y="5" width="35" height="35"/><rect fill="#fff" x="65" y="10" width="5" height="5"/><rect fill="#fff" x="75" y="10" width="5" height="5"/><rect fill="#fff" x="85" y="10" width="5" height="5"/><rect fill="#fff" x="65" y="20" width="5" height="5"/><rect fill="#fff" x="85" y="20" width="5" height="5"/><rect fill="#fff" x="65" y="30" width="5" height="5"/><rect fill="#fff" x="75" y="30" width="5" height="5"/><rect fill="#fff" x="85" y="30" width="5" height="5"/><rect fill="#000" x="5" y="60" width="35" height="35"/><rect fill="#fff" x="10" y="65" width="5" height="5"/><rect fill="#fff" x="20" y="65" width="5" height="5"/><rect fill="#fff" x="30" y="65" width="5" height="5"/><rect fill="#fff" x="10" y="75" width="5" height="5"/><rect fill="#fff" x="30" y="75" width="5" height="5"/><rect fill="#fff" x="10" y="85" width="5" height="5"/><rect fill="#fff" x="20" y="85" width="5" height="5"/><rect fill="#fff" x="30" y="85" width="5" height="5"/><rect fill="#000" x="50" y="50" width="15" height="15"/><rect fill="#000" x="70" y="60" width="5" height="5"/><rect fill="#000" x="80" y="60" width="5" height="5"/><rect fill="#fff" x="70" y="70" width="5" height="5"/><rect fill="#000" x="80" y="70" width="5" height="5"/></svg><div style="font-size:8px;margin-top:2px;">QR kodni skanerlang</div></div>`;
+          case 'signature': return `<div style="text-align:${p.align||'center'};${st}">${p.text||'Imzo: _____________'}</div>`;
+          case 'footer': return `<div style="text-align:${p.align||'center'};${st}">${p.text||'Chekni tashlab yubormang!'}</div>`;
+          default: return '';
+        }
+      };
+      const sorted = [...components].sort((a,b) => (a.style?.y||0) - (b.style?.y||0));
+      const body = sorted.map(renderComp).join('\n');
+      return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Chek</title><style>
+        body{width:${settings.width};margin:0 auto;background:${settings.bgColor};font-family:'Courier New',monospace;font-size:10px;color:#000;line-height:1.4;padding:${settings.pagePadding}px;}
+        @media print{body{width:${settings.width};}@page{margin:${settings.paperMargin}mm;}}
+      </style></head><body>${body}</body></html>`;
+    }
+
+    // ---- Mount ----
+    const root = ReactDOM.createRoot(document.getElementById('react-builder-root'));
+    root.render(<App />);
+  </script>
+    {% endverbatim %}
+  {% endif %}
+</div>
+{% endblock %}

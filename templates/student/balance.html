@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}{{ student.first_name }} {{ student.last_name }} - Balans | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>{{ student.first_name }} {{ student.last_name }}</h2>
+        <span class="page-header-count">Balans va tranzaksiyalar</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <a href="{% url 'payment_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> To'lov qilish</a>
+        <a href="{% url 'student_profile' student.pk %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Profil</a>
+    </div>
+</div>
+
+<div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <div>
+        <div class="card" style="text-align: center; padding: 32px;">
+            <div style="font-size: 14px; color: #64748b; margin-bottom: 8px;">Joriy balans</div>
+            <div style="font-size: 42px; font-weight: 800; {% if balance.balance < 0 %}color: #dc2626;{% else %}color: #16a34a;{% endif %}">
+                {{ balance.balance|floatformat:0 }}
+                <span style="font-size: 16px; font-weight: 500;">so'm</span>
+            </div>
+            {% if balance.balance < 0 %}
+            <div style="color: #dc2626; font-size: 14px; margin-top: 8px;">
+                <i class="fas fa-exclamation-triangle"></i> Qarzdorlik: {{ balance.balance|floatformat:0 }} so'm
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div>
+        <div class="card" style="padding: 24px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; text-align: center;">
+                <div>
+                    <div style="font-size: 12px; color: #94a3b8;">Umumiy to'lovlar</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #16a34a;">{{ total_income|floatformat:0 }}</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; color: #94a3b8;">Darslar uchun</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #dc2626;">{{ total_expense|floatformat:0 }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <h3><i class="fas fa-history"></i> Tranzaksiyalar tarixi</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div style="overflow-x: auto;">
+            <table class="table min">
+                <thead>
+                    <tr>
+                        <th>Sana</th>
+                        <th>Tur</th>
+                        <th>Summa</th>
+                        <th>Operatsiyadan keyin</th>
+                        <th>Guruh / Dars</th>
+                        <th>Izoh</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td style="white-space: nowrap;">{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                        <td>
+                            {% if t.transaction_type == 'payment' %}
+                            <span style="color: #16a34a; font-weight: 500;">To'lov</span>
+                            {% elif t.transaction_type == 'lesson' %}
+                            <span style="color: #dc2626; font-weight: 500;">Dars uchun yechildi</span>
+                            {% elif t.transaction_type == 'correction' %}
+                            <span style="color: #f59e0b; font-weight: 500;">Tuzatish</span>
+                            {% elif t.transaction_type == 'withdrawal' %}
+                            <span style="color: #dc2626; font-weight: 500;">Pul qaytarish</span>
+                            {% elif t.transaction_type == 'wrong' %}
+                            <span style="color: #f59e0b; font-weight: 500;">Xato amaliyot</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-weight: 600; {% if t.amount >= 0 %}color: #16a34a;{% else %}color: #dc2626;{% endif %}">
+                            {% if t.amount >= 0 %}+{% endif %}{{ t.amount|floatformat:0 }} so'm
+                        </td>
+                        <td style="color: #64748b;">{{ t.balance_after|floatformat:0 }} so'm</td>
+                        <td>{{ t.group.name|default:"-" }}</td>
+                        <td style="color: #64748b; font-size: 13px;">{{ t.description|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty">Tranzaksiyalar mavjud emas</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

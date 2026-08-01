@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Edu Tizim{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'fontawesomefree/css/all.min.css' %}">
+    <link rel="stylesheet" href="{% static 'frontend/css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">ET</div>
+                <span class="sidebar-brand"><span>Edu</span> Tizim</span>
+                <div class="sidebar-toggle" onclick="toggleSidebar()" title="Sidebar yig'ish/ochish">
+                    <i class="fas fa-angles-left"></i>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section-label">Asosiy</div>
+                <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Topshiriqlar</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>Lidlar</span>
+                </a>
+
+                <div class="nav-section-label">O'quv jarayoni</div>
+                <div class="nav-group">
+                    <div class="nav-group-head">
+                        <i class="fas fa-chevron-right nav-chevron nav-toggle{% if request.resolver_match.url_name == 'group_list' %} open{% endif %}" onclick="toggleAccordion(this)"></i>
+                        <a href="{% url 'group_list' %}" class="nav-item {% if request.resolver_match.url_name == 'group_list' and not request.GET.status %}active{% endif %}" onclick="event.stopPropagation()">
+                            <i class="fas fa-layer-group"></i>
+                            <span>Guruhlar</span>
+                        </a>
+                    </div>
+                    <div class="nav-sub-items-wrap{% if request.resolver_match.url_name == 'group_list' %} open{% endif %}">
+                        <div class="nav-sub-items">
+                            <a href="{% url 'group_list' %}" class="nav-item sub-item {% if request.resolver_match.url_name == 'group_list' and not request.GET.status %}active{% endif %}">
+                                <span>Aktiv guruhlar</span>
+                            </a>
+                            <a href="{% url 'group_list' %}?status=arxivlangan" class="nav-item sub-item {% if request.GET.status == 'arxivlangan' %}active{% endif %}">
+                                <i class="fas fa-archive"></i>
+                                <span>Arxivlangan guruhlar</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-head">
+                        <i class="fas fa-chevron-right nav-chevron nav-toggle{% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'pending_students' or request.resolver_match.url_name == 'graduated_students' %} open{% endif %}" onclick="toggleAccordion(this)"></i>
+                        <a href="{% url 'student_list' %}" class="nav-item {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}" onclick="event.stopPropagation()">
+                            <i class="fas fa-user-graduate"></i>
+                            <span>O'quvchilar</span>
+                        </a>
+                    </div>
+                    <div class="nav-sub-items-wrap{% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'pending_students' or request.resolver_match.url_name == 'graduated_students' %} open{% endif %}">
+                        <div class="nav-sub-items">
+                            <a href="{% url 'student_list' %}" class="nav-item sub-item {% if request.resolver_match.url_name == 'student_list' and not request.GET.status %}active{% endif %}">
+                                <i class="fas fa-users"></i>
+                                <span>Barcha o'quvchilar</span>
+                            </a>
+                            <a href="{% url 'student_list' %}?status=aktiv" class="nav-item sub-item {% if request.GET.status == 'aktiv' %}active{% endif %}">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Aktiv o'quvchilar</span>
+                            </a>
+                            <a href="{% url 'student_list' %}?status=muzlatilgan" class="nav-item sub-item {% if request.GET.status == 'muzlatilgan' %}active{% endif %}">
+                                <i class="fas fa-snowflake"></i>
+                                <span>Muzlatilgan o'quvchilar</span>
+                            </a>
+                            <a href="{% url 'pending_students' %}" class="nav-item sub-item {% if request.resolver_match.url_name == 'pending_students' %}active{% endif %}">
+                                <i class="fas fa-clock"></i>
+                                <span>Kutilyotgan o'quvchilar</span>
+                            </a>
+                            <a href="{% url 'graduated_students' %}" class="nav-item sub-item {% if request.resolver_match.url_name == 'graduated_students' %}active{% endif %}">
+                                <i class="fas fa-graduation-cap"></i>
+                                <span>Bitirgan o'quvchilar</span>
+                            </a>
+                            <a href="{% url 'student_list' %}?status=chiqarilgan" class="nav-item sub-item {% if request.GET.status == 'chiqarilgan' %}active{% endif %}">
+                                <i class="fas fa-user-slash"></i>
+                                <span>Chiqib ketgan o'quvchilar</span>
+                            </a>
+                            <a href="{% url 'student_filter' %}" class="nav-item sub-item {% if request.resolver_match.url_name == 'student_filter' %}active{% endif %}">
+                                <i class="fas fa-filter"></i>
+                                <span>Filtrlash</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-trophy"></i>
+                    <span>Gamifikatsiya</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-book-open"></i>
+                    <span>O'quv bo'limi</span>
+                </a>
+
+                <div class="nav-section-label">Moliya va nazorat</div>
+                <a href="{% url 'kassa_dashboard' %}" class="nav-item {% if 'kassa' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Kassa boshqaruvi</span>
+                </a>
+                {% if user.is_staff or user.is_superuser %}
+                <a href="{% url 'kassa_overview' %}" class="nav-item {% if request.resolver_match.url_name == 'kassa_overview' %}active{% endif %}">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Umumiy kassa</span>
+                </a>
+                <a href="{% url 'payment_method_list' %}" class="nav-item {% if 'payment_method' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-credit-card"></i>
+                    <span>To'lov usullari</span>
+                </a>
+                <a href="{% url 'income_category_list' %}" class="nav-item {% if 'income_category' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-arrow-up" style="color:#059669;"></i>
+                    <span>Kirim kategoriyalari</span>
+                </a>
+                <a href="{% url 'expense_category_list' %}" class="nav-item {% if 'expense_category' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-tags"></i>
+                    <span>Chiqim kategoriyalari</span>
+                </a>
+                {% endif %}
+                <a href="{% url 'payment_create' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_create' %}active{% endif %}">
+                    <i class="fas fa-coins"></i>
+                    <span>To'lov qilish</span>
+                </a>
+                <a href="{% url 'payment_history' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_history' %}active{% endif %}">
+                    <i class="fas fa-history"></i>
+                    <span>Tranzaksiyalar</span>
+                </a>
+                {% if user.is_superuser %}
+                <a href="{% url 'debt_sms_page' %}" class="nav-item {% if request.resolver_match.url_name == 'debt_sms_page' %}active{% endif %}">
+                    <i class="fas fa-sms"></i>
+                    <span>Qarzorlarga SMS</span>
+                </a>
+                {% endif %}
+                <a href="{% url 'payment_filter' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_filter' %}active{% endif %}">
+                    <i class="fas fa-filter"></i>
+                    <span>To'lov filtri</span>
+                </a>
+                <a href="{% url 'receipt_list' %}" class="nav-item {% if request.resolver_match.url_name == 'receipt_list' %}active{% endif %}">
+                    <i class="fas fa-receipt"></i>
+                    <span>Cheklar</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Nazorat</span>
+                </a>
+                <a href="{% url 'employee_list' %}" class="nav-item {% if request.resolver_match.url_name == 'employee_list' %}active{% endif %}">
+                    <i class="fas fa-users"></i>
+                    <span>Xodimlar</span>
+                </a>
+                <a href="{% url 'employee_create' %}" class="nav-item {% if request.resolver_match.url_name == 'employee_create' %}active{% endif %}">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Xodim qo'shish</span>
+                </a>
+                <a href="{% url 'branch_list' %}" class="nav-item {% if request.resolver_match.url_name == 'branch_list' %}active{% endif %}">
+                    <i class="fas fa-building"></i>
+                    <span>Filiallar</span>
+                </a>
+                <a href="{% url 'room_list' %}" class="nav-item {% if request.resolver_match.url_name == 'room_list' %}active{% endif %}">
+                    <i class="fas fa-door-open"></i>
+                    <span>Xonalar</span>
+                </a>
+                <a href="{% url 'position_list' %}" class="nav-item {% if request.resolver_match.url_name == 'position_list' %}active{% endif %}">
+                    <i class="fas fa-tasks"></i>
+                    <span>Vazifalar</span>
+                </a>
+                <a href="{% url 'absence_reason_list' %}" class="nav-item {% if request.resolver_match.url_name == 'absence_reason_list' %}active{% endif %}">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Davomat sabablari</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-cogs"></i>
+                    <span>Boshqaruv</span>
+                </a>
+                <a href="{% url 'receipt_builder' %}" class="nav-item {% if 'receipt_builder' in request.resolver_match.url_name or request.resolver_match.url_name == 'receipt_print_preview' or request.resolver_match.url_name == 'receipt_print' %}active{% endif %}">
+                    <i class="fas fa-receipt"></i>
+                    <span>Chek shablonlari</span>
+                </a>
+
+                <div class="nav-section-label">Marketing va hisobot</div>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Sotuv va marketing</span>
+                </a>
+                <a href="{% url 'statistics' %}" class="nav-item {% if request.resolver_match.url_name == 'statistics' %}active{% endif %}">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Hisobotlar</span>
+                </a>
+                <a href="{% url 'course_list' %}" class="nav-item {% if 'course' in request.resolver_match.url_name and 'level' not in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-book"></i>
+                    <span>Kurslar</span>
+                </a>
+                <a href="{% url 'course_level_list' %}" class="nav-item {% if 'course_level' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Kurs darajalari</span>
+                </a>
+                <a href="{% url 'survey_list' %}" class="nav-item {% if 'survey' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>So'rovnomalar</span>
+                </a>
+
+                <div class="nav-section-label">Sozlamalar</div>
+                <a href="{% url 'receipt_settings' %}" class="nav-item {% if request.resolver_match.url_name == 'receipt_settings' %}active{% endif %}">
+                    <i class="fas fa-receipt"></i>
+                    <span>Chek sozlamalari</span>
+                </a>
+                <a href="{% url 'qr_settings' %}" class="nav-item {% if request.resolver_match.url_name == 'qr_settings' %}active{% endif %}">
+                    <i class="fas fa-qrcode"></i>
+                    <span>QR Code sozlamalari</span>
+                </a>
+                <a href="{% url 'sms_settings' %}" class="nav-item {% if request.resolver_match.url_name == 'sms_settings' %}active{% endif %}">
+                    <i class="fas fa-sms"></i>
+                    <span>SMS sozlamalari</span>
+                </a>
+                <a href="{% url 'global_config' %}" class="nav-item">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>Pul yechish sozlamalari</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="{% url 'logout' %}" class="nav-item">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Chiqish</span>
+                </a>
+            </div>
+        </aside>
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="topbar-hamburger" onclick="document.querySelector('.sidebar').classList.toggle('show')">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <a href="{% url 'dashboard' %}" class="topbar-back">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                    <div class="topbar-academy">
+                        <i class="fas fa-graduation-cap" style="color: var(--primary);"></i>
+                        IT House Akademiyasi
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+                <div class="topbar-center">
+                    <i class="fas fa-search topbar-search-icon"></i>
+                    <input type="text" class="topbar-search" placeholder="Qidirish...">
+                </div>
+                <div class="topbar-right">
+                    <div class="topbar-lang">
+                        <i class="fas fa-globe"></i>
+                        UZ
+                    </div>
+                    <a href="#" class="topbar-btn">
+                        <i class="far fa-bell"></i>
+                        <span class="badge-dot"></span>
+                    </a>
+                    <a href="#" class="topbar-btn">
+                        <i class="far fa-envelope"></i>
+                    </a>
+                    <div class="topbar-avatar">
+                        {{ request.user.username|first|upper }}
+                    </div>
+                </div>
+            </header>
+            <div class="content">
+                {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+                        {{ message }}
+                        <button class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-bottom-nav">
+        <a href="{% url 'dashboard' %}" class="mnav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <i class="fas fa-home"></i>
+            <span>Bosh sahifa</span>
+        </a>
+        <a href="{% url 'admin_mobile_groups' %}" class="mnav-item {% if request.resolver_match.url_name == 'admin_mobile_groups' or request.resolver_match.url_name == 'group_list' %}active{% endif %}">
+            <i class="fas fa-layer-group"></i>
+            <span>Guruhlar</span>
+        </a>
+    </nav>
+    <script>
+        document.querySelectorAll('.alert-close').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.parentElement.remove();
+            });
+        });
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(el => el.remove());
+        }, 5000);
+        function toggleAccordion(el) {
+            var wrap = el.closest('.nav-group').querySelector('.nav-sub-items-wrap');
+            el.classList.toggle('open');
+            wrap.classList.toggle('open');
+        }
+
+        document.querySelector('.main-content')?.addEventListener('click', function(e) {
+            var sb = document.querySelector('.sidebar');
+            if (sb && sb.classList.contains('show') && !e.target.closest('.sidebar')) {
+                sb.classList.remove('show');
+            }
+        });
+
+        function toggleSidebar() {
+            var sb = document.querySelector('.sidebar');
+            var icon = sb.querySelector('.sidebar-toggle i');
+            sb.classList.toggle('collapsed');
+            document.body.classList.toggle('sidebar-collapsed');
+            if (sb.classList.contains('collapsed')) {
+                icon.className = 'fas fa-angles-right';
+            } else {
+                icon.className = 'fas fa-angles-left';
+            }
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

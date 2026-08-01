@@ -1,0 +1,256 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    :root {
+        --primary: #2563eb;
+        --secondary: #1d4ed8;
+        --accent: #3b82f6;
+        --primary-fg: #fff;
+        --body-fg: #1e293b;
+        --body-bg: #f0f4ff;
+        --body-quiet-color: #64748b;
+        --body-loud-color: #0f172a;
+        --header-color: #fff;
+        --header-branding-color: #fff;
+        --header-bg: #1e40af;
+        --header-link-color: #bfdbfe;
+        --breadcrumbs-bg: #dbeafe;
+        --breadcrumbs-fg: #1e40af;
+        --breadcrumbs-link-fg: #2563eb;
+        --breadcrumbs-current-fg: #1e293b;
+        --link-fg: #2563eb;
+        --link-hover-color: #1d4ed8;
+        --link-selected-fg: #1d4ed8;
+        --hairline-color: #e2e8f0;
+        --border-color: #cbd5e1;
+        --error-fg: #dc2626;
+        --message-success-bg: #dcfce7;
+        --message-warning-bg: #fef9c3;
+        --message-error-bg: #fee2e2;
+        --darkened-bg: #eef2ff;
+        --selected-bg: #dbeafe;
+        --selected-row: #dbeafe;
+        --button-fg: #fff;
+        --button-bg: #2563eb;
+        --button-hover-bg: #1d4ed8;
+        --close-button-bg: #64748b;
+        --close-button-hover-bg: #475569;
+        --delete-button-bg: #dc2626;
+        --delete-button-hover-bg: #b91c1c;
+        --object-tools-fg: #fff;
+        --object-tools-bg: #2563eb;
+        --object-tools-hover-bg: #1d4ed8;
+        --font-family-primary: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        --font-family-monospace: 'Cascadia Code', 'Consolas', monospace;
+    }
+
+    body {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        padding: 20px;
+    }
+
+    #header {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        margin-bottom: 20px;
+    }
+
+    #header h1 {
+        text-align: center;
+    }
+
+    #header h1 a {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: #1e293b;
+        font-size: 1.5rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    #content {
+        padding: 0 !important;
+    }
+
+    #content-main {
+        background: white;
+        border-radius: 16px;
+        padding: 40px;
+        box-shadow: 0 20px 60px rgba(30, 64, 175, 0.3);
+        max-width: 420px;
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    .login #container {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        width: 100% !important;
+    }
+
+    .login #content {
+        padding: 0 !important;
+    }
+
+    .form-row {
+        padding: 0 !important;
+        margin-bottom: 20px !important;
+        overflow: visible !important;
+    }
+
+    .form-row label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 6px;
+        display: block;
+        float: none !important;
+        width: auto !important;
+        padding: 0 !important;
+    }
+
+    .form-row input {
+        width: 100% !important;
+        padding: 12px 16px !important;
+        border: 2px solid #e2e8f0 !important;
+        border-radius: 10px !important;
+        font-size: 0.95rem !important;
+        transition: all 0.2s ease !important;
+        box-sizing: border-box !important;
+        background: #f8fafc !important;
+    }
+
+    .form-row input:focus {
+        border-color: #2563eb !important;
+        background: white !important;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+        outline: none !important;
+    }
+
+    .submit-row {
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        background: transparent !important;
+    }
+
+    .submit-row input {
+        width: 100% !important;
+        padding: 14px !important;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        border: none !important;
+        border-radius: 10px !important;
+        color: white !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        text-transform: none !important;
+    }
+
+    .submit-row input:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 8px 25px rgba(37, 99, 235, 0.35) !important;
+    }
+
+    .errornote {
+        background: #fee2e2 !important;
+        border: 1px solid #fecaca !important;
+        border-radius: 10px !important;
+        padding: 12px 16px !important;
+        margin-bottom: 20px !important;
+        color: #dc2626 !important;
+        font-size: 0.875rem !important;
+    }
+
+    .password-reset-link {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .password-reset-link a {
+        color: #64748b;
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: color 0.2s;
+    }
+
+    .password-reset-link a:hover {
+        color: #2563eb;
+    }
+
+    .login-footer {
+        text-align: center;
+        margin-top: 20px;
+        color: #94a3b8;
+        font-size: 0.8rem;
+    }
+
+    @media (max-width: 480px) {
+        #content-main {
+            padding: 30px 24px;
+            border-radius: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} login{% endblock %}
+
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div style="text-align: center; margin-bottom: 30px;">
+        <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #2563eb, #1d4ed8); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 6L8 10.5V16.5C8 21.52 11.58 26.24 16 27.5C20.42 26.24 24 21.52 24 16.5V10.5L16 6Z" fill="white" stroke="white" stroke-width="1.5"/>
+                <path d="M13.5 16.5L15.5 18.5L18.5 14" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <h2 style="margin: 0; color: #1e293b; font-size: 1.5rem; font-weight: 700;">Xush kelibsiz!</h2>
+        <p style="margin: 8px 0 0; color: #64748b; font-size: 0.9rem;">Tizimga kirish uchun ma'lumotlaringizni kiriting</p>
+    </div>
+
+    <form action="{{ app_path }}" method="post" id="login-form">{% csrf_token %}
+        <div class="form-row">
+            {{ form.username.errors }}
+            <label for="id_username">Foydalanuvchi nomi</label>
+            <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username" maxlength="150" required id="id_username" placeholder="Foydalanuvchi nomingizni kiriting">
+        </div>
+        <div class="form-row">
+            {{ form.password.errors }}
+            <label for="id_password">Parol</label>
+            <input type="password" name="password" autocomplete="current-password" required id="id_password" placeholder="Parolingizni kiriting">
+            <input type="hidden" name="next" value="{{ next }}">
+        </div>
+        {% url 'admin_password_reset' as password_reset_url %}
+        {% if password_reset_url %}
+        <div class="password-reset-link">
+            <a href="{{ password_reset_url }}">Parolingizni unutdingizmi?</a>
+        </div>
+        {% endif %}
+        <div class="submit-row" style="margin-top: 24px !important;">
+            <input type="submit" value="Kirish">
+        </div>
+    </form>
+
+    <div class="login-footer">
+        &copy; {% now "Y" %} Edu Tizim
+    </div>
+</div>
+{% endblock %}

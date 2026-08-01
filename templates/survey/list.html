@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}So'rovnomalar | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>So'rovnomalar</h2>
+        <span class="page-header-count">{{ surveys|length }} ta tur</span>
+    </div>
+    <div class="page-header-right">
+        <a href="{% url 'survey_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Qo'shish</a>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header between">
+        <h3><i class="fas fa-clipboard-list"></i> So'rovnoma turlari</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>So'rovnoma turi</th>
+                    <th>O'quvchilar</th>
+                    <th>Yaratilgan</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for survey in surveys %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ survey.name }}</strong></td>
+                    <td><span class="badge badge-blue">{{ survey.student_count }}</span></td>
+                    <td>{{ survey.created_at|date:"d.m.Y" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'survey_update' survey.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'survey_delete' survey.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="empty">Hozircha so'rovnoma turlari mavjud emas</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

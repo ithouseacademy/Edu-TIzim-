@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% block title %}Umumiy Kassa | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+  :root{--k-primary:#2001FF;--k-primary-hover:#1800cc;--k-text:#111827;--k-muted:#4b5563;--k-border:#e5e7eb;--k-bg:#f9fafb;--k-green:#059669;--k-green-bg:#ecfdf5;--k-red:#dc2626;--k-red-bg:#fef2f2;--k-blue:#2563eb;--k-blue-bg:#eff6ff;}
+
+  .k-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+  .k-header h1{font-size:1.25rem;font-weight:800;color:var(--k-primary);margin:0;display:flex;align-items:center;gap:10px;}
+  .k-header-actions{display:flex;gap:8px;}
+  .k-btn{padding:7px 14px;border-radius:8px;font-size:.8rem;font-weight:500;text-decoration:none;border:1px solid var(--k-border);background:#fff;color:var(--k-text);display:inline-flex;align-items:center;gap:6px;transition:all .15s;cursor:pointer;}
+  .k-btn:hover{background:var(--k-bg);}
+
+  .k-filter{background:#fff;border:1px solid var(--k-border);border-radius:12px;padding:14px 18px;margin-bottom:20px;}
+  .k-filter form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;}
+  .k-filter .k-fi{display:flex;flex-direction:column;gap:3px;min-width:110px;}
+  .k-filter .k-fi label{font-size:.7rem;font-weight:500;color:var(--k-muted);text-transform:uppercase;letter-spacing:.3px;}
+  .k-filter .k-fi input,.k-filter .k-fi select{padding:7px 12px;border:1px solid var(--k-border);border-radius:8px;font-size:.82rem;background:#fff;transition:all .15s;color:var(--k-text);}
+  .k-filter .k-fi input:focus,.k-filter .k-fi select:focus{border-color:var(--k-primary);box-shadow:0 0 0 3px rgba(32,1,255,.08);outline:none;}
+  .k-filter-btn{padding:7px 16px;background:var(--k-primary);color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:500;cursor:pointer;transition:all .15s;}
+  .k-filter-btn:hover{background:var(--k-primary-hover);}
+  .k-filter-reset{padding:7px 14px;background:#fff;color:var(--k-muted);border:1px solid var(--k-border);border-radius:8px;font-size:.82rem;font-weight:500;cursor:pointer;text-decoration:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+  .k-filter-reset:hover{background:var(--k-bg);}
+
+  .k-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+  .k-stat{background:#fff;border:1px solid var(--k-border);border-radius:12px;padding:16px 18px;}
+  .k-stat-label{font-size:.72rem;color:var(--k-muted);font-weight:500;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;}
+  .k-stat-value{font-size:1.2rem;font-weight:500;color:var(--k-text);}
+  .k-stat-value.primary{color:var(--k-primary);}
+  .k-stat-value.green{color:var(--k-green);}
+  .k-stat-value.red{color:var(--k-red);}
+
+  .k-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .k-section-head h2{font-size:.88rem;font-weight:500;color:var(--k-text);margin:0;display:flex;align-items:center;gap:6px;}
+  .k-section-head .k-count{font-size:.72rem;color:var(--k-muted);background:var(--k-bg);padding:3px 10px;border-radius:12px;border:1px solid var(--k-border);}
+
+  .k-methods{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;}
+  .k-method{background:#fff;border:1px solid var(--k-border);border-radius:10px;padding:12px 16px;flex:1;min-width:140px;}
+  .k-method .m-label{font-size:.7rem;color:var(--k-muted);font-weight:500;margin-bottom:3px;}
+  .k-method .m-value{font-size:1rem;font-weight:500;color:var(--k-text);}
+  .k-method .m-value.green{color:var(--k-green);}
+  .k-method .m-value.red{color:var(--k-red);}
+
+  /* Excel-style table */
+  .k-table-wrap{background:#fff;border:1px solid var(--k-border);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+  .k-table-scroll{overflow-x:auto;}
+  .k-table{width:100%;border-collapse:collapse;min-width:800px;font-size:.82rem;}
+  .k-table thead{position:sticky;top:0;z-index:2;}
+  .k-table th{text-align:left;padding:10px 14px;font-size:.7rem;font-weight:600;color:var(--k-muted);text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid var(--k-border);background:#f8fafc;white-space:nowrap;user-select:none;}
+  .k-table th.num{text-align:right;}
+  .k-table td{padding:10px 14px;border-bottom:1px solid #f0f1f3;color:var(--k-text);font-weight:500;}
+  .k-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .k-table tr:nth-child(even) td{background:#fafbfc;}
+  .k-table tr:hover td{background:#f0f4ff;}
+  .k-table tr:last-child td{border-bottom:none;}
+  .k-table tr.k-total-row td{border-top:2px solid var(--k-border);background:#f8fafc;font-weight:700;}
+  .k-table .amt-in{color:var(--k-green);font-weight:600;white-space:nowrap;}
+  .k-table .amt-out{color:var(--k-red);font-weight:600;white-space:nowrap;}
+  .k-table .group-link{color:var(--k-primary);text-decoration:none;font-weight:600;}
+  .k-table .group-link:hover{text-decoration:underline;}
+  .k-tx-pm{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:500;background:var(--k-blue-bg);color:var(--k-blue);white-space:nowrap;}
+
+  .k-op{font-size:.68rem;font-weight:500;padding:3px 8px;border-radius:6px;white-space:nowrap;}
+  .k-op-payment{background:#f5f3ff;color:#7c3aed;}
+  .k-op-income{background:var(--k-green-bg);color:var(--k-green);}
+  .k-op-expense{background:var(--k-red-bg);color:var(--k-red);}
+  .k-op-transfer_in{background:var(--k-blue-bg);color:var(--k-blue);}
+  .k-op-transfer_out{background:#fef3c7;color:#92400e;}
+  .k-op-refund{background:#fce7f3;color:#9d174d;}
+  .k-truncate{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  .k-empty{text-align:center;padding:48px 20px;color:var(--k-muted);}
+  .k-empty i{font-size:36px;display:block;margin-bottom:12px;opacity:.3;}
+  .k-empty p{font-size:.85rem;margin:0;}
+
+  @media(max-width:768px){.k-stats{grid-template-columns:repeat(2,1fr);}.k-header{flex-direction:column;align-items:flex-start;gap:10px;}.k-filter form{flex-direction:column;}.k-fi{width:100%;min-width:100%!important;}.k-filter-btn,.k-filter-reset{width:100%;justify-content:center;}.k-methods{flex-direction:column;}.k-method{min-width:100%;}}
+  @media(max-width:480px){.k-stats{grid-template-columns:1fr 1fr;gap:8px;}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="k-page">
+
+  <div class="k-header">
+    <h1><i class="fas fa-layer-group"></i> Umumiy kassa</h1>
+    <div class="k-header-actions">
+      <a href="{% url 'kassa_overview_export' %}?{{ request.GET.urlencode }}" class="k-btn" style="background:#f0fdf4;color:#059669;border-color:#d1fae5;"><i class="fas fa-file-csv"></i> CSV</a>
+      <a href="{% url 'kassa_overview_export_excel' %}?{{ request.GET.urlencode }}" class="k-btn" style="background:#eff6ff;color:#2563eb;border-color:#bfdbfe;"><i class="fas fa-file-excel"></i> Excel</a>
+      <a href="{% url 'kassa_dashboard' %}" class="k-btn"><i class="fas fa-arrow-left"></i> Orqaga</a>
+    </div>
+  </div>
+
+  <!-- FILTER -->
+  <div class="k-filter">
+    <form method="get">
+      <div class="k-fi">
+        <label>Yil</label>
+        <select name="year">
+          <option value="">Barcha yillar</option>
+          {% for y in year_list %}
+          <option value="{{ y }}" {% if f_year == y|stringformat:"d" %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="k-fi">
+        <label>Oy</label>
+        <select name="month">
+          <option value="">Barcha oylar</option>
+          <option value="1" {% if f_month == "1" %}selected{% endif %}>Yanvar</option>
+          <option value="2" {% if f_month == "2" %}selected{% endif %}>Fevral</option>
+          <option value="3" {% if f_month == "3" %}selected{% endif %}>Mart</option>
+          <option value="4" {% if f_month == "4" %}selected{% endif %}>Aprel</option>
+          <option value="5" {% if f_month == "5" %}selected{% endif %}>May</option>
+          <option value="6" {% if f_month == "6" %}selected{% endif %}>Iyun</option>
+          <option value="7" {% if f_month == "7" %}selected{% endif %}>Iyul</option>
+          <option value="8" {% if f_month == "8" %}selected{% endif %}>Avgust</option>
+          <option value="9" {% if f_month == "9" %}selected{% endif %}>Sentabr</option>
+          <option value="10" {% if f_month == "10" %}selected{% endif %}>Oktabr</option>
+          <option value="11" {% if f_month == "11" %}selected{% endif %}>Noyabr</option>
+          <option value="12" {% if f_month == "12" %}selected{% endif %}>Dekabr</option>
+        </select>
+      </div>
+      <div class="k-fi">
+        <label>Kun</label>
+        <select name="day">
+          <option value="">Barcha kunlar</option>
+          {% for d in day_list %}
+          <option value="{{ d }}" {% if f_day == d|stringformat:"d" %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="k-fi">
+        <label>Sana (dan)</label>
+        <input type="date" name="date_from" value="{{ f_date_from }}">
+      </div>
+      <div class="k-fi">
+        <label>Sana (gacha)</label>
+        <input type="date" name="date_to" value="{{ f_date_to }}">
+      </div>
+      <div class="k-fi">
+        <label>Kassa</label>
+        <select name="kassa">
+          <option value="">Barcha kassalar</option>
+          {% for k in kassalar_list %}
+          <option value="{{ k.pk }}" {% if f_kassa == k.pk|stringformat:"d" %}selected{% endif %}>{{ k.name }} — {% if k.owner %}{{ k.owner.get_full_name|default:k.owner.username }}{% else %}Noma'lum{% endif %} {% if not k.is_active %}(Nofaol){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="k-fi" style="min-width:180px;">
+        <label>Qidiruv</label>
+        <input type="text" name="search" value="{{ f_search }}" placeholder="Izoh, ism, usul...">
+      </div>
+      <div class="k-fi" style="flex-direction:row;align-items:center;gap:6px;min-width:auto;">
+        <input type="checkbox" name="show_inactive" value="1" id="showInactive" {% if show_inactive %}checked{% endif %} style="width:auto;margin:0;">
+        <label for="showInactive" style="text-transform:none;letter-spacing:0;font-size:.8rem;cursor:pointer;">Nofaollarni ham</label>
+      </div>
+      <button type="submit" class="k-filter-btn"><i class="fas fa-search"></i> Filtr</button>
+      <a href="{% url 'kassa_overview' %}" class="k-filter-reset"><i class="fas fa-times"></i> Tozalash</a>
+    </form>
+  </div>
+
+  <div class="k-stats">
+    <div class="k-stat">
+      <div class="k-stat-label">Umumiy balans</div>
+      <div class="k-stat-value {% if total_balance >= 0 %}primary{% else %}red{% endif %}">{{ total_balance|floatformat:0 }} <span>so'm</span></div>
+    </div>
+    <div class="k-stat">
+      <div class="k-stat-label">Jami kirim</div>
+      <div class="k-stat-value green">{{ total_income|floatformat:0 }} <span>so'm</span></div>
+    </div>
+    <div class="k-stat">
+      <div class="k-stat-label">Jami chiqim</div>
+      <div class="k-stat-value red">{{ total_expense|floatformat:0 }} <span>so'm</span></div>
+    </div>
+    <div class="k-stat">
+      <div class="k-stat-label">Bugungi kirim</div>
+      <div class="k-stat-value green">{{ today_income|floatformat:0 }} <span>so'm</span></div>
+    </div>
+  </div>
+
+  {% if all_income_methods %}
+  <div class="k-section-head">
+    <h2><i class="fas fa-arrow-down" style="color:var(--k-green);font-size:.8rem;"></i> Kirim — to'lov usullari</h2>
+  </div>
+  <div class="k-methods">
+    {% for method, amount in all_income_methods.items %}
+    <div class="k-method">
+      <div class="m-label"><i class="fas fa-tag" style="font-size:.65rem;"></i> {{ method }}</div>
+      <div class="m-value green">{{ amount|floatformat:0 }} <span>so'm</span></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if all_expense_methods %}
+  <div class="k-section-head">
+    <h2><i class="fas fa-arrow-up" style="color:var(--k-red);font-size:.8rem;"></i> Chiqim — to'lov usullari</h2>
+  </div>
+  <div class="k-methods">
+    {% for method, amount in all_expense_methods.items %}
+    <div class="k-method">
+      <div class="m-label"><i class="fas fa-tag" style="font-size:.65rem;"></i> {{ method }}</div>
+      <div class="m-value red">{{ amount|floatformat:0 }} <span>so'm</span></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- KASSALAR JADVALI -->
+  <div class="k-section-head">
+    <h2><i class="fas fa-list" style="font-size:.8rem;"></i> Kassalar ro'yxati</h2>
+    <span class="k-count">{{ kassalar|length }} ta</span>
+  </div>
+  <div class="k-table-wrap">
+    <div class="k-table-scroll">
+      <table class="k-table">
+        <thead>
+          <tr>
+            <th style="width:36px;">#</th>
+            <th>Kassa nomi</th>
+            <th>Egasi</th>
+            <th class="num">Balans</th>
+            <th class="num">Jami kirim</th>
+            <th class="num">Jami chiqim</th>
+            <th>To'lov usullari</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in kassalar %}
+          <tr>
+            <td style="color:var(--k-muted);font-size:.78rem;">{{ forloop.counter }}</td>
+            <td><a href="{% url 'kassa_detail' item.kassa.pk %}" class="group-link">{{ item.kassa.name }}</a>{% if not item.kassa.is_active %} <span style="font-size:.65rem;font-weight:500;padding:2px 6px;border-radius:4px;background:var(--k-red-bg);color:var(--k-red);margin-left:6px;">Nofaol</span>{% endif %}</td>
+            <td>{% if item.kassa.owner %}{{ item.kassa.owner.get_full_name|default:item.kassa.owner.username }}{% else %}Noma'lum{% endif %}</td>
+            <td class="num {% if item.balance >= 0 %}amt-in{% else %}amt-out{% endif %}">{{ item.balance|floatformat:0 }} so'm</td>
+            <td class="num amt-in">{{ item.total_income|floatformat:0 }}</td>
+            <td class="num amt-out">{{ item.total_expense|floatformat:0 }}</td>
+            <td>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                {% for method, amount in item.income_breakdown.items %}
+                <span class="k-tx-pm">{{ method }}: {{ amount|floatformat:0 }}</span>
+                {% endfor %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7">
+              <div class="k-empty">
+                <i class="fas fa-cash-register"></i>
+                <p>Faol kassalar topilmadi</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- OXIRGI OPERATSIYALAR -->
+  {% if recent_ops %}
+  <div class="k-section-head">
+    <h2><i class="fas fa-clock" style="color:var(--k-muted);font-size:.8rem;"></i> Oxirgi operatsiyalar</h2>
+    <span class="k-count">{{ recent_ops|length }} ta</span>
+  </div>
+  <div class="k-table-wrap">
+    <div class="k-table-scroll">
+      <table class="k-table">
+        <thead>
+          <tr>
+            <th>Sana</th>
+            <th>Kassa</th>
+            <th>Turi</th>
+            <th class="num">Summa</th>
+            <th>To'lov usuli</th>
+            <th>O'quvchi</th>
+            <th>Izoh</th>
+            <th>Bajaruvchi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for op in recent_ops %}
+          <tr>
+            <td style="white-space:nowrap;">{{ op.created_at|date:"d.m.Y H:i" }}</td>
+            <td style="font-weight:500;">{{ op.kassa.name }}</td>
+            <td>
+              {% if op.transaction_type == 'payment' %}<span class="k-op k-op-payment">To'lov</span>
+              {% elif op.transaction_type == 'income' %}<span class="k-op k-op-income">Kirim</span>
+              {% elif op.transaction_type == 'expense' %}<span class="k-op k-op-expense">Chiqim</span>
+              {% elif op.transaction_type == 'transfer_in' %}<span class="k-op k-op-transfer_in">O'tkazma (k)</span>
+              {% elif op.transaction_type == 'transfer_out' %}<span class="k-op k-op-transfer_out">O'tkazma (ch)</span>
+              {% elif op.transaction_type == 'refund' %}<span class="k-op k-op-refund">Qaytarish</span>
+              {% endif %}
+            </td>
+            <td class="num">
+              {% if op.transaction_type in 'payment,income,transfer_in' %}
+                <span class="amt-in">+{{ op.amount|floatformat:0 }}</span>
+              {% else %}
+                <span class="amt-out">-{{ op.amount|floatformat:0 }}</span>
+              {% endif %}
+            </td>
+            <td>{% if op.payment_method %}<span class="k-tx-pm">{{ op.payment_method }}</span>{% else %}<span style="color:var(--k-muted);">-</span>{% endif %}</td>
+            <td>{% if op.student %}{{ op.student.first_name }} {{ op.student.last_name }}{% else %}<span style="color:var(--k-muted);">-</span>{% endif %}</td>
+            <td class="k-truncate" title="{{ op.description }}">{% if op.expense_category %}<span style="display:inline-block;background:var(--k-red-bg);color:var(--k-red);padding:1px 6px;border-radius:4px;font-size:.68rem;margin-right:4px;">{{ op.get_expense_category_display }}</span>{% endif %}{{ op.description|default:"-" }}</td>
+            <td>{{ op.created_by|default:"-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

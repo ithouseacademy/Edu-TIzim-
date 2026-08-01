@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Kassa tarixi | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+.page-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+.page-top h2{font-size:1.2rem;font-weight:700;display:flex;align-items:center;gap:8px;}
+
+.hist-filter{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);padding:16px 20px;margin-bottom:20px;}
+.hist-filter form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;}
+.hist-filter .fi{display:flex;flex-direction:column;gap:3px;}
+.hist-filter .fi label{font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;}
+.hist-filter .fi input,.hist-filter .fi select{padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;transition:all .15s;}
+.hist-filter .fi input:focus,.hist-filter .fi select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1);outline:none;}
+.btn-filter{padding:7px 18px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-filter:hover{background:var(--primary-dark);transform:translateY(-1px);}
+.btn-reset{display:inline-flex;align-items:center;padding:7px 14px;background:#f8fafc;color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:.82rem;cursor:pointer;text-decoration:none;transition:all .15s;}
+
+.table-wrap{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;}
+.table-scroll{overflow-x:auto;}
+.hist-table{width:100%;border-collapse:collapse;}
+.hist-table th{text-align:left;padding:10px 14px;font-size:.7rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid var(--border);background:#f8fafc;white-space:nowrap;}
+.hist-table td{padding:10px 14px;font-size:.82rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+.hist-table tr:hover td{background:#f8fafc;}
+.hist-table tr:last-child td{border-bottom:none;}
+.op-badge{padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;}
+.op-badge.payment{background:#ede9fe;color:#6d28d9;}
+.op-badge.income{background:#dcfce7;color:#166534;}
+.op-badge.expense{background:#fee2e2;color:#991b1b;}
+.op-badge.transfer_in{background:#dbeafe;color:#1e40af;}
+.op-badge.transfer_out{background:#fef3c7;color:#92400e;}
+.op-badge.refund{background:#fde7f3;color:#9d174d;}
+.amt-in{color:#059669;font-weight:600;}
+.amt-out{color:#dc2626;font-weight:600;}
+.old-bal{font-size:.75rem;color:var(--text-muted);white-space:nowrap;}
+.tx-desc{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.empty-state{text-align:center;padding:50px 20px;color:var(--text-muted);}
+.empty-state i{font-size:48px;display:block;margin-bottom:12px;opacity:.25;}
+
+.pager{display:flex;justify-content:center;gap:4px;padding:16px 20px;flex-wrap:wrap;}
+.pager a,.pager span{padding:6px 12px;border-radius:8px;font-size:.82rem;text-decoration:none;border:1px solid var(--border);transition:all .15s;}
+.pager a{background:var(--card-bg);color:var(--text);}
+.pager a:hover{border-color:var(--primary);color:var(--primary);}
+.pager .cur{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;}
+
+@media(max-width:768px){.hist-filter form{flex-direction:column;}.hist-filter .fi{width:100%;}.btn-filter,.btn-reset{width:100%;justify-content:center;text-align:center;}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-top">
+  <h2><i class="fas fa-history" style="color:var(--primary);"></i> Kassa tarixi</h2>
+  <a href="{% url 'kassa_list' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> Kassalar</a>
+</div>
+
+<div class="hist-filter">
+  <form method="get">
+    <div class="fi"><label>Dan</label><input type="date" name="date_from" value="{{ request.GET.date_from|default:'' }}"></div>
+    <div class="fi"><label>Gacha</label><input type="date" name="date_to" value="{{ request.GET.date_to|default:'' }}"></div>
+    <div class="fi">
+      <label>Operatsiya turi</label>
+      <select name="transaction_type">
+        <option value="">Barcha turlar</option>
+        <option value="payment" {% if request.GET.transaction_type == 'payment' %}selected{% endif %}>To'lov</option>
+        <option value="income" {% if request.GET.transaction_type == 'income' %}selected{% endif %}>Kirim</option>
+        <option value="expense" {% if request.GET.transaction_type == 'expense' %}selected{% endif %}>Chiqim</option>
+        <option value="transfer_in" {% if request.GET.transaction_type == 'transfer_in' %}selected{% endif %}>O'tkazma (k)</option>
+        <option value="transfer_out" {% if request.GET.transaction_type == 'transfer_out' %}selected{% endif %}>O'tkazma (ch)</option>
+        <option value="refund" {% if request.GET.transaction_type == 'refund' %}selected{% endif %}>Qaytarish</option>
+      </select>
+    </div>
+    <div class="fi"><label>Qidirish</label><input type="text" name="search" value="{{ request.GET.search|default:'' }}" placeholder="Qidirish..."></div>
+    <button type="submit" class="btn-filter"><i class="fas fa-search"></i> Filtrlash</button>
+    <a href="{% url 'kassa_history' %}" class="btn-reset"><i class="fas fa-times"></i> Tozalash</a>
+  </form>
+</div>
+
+<div class="table-wrap">
+  <div class="table-scroll">
+    <table class="hist-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Sana</th>
+          <th>Kassa</th>
+          <th>Turi</th>
+          <th>Summa</th>
+          <th>Eski balans</th>
+          <th>Yangi balans</th>
+          <th>Izoh</th>
+          <th>O'quvchi</th>
+          <th>Bajaruvchi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in transactions %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:.78rem;">{{ forloop.counter }}</td>
+          <td style="white-space:nowrap;">{{ tx.created_at|date:"d.m.Y H:i" }}</td>
+          <td><strong>{{ tx.kassa.name }}</strong><br><small style="color:var(--text-muted);font-size:.72rem;">{% if tx.kassa.owner %}{{ tx.kassa.owner.get_full_name|default:tx.kassa.owner.username }}{% else %}Noma'lum{% endif %}</small></td>
+          <td>
+            {% if tx.transaction_type == 'payment' %}<span class="op-badge payment"><i class="fas fa-credit-card"></i> To'lov</span>
+            {% elif tx.transaction_type == 'income' %}<span class="op-badge income"><i class="fas fa-plus"></i> Kirim</span>
+            {% elif tx.transaction_type == 'expense' %}<span class="op-badge expense"><i class="fas fa-minus"></i> Chiqim</span>
+            {% elif tx.transaction_type == 'transfer_in' %}<span class="op-badge transfer_in"><i class="fas fa-arrow-right"></i> O'tkazma (k)</span>
+            {% elif tx.transaction_type == 'transfer_out' %}<span class="op-badge transfer_out"><i class="fas fa-arrow-left"></i> O'tkazma (ch)</span>
+            {% elif tx.transaction_type == 'refund' %}<span class="op-badge refund"><i class="fas fa-undo"></i> Qaytarish</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if tx.transaction_type in 'payment,income,transfer_in' %}
+              <span class="amt-in">+{{ tx.amount|floatformat:0 }}</span>
+            {% else %}
+              <span class="amt-out">-{{ tx.amount|floatformat:0 }}</span>
+            {% endif %}
+          </td>
+          <td class="old-bal">{{ tx.balance_before|floatformat:0 }}</td>
+          <td class="old-bal">{{ tx.balance_after|floatformat:0 }}</td>
+          <td class="tx-desc" title="{{ tx.description }}">{% if tx.expense_category %}<span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:4px;font-size:.7rem;margin-right:4px;">{{ tx.get_expense_category_display }}</span>{% endif %}{{ tx.description|default:"-" }}</td>
+          <td>{% if tx.student %}{{ tx.student.first_name }} {{ tx.student.last_name }}{% else %}<span style="color:var(--text-muted);">-</span>{% endif %}</td>
+          <td>{{ tx.created_by|default:"-" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="10" class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <p>Operatsiyalar topilmadi</p>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if transactions.has_other_pages %}
+  <div class="pager">
+    {% if transactions.has_previous %}<a href="?page={{ transactions.previous_page_number }}&{{ request.GET.urlencode }}">&laquo;</a>{% endif %}
+    {% for num in transactions.paginator.page_range %}
+      {% if transactions.number == num %}<span class="cur">{{ num }}</span>
+      {% elif num > transactions.number|add:'-3' and num < transactions.number|add:'3' %}<a href="?page={{ num }}&{{ request.GET.urlencode }}">{{ num }}</a>{% endif %}
+    {% endfor %}
+    {% if transactions.has_next %}<a href="?page={{ transactions.next_page_number }}&{{ request.GET.urlencode }}">&raquo;</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

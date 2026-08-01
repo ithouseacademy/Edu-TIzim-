@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}Davomat sabablari | Edu Tizim{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h2>Davomat sabablari</h2>
+    <span class="page-header-count">{{ reasons|length }} ta sabab</span>
+  </div>
+  <div class="page-header-right">
+    <button class="btn btn-primary" onclick="openCreateModal()"><i class="fas fa-plus"></i> Yangi sabab</button>
+  </div>
+</div>
+
+<div class="stats-grid" style="margin-bottom:24px;">
+  <div class="stat-card blue">
+    <div class="stat-icon"><i class="fas fa-list"></i></div>
+    <div class="stat-info">
+      <div class="stat-number">{{ reasons|length }}</div>
+      <div class="stat-label">Jami sabablar</div>
+    </div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+    <div class="stat-info">
+      <div class="stat-number">{{ active_count }}</div>
+      <div class="stat-label">Faol</div>
+    </div>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-icon"><i class="fas fa-pause-circle"></i></div>
+    <div class="stat-info">
+      <div class="stat-number">{{ inactive_count }}</div>
+      <div class="stat-label">No faol</div>
+    </div>
+  </div>
+</div>
+
+{% if messages %}
+<div class="messages">
+  {% for message in messages %}
+  <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'error' %}alert-danger{% else %}alert-info{% endif %}" style="margin-bottom:10px;">
+    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+    {{ message }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header between">
+    <h3><i class="fas fa-list-alt"></i> Sabablar ro'yxati</h3>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Sabab nomi</th>
+          <th>Turi</th>
+          <th>Holat</th>
+          <th>Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reasons %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td><strong>{{ r.name }}</strong></td>
+          <td>
+            {% if r.reason_type == "absent" %}
+            <span class="badge badge-red"><i class="fas fa-user-slash"></i> Kelmadi</span>
+            {% elif r.reason_type == "excused" %}
+            <span class="badge badge-yellow"><i class="fas fa-user-clock"></i> Sababli</span>
+            {% else %}
+            <span class="badge badge-purple"><i class="fas fa-users"></i> Ikkalasi</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.is_active %}
+            <span class="badge badge-green"><i class="fas fa-check-circle"></i> Faol</span>
+            {% else %}
+            <span class="badge" style="background:#f1f5f9;color:#64748b;"><i class="fas fa-pause-circle"></i> No faol</span>
+            {% endif %}
+          </td>
+          <td class="actions">
+            <button class="btn btn-sm btn-warning" onclick="openEditModal({{ r.id }},'{{ r.name|escapejs }}','{{ r.reason_type }}',{{ r.is_active|lower }})" title="Tahrirlash"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-danger" onclick="openDeleteModal({{ r.id }},'{{ r.name|escapejs }}')" title="O'chirish"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="empty">
+            <i class="fas fa-inbox" style="font-size:2rem;opacity:.2;display:block;margin-bottom:8px;"></i>
+            Sabablar mavjud emas
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CREATE MODAL -->
+<div id="createModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:440px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px;"><i class="fas fa-plus-circle" style="color:var(--primary);"></i> Yangi sabab</h3>
+      <button onclick="closeCreateModal()" style="width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="post" action="{% url 'absence_reason_create' %}">
+      <div style="padding:24px;">
+        {% csrf_token %}
+        <div class="form-group">
+          <label><i class="fas fa-tag" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Sabab nomi</label>
+          <input type="text" name="name" class="form-control" required placeholder="Masalan: Kech qoldi">
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-list" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Turi</label>
+          <select name="reason_type" class="form-control">
+            <option value="both">Ikkalasi</option>
+            <option value="absent">Kelmadi</option>
+            <option value="excused">Sababli kelmadi</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px 14px;border:2px solid var(--border);border-radius:8px;transition:all .15s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+            <input type="checkbox" name="is_active" checked style="width:16px;height:16px;accent-color:var(--primary);">
+            <i class="fas fa-toggle-on" style="color:var(--primary);"></i> Faol holatda
+          </label>
+        </div>
+      </div>
+      <div class="form-actions" style="margin:0;padding:16px 24px;border-top:1px solid var(--border);background:#fafbfc;">
+        <button type="button" onclick="closeCreateModal()" class="btn btn-secondary"><i class="fas fa-times"></i> Bekor</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:440px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px;"><i class="fas fa-edit" style="color:var(--primary);"></i> Tahrirlash</h3>
+      <button onclick="closeEditModal()" style="width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="post" action="" id="editForm">
+      <div style="padding:24px;">
+        {% csrf_token %}
+        <div class="form-group">
+          <label><i class="fas fa-tag" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Sabab nomi</label>
+          <input type="text" name="name" id="editName" class="form-control" required placeholder="Masalan: Kech qoldi">
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-list" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Turi</label>
+          <select name="reason_type" id="editType" class="form-control">
+            <option value="both">Ikkalasi</option>
+            <option value="absent">Kelmadi</option>
+            <option value="excused">Sababli kelmadi</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px 14px;border:2px solid var(--border);border-radius:8px;transition:all .15s;" id="editCheckLabel">
+            <input type="checkbox" name="is_active" id="editActive" style="width:16px;height:16px;accent-color:var(--primary);">
+            <i class="fas fa-toggle-on" style="color:var(--primary);"></i> Faol holatda
+          </label>
+        </div>
+      </div>
+      <div class="form-actions" style="margin:0;padding:16px 24px;border-top:1px solid var(--border);background:#fafbfc;">
+        <button type="button" onclick="closeEditModal()" class="btn btn-secondary"><i class="fas fa-times"></i> Bekor</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div id="deleteModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:400px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px;"><i class="fas fa-trash" style="color:var(--danger);"></i> O'chirish</h3>
+      <button onclick="closeDeleteModal()" style="width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:24px;">
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;font-size:13px;color:#991b1b;display:flex;align-items:flex-start;gap:10px;line-height:1.5;">
+        <i class="fas fa-exclamation-triangle" style="margin-top:1px;flex-shrink:0;"></i>
+        <span><strong id="delName"></strong> sababini o'chirishni xohlaysizmi? Bu amal bekor qilib bo'lmaydi.</span>
+      </div>
+    </div>
+    <div class="form-actions" style="margin:0;padding:16px 24px;border-top:1px solid var(--border);background:#fafbfc;">
+      <button type="button" onclick="closeDeleteModal()" class="btn btn-secondary"><i class="fas fa-times"></i> Bekor</button>
+      <form method="post" action="" id="delForm" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> O'chirish</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function openCreateModal(){document.getElementById('createModal').style.display='flex';}
+function closeCreateModal(){document.getElementById('createModal').style.display='none';}
+
+var eb="{% url 'absence_reason_update' pk=0 %}";
+function openEditModal(id,name,type,active){
+  document.getElementById('editName').value=name;
+  document.getElementById('editType').value=type;
+  var cb=document.getElementById('editActive');
+  cb.checked=active;
+  document.getElementById('editForm').action=eb.replace('/0/','/'+id+'/');
+  document.getElementById('editModal').style.display='flex';
+}
+function closeEditModal(){document.getElementById('editModal').style.display='none';}
+
+var db="{% url 'absence_reason_delete' pk=0 %}";
+function openDeleteModal(id,name){
+  document.getElementById('delName').textContent=name;
+  document.getElementById('delForm').action=db.replace('/0/','/'+id+'/');
+  document.getElementById('deleteModal').style.display='flex';
+}
+function closeDeleteModal(){document.getElementById('deleteModal').style.display='none';}
+</script>
+
+{% endblock %}

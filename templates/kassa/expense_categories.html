@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Chiqim kategoriyalari | Kassa{% endblock %}
+{% block extra_css %}
+<style>
+.pm-table{width:100%;border-collapse:collapse;min-width:500px;}
+.pm-table th{text-align:left;padding:10px 14px;font-size:0.73rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid var(--border);background:var(--sidebar-hover);white-space:nowrap;}
+.pm-table td{padding:10px 14px;font-size:0.85rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+.pm-table tr:hover td{background:var(--sidebar-hover);}
+.pm-badge{padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;}
+.pm-badge.active{background:#dcfce7;color:#166534;}
+.pm-badge.inactive{background:#fee2e2;color:#991b1b;}
+.pm-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.action-btn{padding:5px 12px;border-radius:6px;font-size:0.78rem;font-weight:500;text-decoration:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
+.btn-toggle{background:#dbeafe;color:#1e40af;}
+.btn-edit{background:#fef3c7;color:#92400e;}
+.btn-del{background:#fee2e2;color:#991b1b;}
+.pm-create-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;}
+.pm-create-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);}
+.pm-create-content{position:relative;margin:auto;margin-top:10vh;background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:90%;max-width:480px;z-index:1;}
+.pm-create-header{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.pm-create-header h3{font-size:1rem;font-weight:600;margin:0;display:flex;align-items:center;gap:8px;}
+.pm-create-close{background:none;border:none;font-size:1.4rem;color:var(--text-muted);cursor:pointer;flex-shrink:0;}
+.pm-create-close:hover{color:var(--text);}
+.pm-create-form{padding:20px 24px;}
+.pm-create-form .form-group{margin-bottom:14px;}
+.pm-create-form .form-group label{display:block;font-size:0.85rem;font-weight:600;margin-bottom:5px;}
+.pm-create-actions{display:flex;gap:10px;justify-content:flex-end;padding-top:10px;}
+.btn-cancel{padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:0.85rem;font-weight:500;cursor:pointer;}
+.btn-cancel:hover{background:var(--sidebar-hover);}
+.btn-submit{padding:8px 18px;border-radius:8px;border:none;color:#fff;font-size:0.85rem;font-weight:600;cursor:pointer;}
+.btn-primary{background:var(--primary);}
+.btn-primary:hover{background:var(--primary-dark);}
+@media(max-width:480px){
+  .pm-table th,.pm-table td{padding:8px 10px;font-size:0.78rem;}
+  .pm-actions{flex-direction:column;}
+  .action-btn{width:100%;justify-content:center;}
+  .pm-create-content{margin-top:5vh;max-width:100%;}
+  .pm-create-header{padding:14px 16px;}
+  .pm-create-form{padding:14px 16px;}
+  .pm-create-actions{flex-direction:column;}
+  .pm-create-actions button{width:100%;justify-content:center;}
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2><i class="fas fa-tags" style="color:var(--primary);"></i> Chiqim kategoriyalari</h2>
+    <div style="font-size:0.85rem;color:var(--text-muted);margin-top:2px;">Chiqim kategoriyalarini boshqarish</div>
+  </div>
+  <div class="page-header-right">
+    <button onclick="document.getElementById('createModal').style.display='flex'" class="btn btn-primary btn-sm">
+      <i class="fas fa-plus"></i> Yangi qo'shish
+    </button>
+    <a href="{% url 'kassa_dashboard' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> Orqaga</a>
+  </div>
+</div>
+
+<div style="background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;">
+  <div style="overflow-x:auto;">
+    <table class="pm-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nomi</th>
+          <th>Tartib</th>
+          <th>Holat</th>
+          <th>Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in categories %}
+        <tr>
+          <td style="color:var(--text-muted);">{{ forloop.counter }}</td>
+          <td style="font-weight:600;">{{ c.name }}</td>
+          <td>{{ c.order }}</td>
+          <td>
+            {% if c.is_active %}
+              <span class="pm-badge active">Faol</span>
+            {% else %}
+              <span class="pm-badge inactive">Nofaol</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="pm-actions">
+              <a href="{% url 'expense_category_edit' c.pk %}" class="action-btn btn-edit"><i class="fas fa-pen"></i> Tahrirlash</a>
+              <a href="{% url 'expense_category_toggle' c.pk %}" class="action-btn btn-toggle"><i class="fas fa-{% if c.is_active %}ban{% else %}check{% endif %}"></i> {% if c.is_active %}To'xtatish{% else %}Faollashtirish{% endif %}</a>
+              <a href="{% url 'expense_category_delete' c.pk %}" class="action-btn btn-del" onclick="return confirm('O\'chirilsinmi?')"><i class="fas fa-trash"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted);">
+            <i class="fas fa-tags" style="font-size:36px;display:block;margin-bottom:8px;opacity:0.3;"></i>
+            Chiqim kategoriyalari topilmadi
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Create Modal -->
+<div id="createModal" class="pm-create-modal">
+  <div class="pm-create-overlay" onclick="document.getElementById('createModal').style.display='none'"></div>
+  <div class="pm-create-content">
+    <div class="pm-create-header">
+      <h3><i class="fas fa-plus-circle" style="color:var(--primary);"></i> Yangi kategoriya</h3>
+      <button class="pm-create-close" onclick="document.getElementById('createModal').style.display='none'">&times;</button>
+    </div>
+    <form method="post" action="{% url 'expense_category_create' %}" class="pm-create-form">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Kategoriya nomi *</label>
+        <input type="text" name="name" required placeholder="Masalan: Arenda, Maosh, Kommunal..." class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Tartib raqami</label>
+        <input type="number" name="order" value="0" min="0" class="form-control">
+      </div>
+      <div class="pm-create-actions">
+        <button type="button" onclick="document.getElementById('createModal').style.display='none'" class="btn-cancel">Bekor qilish</button>
+        <button type="submit" class="btn-submit btn-primary">Qo'shish</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

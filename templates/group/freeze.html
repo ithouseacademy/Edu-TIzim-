@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Guruhni muzlatish | Edu Tizim{% endblock %}
+{% block page_title %}Guruhni muzlatish{% endblock %}
+{% block content %}
+<div class="card form-card" style="max-width: 500px; margin: 0 auto;">
+    <div class="card-header">
+        <h3><i class="fas fa-snowflake"></i> "{{ group.name }}" guruhini muzlatish</h3>
+    </div>
+    <div class="card-body">
+        <div style="background: #f0f9ff; border-radius: 10px; padding: 16px; margin-bottom: 24px; text-align: center;">
+            <p style="color: #64748b; font-size: 0.9rem;">Guruhdagi o'quvchilar</p>
+            <p style="font-size: 1.3rem; font-weight: 700; color: #1e293b;">{{ group.students.count }} ta</p>
+            <p style="color: #64748b; font-size: 0.85rem; margin-top: 4px;">
+                Barcha o'quvchilar bir xil muddatga muzlatiladi
+            </p>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>{{ form.days.label }}</label>
+                {{ form.days }}
+                {% if form.days.errors %}<div class="field-error">{{ form.days.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="form-group">
+                <label>{{ form.reason.label }}</label>
+                {{ form.reason }}
+            </div>
+            <div class="form-actions" style="justify-content: center; border: none; margin-top: 20px;">
+                <a href="{% url 'group_detail' group.pk %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Bekor qilish</a>
+                <button type="submit" class="btn" style="background: #0369a1; color: #fff;"><i class="fas fa-snowflake"></i> Muzlatish</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

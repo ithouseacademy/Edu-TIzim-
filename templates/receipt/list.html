@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Cheklar | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+.rc-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.rc-search{position:relative;flex:1;min-width:200px;}
+.rc-search i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:12px;}
+.rc-search input{width:100%;padding:8px 12px 8px 30px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:var(--text);}
+.rc-search input:focus{border-color:var(--primary);}
+
+.rc-tabs{display:flex;gap:4px;flex-wrap:wrap;}
+.rc-tab{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:#fff;font-size:11px;font-weight:600;color:var(--text-muted);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:all .15s;white-space:nowrap;}
+.rc-tab:hover{border-color:var(--primary);color:var(--primary);}
+.rc-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+
+.rc-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;}
+.rc-stat{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+.rc-stat .ico{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.rc-stat .ico.blue{background:#eef2ff;color:#2563eb;}
+.rc-stat .ico.green{background:#ecfdf5;color:#059669;}
+.rc-stat .inf .num{font-size:16px;font-weight:800;color:var(--text);line-height:1.2;}
+.rc-stat .inf .lbl{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px;}
+
+.rc-card{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.rc-card-head{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);background:#fafbfc;}
+.rc-card-head h3{margin:0;font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;}
+.rc-card-head h3 i{color:var(--primary);font-size:12px;}
+.rc-card-head .count{font-size:11px;color:var(--text-muted);font-weight:600;}
+
+.rc-table{width:100%;border-collapse:collapse;}
+.rc-table thead th{padding:7px 8px;text-align:left;font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;background:#f8f9fb;border-bottom:1px solid var(--border);white-space:nowrap;}
+.rc-table tbody tr{transition:all .1s;}
+.rc-table tbody tr:nth-child(even){background:rgba(0,0,0,.01);}
+.rc-table tbody tr:hover{background:#eef2ff;}
+.rc-table tbody td{padding:7px 8px;font-size:11px;color:var(--text);border-bottom:1px solid var(--border);white-space:nowrap;}
+.rc-table .amt{font-weight:700;font-size:11px;color:#059669;font-variant-numeric:tabular-nums;}
+.rc-table .rc-actions{display:flex;gap:3px;}
+.rc-table .rc-btn{height:26px;border-radius:5px;border:1px solid var(--border);background:#fff;color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s;text-decoration:none;padding:0 8px;gap:4px;}
+.rc-table .rc-btn i{font-size:9px;}
+.rc-table .rc-btn:hover{border-color:var(--primary);color:var(--primary);background:#eef2ff;}
+
+.rc-page{display:flex;justify-content:center;align-items:center;gap:3px;padding:10px 16px;border-top:1px solid var(--border);flex-wrap:wrap;}
+.rc-page a,.rc-page span{padding:5px 9px;border-radius:5px;border:1px solid var(--border);font-size:11px;color:var(--text);text-decoration:none;background:#fff;transition:all .15s;}
+.rc-page a:hover{border-color:var(--primary);color:var(--primary);}
+.rc-page span.current{border-color:var(--primary);background:var(--primary);color:#fff;font-weight:700;}
+.rc-empty{text-align:center;padding:40px 20px;color:var(--text-muted);}
+.rc-empty i{font-size:2rem;margin-bottom:8px;opacity:.2;}
+.rc-empty p{font-size:13px;font-weight:500;}
+
+#receiptPrintFrame{display:none;}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Cheklar</h2>
+        <span class="page-header-count">{{ total_count }} ta chek</span>
+    </div>
+    <div class="page-header-right">
+        <a href="{% url 'payment_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> To'lov</a>
+    </div>
+</div>
+
+<div class="rc-top">
+    <div class="rc-search">
+        <i class="fas fa-search"></i>
+        <form method="GET" style="display:flex;gap:0;">
+            <input type="text" name="q" value="{{ search_query }}" placeholder="O'quvchi ismi..." onchange="this.form.submit()">
+            {% if current_period %}<input type="hidden" name="period" value="{{ current_period }}">{% endif %}
+            {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+            {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="rc-tabs" style="margin-bottom:14px;">
+    <a href="?period=today{% if search_query %}&q={{ search_query }}{% endif %}" class="rc-tab {% if current_period == 'today' %}active{% endif %}"><i class="fas fa-sun"></i> Bugun</a>
+    <a href="?period=week{% if search_query %}&q={{ search_query }}{% endif %}" class="rc-tab {% if current_period == 'week' %}active{% endif %}"><i class="fas fa-calendar-week"></i> Hafta</a>
+    <a href="?period=month{% if search_query %}&q={{ search_query }}{% endif %}" class="rc-tab {% if current_period == 'month' %}active{% endif %}"><i class="fas fa-calendar"></i> Oy</a>
+    <a href="?period=year{% if search_query %}&q={{ search_query }}{% endif %}" class="rc-tab {% if current_period == 'year' %}active{% endif %}"><i class="fas fa-calendar-alt"></i> Yil</a>
+    <a href="?period=all{% if search_query %}&q={{ search_query }}{% endif %}" class="rc-tab {% if current_period == 'all' %}active{% endif %}"><i class="fas fa-list"></i> Hammasi</a>
+</div>
+
+<div class="rc-stats">
+    <div class="rc-stat">
+        <div class="ico blue"><i class="fas fa-receipt"></i></div>
+        <div class="inf"><div class="num">{{ total_count }}</div><div class="lbl">Jami chek</div></div>
+    </div>
+    <div class="rc-stat">
+        <div class="ico green"><i class="fas fa-coins"></i></div>
+        <div class="inf"><div class="num">{{ total_amount|floatformat:0|intcomma }}</div><div class="lbl">Jami summa</div></div>
+    </div>
+</div>
+
+<div class="rc-card">
+    <div class="rc-card-head">
+        <h3><i class="fas fa-receipt"></i> Cheklar</h3>
+        <span class="count">{{ page_obj.start_index }}-{{ page_obj.end_index }} / {{ total_count }}</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="rc-table">
+            <colgroup>
+                <col style="width:32px;">
+                <col style="width:70px;">
+                <col>
+                <col style="width:100px;">
+                <col style="width:90px;">
+                <col style="width:100px;">
+                <col style="width:90px;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Chek</th>
+                    <th>O'quvchi</th>
+                    <th>Summa</th>
+                    <th>Kim</th>
+                    <th>Sana</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in receipts %}
+                <tr>
+                    <td style="color:#94a3b8;">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                    <td style="font-weight:600;font-size:10px;">#{{ r.transaction_id }}</td>
+                    <td>
+                        <a href="{% url 'student_profile' r.transaction.student.pk %}" style="color:var(--primary);text-decoration:none;font-weight:500;font-size:11px;">
+                            {{ r.student_name }}
+                        </a>
+                    </td>
+                    <td><span class="amt">{{ r.amount|floatformat:0|intcomma }} so'm</span></td>
+                    <td style="color:#64748b;font-size:10px;">{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username|default:"-" }}{% else %}-{% endif %}</td>
+                    <td style="color:#64748b;font-size:10px;">{{ r.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>
+                        <div class="rc-actions">
+                            <button class="rc-btn" title="Qayta chiqarish" onclick="reprintReceipt({{ r.transaction_id }})"><i class="fas fa-redo"></i> Chiqarish</button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">
+                        <div class="rc-empty"><i class="fas fa-receipt"></i><p>Cheklar mavjud emas</p></div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="rc-page">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_period %}&period={{ current_period }}{% endif %}"><i class="fas fa-chevron-left"></i></a>
+        {% endif %}
+        {% for p in page_obj.paginator.page_range %}
+            {% if page_obj.number == p %}
+            <span class="current">{{ p }}</span>
+            {% elif p > page_obj.number|add:'-3' and p < page_obj.number|add:'3' %}
+            <a href="?page={{ p }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_period %}&period={{ current_period }}{% endif %}">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_period %}&period={{ current_period }}{% endif %}"><i class="fas fa-chevron-right"></i></a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function doPrint(txnId) {
+  fetch('/api/receipt-html/' + txnId + '/')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data.html) return;
+      var w = window.open('', '_blank', 'width=500,height=700');
+      if (!w) return;
+      w.document.write(data.html);
+      w.document.close();
+      var timer = setInterval(function(){
+        try {
+          if (w.document.readyState === 'complete'){
+            clearInterval(timer);
+            w.focus();
+            setTimeout(function(){ w.print(); }, 400);
+          }
+        } catch(e){}
+      }, 100);
+    });
+}
+function reprintReceipt(txnId) {
+  doPrint(txnId);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Xodimlar | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Xodimlar</h2>
+        <span class="page-header-count">{{ employees|length }} ta xodim</span>
+    </div>
+    <div class="page-header-right" style="display:flex;gap:6px;">
+        <a href="{% url 'employee_export_excel' %}" class="btn btn-success btn-sm" style="background:#2001ff;border-color:#2001ff;color:#fff;"><i class="fas fa-file-excel"></i> Excel</a>
+        <a href="{% url 'employee_export_csv' %}" class="btn btn-success btn-sm" style="background:#2001ff;border-color:#2001ff;color:#fff;"><i class="fas fa-file-csv"></i> CSV</a>
+        <a href="{% url 'employee_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Xodim qo'shish</a>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header between">
+        <h3><i class="fas fa-users"></i> Barcha xodimlar</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Xodim</th>
+                    <th>Telefon</th>
+                    <th>Vazifasi</th>
+                    <th>Rol</th>
+                    <th>Guruhlar</th>
+                    <th>Filiallar</th>
+                    <th>Holat</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in employees %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            {% if emp.photo %}
+                            <img src="{{ emp.photo.url }}" alt="{{ emp.first_name }}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                            {% else %}
+                            <div style="width: 36px; height: 36px; border-radius: 50%; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">
+                                {{ emp.first_name|first|upper }}{{ emp.last_name|first|upper }}
+                            </div>
+                            {% endif %}
+                            <div>
+                                <a href="{% url 'employee_profile' emp.pk %}" style="color: inherit; text-decoration: none;">
+                                    <strong>{{ emp.first_name }} {{ emp.last_name }}</strong>
+                                </a>
+                                {% if emp.user %}
+                                <div style="font-size: 0.75rem; color: #16a34a;"><i class="fas fa-check-circle"></i> Login mavjud</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>g
+                    <td>+998 {{ emp.phone }}</td>
+                    <td>{% if emp.position %}<span class="badge badge-blue">{{ emp.position.name }}</span>{% else %}<span style="color: #94a3b8;">-</span>{% endif %}</td>
+                    <td>{% if emp.role %}<span class="badge badge-purple">{{ emp.role.name }}</span>{% else %}<span style="color: #94a3b8;">-</span>{% endif %}</td>
+                    <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">{{ emp.group_count }} ta</span></td>
+                    <td>
+                        {% for b in emp.branches.all %}
+                        <span class="badge badge-green" style="margin: 1px;">{{ b.name }}</span>
+                        {% empty %}
+                        <span style="color: #94a3b8;">-</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if emp.is_active %}
+                        <span class="badge badge-green">Faol</span>
+                        {% else %}
+                        <span class="badge badge-gray">Nofaol</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <a href="{% url 'employee_profile' emp.pk %}" class="btn btn-sm btn-info" title="Profil"><i class="fas fa-eye"></i></a>
+                        <a href="{% url 'employee_update' emp.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
+                        {% if emp.is_active %}
+                        <a href="{% url 'employee_delete' emp.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="empty">Hozircha xodimlar mavjud emas</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

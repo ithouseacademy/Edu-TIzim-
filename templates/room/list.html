@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Xonalar | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Xonalar</h2>
+        <span class="page-header-count">{{ rooms|length }} ta xona</span>
+    </div>
+    <div class="page-header-right" style="display:flex;gap:6px;">
+        <a href="{% url 'room_export_excel' %}" class="btn btn-success btn-sm" style="background:#2001ff;border-color:#2001ff;color:#fff;"><i class="fas fa-file-excel"></i> Excel</a>
+        <a href="{% url 'room_export_csv' %}" class="btn btn-success btn-sm" style="background:#2001ff;border-color:#2001ff;color:#fff;"><i class="fas fa-file-csv"></i> CSV</a>
+        <a href="{% url 'room_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Qo'shish</a>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header between">
+        <h3><i class="fas fa-door-open"></i> Barcha xonalar</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Xona nomi</th>
+                    <th>Yaratilgan sana</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for room in rooms %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ room.name }}</strong></td>
+                    <td>{{ room.created_at|date:"d.m.Y" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'room_update' room.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'room_delete' room.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="empty">Hozircha xonalar mavjud emas</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

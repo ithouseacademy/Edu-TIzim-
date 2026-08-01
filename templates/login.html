@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edu Tizim - Kirish</title>
+    <link rel="stylesheet" href="{% static 'fontawesomefree/css/all.min.css' %}">
+    <link rel="stylesheet" href="{% static 'frontend/css/login.css' %}">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <div class="logo-area">
+            <div class="logo-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="white"/>
+                    <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="logo-text">
+                <span class="logo-title">Edu Tizim</span>
+                <span class="logo-subtitle">bilan yanada osonroq</span>
+            </div>
+        </div>
+        <button class="lang-btn" id="langBtn">
+            <span class="flag-icon">🇺🇿</span>
+            <svg class="arrow-down" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M3 5L6 8L9 5" stroke="#64748B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main class="login-container">
+        <!-- Login Card -->
+        <div class="login-card" id="loginCard">
+            <h2 class="card-title">Kirish</h2>
+
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="POST" id="loginForm" onsubmit="return false;">
+                {% csrf_token %}
+                <div class="input-group">
+                    <div class="phone-field">
+                        <span class="phone-prefix">+998</span>
+                        <input 
+                            type="tel" 
+                            name="phone" 
+                            id="phoneInput" 
+                            class="phone-input" 
+                            placeholder="XX XXX XX XX"
+                            required
+                        >
+                    </div>
+                </div>
+                <button type="button" class="btn-primary" id="submitBtn">Tasdiqlash</button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modalOverlay">
+        <!-- Password Modal -->
+        <div class="modal-card" id="passwordModal">
+            <button class="modal-close" id="modalClose">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <h2 class="modal-title">Parolni kiriting</h2>
+            <form method="POST" id="passwordForm">
+                {% csrf_token %}
+                <input type="hidden" name="phone" id="hiddenPhone">
+                <div class="input-group">
+                    <div class="password-wrapper">
+                        <input 
+                            type="password" 
+                            name="password" 
+                            id="passwordInput" 
+                            placeholder="Parolingizni kiriting"
+                            required
+                        >
+                        <button type="button" class="eye-toggle" id="eyeToggle">
+                            <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12z" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="12" cy="12" r="3" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" style="display:none">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <line x1="1" y1="1" x2="23" y2="23" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Kirish</button>
+                <a href="#" class="forgot-link">Parolni unutdingizmi?</a>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const phoneInput = document.getElementById('phoneInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalClose = document.getElementById('modalClose');
+        const passwordForm = document.getElementById('passwordForm');
+        const hiddenPhone = document.getElementById('hiddenPhone');
+        const eyeToggle = document.getElementById('eyeToggle');
+        const passwordInput = document.getElementById('passwordInput');
+        const eyeOpen = eyeToggle.querySelector('.eye-open');
+        const eyeClosed = eyeToggle.querySelector('.eye-closed');
+
+        function formatPhone(value) {
+            const digits = value.replace(/\D/g, '').substring(0, 9);
+            let formatted = '';
+            if (digits.length > 0) formatted = digits.substring(0, 2);
+            if (digits.length > 2) formatted += ' ' + digits.substring(2, 5);
+            if (digits.length > 5) formatted += ' ' + digits.substring(5, 7);
+            if (digits.length > 7) formatted += ' ' + digits.substring(7, 9);
+            return formatted;
+        }
+
+        phoneInput.addEventListener('input', function(e) {
+            const pos = this.selectionStart;
+            const oldLen = this.value.length;
+            this.value = formatPhone(this.value);
+            const newLen = this.value.length;
+            this.setSelectionRange(pos + (newLen - oldLen), pos + (newLen - oldLen));
+        });
+
+        submitBtn.addEventListener('click', function() {
+            const digits = phoneInput.value.replace(/\D/g, '');
+            if (digits.length === 9) {
+                hiddenPhone.value = '+998 ' + formatPhone(digits);
+                modalOverlay.classList.add('active');
+                setTimeout(() => passwordInput.focus(), 300);
+            } else {
+                phoneInput.classList.add('shake');
+                setTimeout(() => phoneInput.classList.remove('shake'), 500);
+            }
+        });
+
+        phoneInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitBtn.click();
+            }
+        });
+
+        modalClose.addEventListener('click', function() {
+            modalOverlay.classList.remove('active');
+        });
+
+        modalOverlay.addEventListener('click', function(e) {
+            if (e.target === modalOverlay) {
+                modalOverlay.classList.remove('active');
+            }
+        });
+
+        passwordForm.addEventListener('submit', function(e) {
+            const pwd = passwordInput.value.trim();
+            if (!pwd) {
+                e.preventDefault();
+                passwordInput.classList.add('shake');
+                setTimeout(() => passwordInput.classList.remove('shake'), 500);
+                return;
+            }
+        });
+
+        eyeToggle.addEventListener('click', function() {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeOpen.style.display = 'none';
+                eyeClosed.style.display = 'block';
+            } else {
+                passwordInput.type = 'password';
+                eyeOpen.style.display = 'block';
+                eyeClosed.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                modalOverlay.classList.remove('active');
+            }
+        });
+
+        document.querySelectorAll('.alert').forEach(el => {
+            setTimeout(() => el.remove(), 5000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Filiallar | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Filiallar</h2>
+        <span class="page-header-count">{{ branches|length }} ta filial</span>
+    </div>
+    <div class="page-header-right">
+        <a href="{% url 'branch_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Qo'shish</a>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header between">
+        <h3><i class="fas fa-building"></i> Barcha filiallar</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Filial nomi</th>
+                    <th>Yaratilgan sana</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for branch in branches %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ branch.name }}</strong></td>
+                    <td>{{ branch.created_at|date:"d.m.Y" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'branch_update' branch.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'branch_delete' branch.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="empty">Hozircha filiallar mavjud emas</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

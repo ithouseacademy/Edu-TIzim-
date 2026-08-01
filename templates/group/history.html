@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ group.name }} — Tarix | Edu Tizim{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --p: #2001FF;
+  --p-light: #eef0ff;
+  --p-hover: #1a00e6;
+  --bg: #F8F9FC;
+  --card: #fff;
+  --bd: #EDEEF5;
+  --text: #222222;
+  --text2: #7B7F8D;
+  --success: #16C47F;
+  --warning: #FFB020;
+  --danger: #F04438;
+}
+*{font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;}
+
+.hwrap{max-width:1400px;margin:0 auto;padding:24px 32px}
+@media(max-width:768px){.hwrap{padding:12px 14px}}
+
+/* header */
+.hhdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:14px}
+.hhdr-l{display:flex;align-items:center;gap:16px}
+.hback{width:40px;height:40px;border-radius:12px;background:#fff;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;color:var(--text2);text-decoration:none;flex-shrink:0;transition:.2s}
+.hback:hover{background:var(--p-light);border-color:var(--p);color:var(--p)}
+.hhdr h1{font-size:24px;font-weight:800;color:var(--text);margin:0;line-height:40px}
+.hhdr p{font-size:13px;color:var(--text2);margin:2px 0 0}
+.hhdr-r{display:flex;gap:10px;align-items:center}
+.btn{height:38px;padding:0 20px;border-radius:10px;font-size:13px;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:.2s;text-decoration:none}
+.btn-primary{background:var(--p);color:#fff}
+.btn-primary:hover{background:var(--p-hover);transform:translateY(-1px);box-shadow:0 4px 14px rgba(32,1,255,.25)}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--bd)}
+.btn-outline:hover{border-color:var(--p);color:var(--p);background:var(--p-light)}
+.btn-sm{height:32px;padding:0 12px;font-size:12px;border-radius:8px}
+
+/* layout */
+.h2col{display:grid;grid-template-columns:1fr 340px;gap:28px;align-items:start}
+@media(max-width:1200px){.h2col{grid-template-columns:1fr}}
+.hmain{min-width:0}
+.hside{position:sticky;top:88px}
+@media(max-width:1200px){.hside{position:static}}
+
+/* stat cards */
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:28px}
+.statcard{background:var(--card);border-radius:20px;padding:18px 16px;box-shadow:0 1px 3px rgba(0,0,0,.04);border:1px solid var(--bd);transition:.25s;cursor:default}
+.statcard:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.06)}
+.statcard .si{font-size:24px;margin-bottom:6px}
+.statcard .sn{font-size:26px;font-weight:800;color:var(--text);line-height:1.1}
+.statcard .st{font-size:11px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.3px}
+@media(max-width:1100px){.stats{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr);gap:10px}}
+@media(max-width:400px){.stats{grid-template-columns:1fr}}
+
+/* filters */
+.hfilters{background:var(--card);border-radius:20px;padding:18px 22px;box-shadow:0 1px 3px rgba(0,0,0,.04);border:1px solid var(--bd);margin-bottom:24px}
+.hf-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.hf-field{display:flex;flex-direction:column;gap:4px}
+.hf-field label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.3px}
+.hf-input{height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--bd);font-size:13px;color:var(--text);background:#fff;outline:none;transition:.2s;min-width:180px}
+.hf-input:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(32,1,255,.08)}
+.hf-input.search{min-width:220px;padding-left:36px}
+.hf-search-wrap{position:relative}
+.hf-search-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text2);font-size:13px}
+.hf-actions{display:flex;gap:8px;align-items:flex-end;padding-bottom:2px}
+
+/* timeline */
+.tl{display:flex;flex-direction:column;gap:0;position:relative}
+.tl-line{position:absolute;left:27px;top:44px;bottom:16px;width:2px;background:var(--bd);border-radius:1px}
+.tl-card{background:var(--card);border-radius:20px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,.04);border:1px solid var(--bd);transition:.25s;position:relative;margin-bottom:14px;display:flex;align-items:flex-start;gap:16px}
+.tl-card:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.06)}
+.tl-card.hide{display:none}
+.tl-dot{width:16px;height:16px;border-radius:50%;flex-shrink:0;margin-top:4px;position:relative;z-index:1;border:3px solid var(--card)}
+.tl-dot.green{background:var(--success);box-shadow:0 0 0 3px rgba(22,196,127,.15)}
+.tl-dot.orange{background:var(--warning);box-shadow:0 0 0 3px rgba(255,176,32,.15)}
+.tl-dot.blue{background:var(--p);box-shadow:0 0 0 3px rgba(32,1,255,.12)}
+.tl-dot.red{background:var(--danger);box-shadow:0 0 0 3px rgba(240,68,56,.12)}
+.tl-dot.purple{background:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.12)}
+.tl-dot.gray{background:#94a3b8;box-shadow:0 0 0 3px rgba(148,163,184,.12)}
+.tl-body{flex:1;min-width:0}
+.tl-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+.tl-act{display:flex;align-items:center;gap:8px}
+.tl-act-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.tl-act-icon.green{background:#e6f9f1;color:var(--success)}
+.tl-act-icon.blue{background:var(--p-light);color:var(--p)}
+.tl-act-icon.orange{background:#fff7e6;color:var(--warning)}
+.tl-act-icon.red{background:#fdecea;color:var(--danger)}
+.tl-act-icon.purple{background:#f3e8ff;color:#7c3aed}
+.tl-act-icon.gray{background:#f1f5f9;color:#94a3b8}
+.tl-act-title{font-size:14px;font-weight:700;color:var(--text)}
+.tl-badge{font-size:10px;font-weight:700;padding:2px 10px;border-radius:6px;line-height:20px;letter-spacing:.3px;text-transform:uppercase}
+.tl-badge.green{background:#e6f9f1;color:var(--success)}
+.tl-badge.blue{background:var(--p-light);color:var(--p)}
+.tl-badge.orange{background:#fff7e6;color:var(--warning)}
+.tl-badge.red{background:#fdecea;color:var(--danger)}
+.tl-badge.purple{background:#f3e8ff;color:#7c3aed}
+.tl-badge.gray{background:#f1f5f9;color:#64748b}
+.tl-time{font-size:12px;color:var(--text2);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.tl-info{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--text2);margin-top:4px}
+.tl-info-item{display:flex;align-items:center;gap:6px}
+.tl-info-item strong{color:var(--text);font-weight:600}
+.tl-detail-text{font-size:13px;color:var(--text2);margin-top:6px;padding:8px 12px;background:var(--bg);border-radius:8px;border-left:3px solid var(--bd)}
+.tl-avatar{width:22px;height:22px;border-radius:50%;background:var(--p-light);color:var(--p);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+
+/* activity panel */
+.hpanel{background:var(--card);border-radius:20px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,.04);border:1px solid var(--bd)}
+.hpanel h3{font-size:15px;font-weight:700;color:var(--text);margin:0 0 14px;display:flex;align-items:center;gap:8px}
+.hpanel h3 .dot{width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+.hact{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg)}
+.hact:last-child{border-bottom:none}
+.hact-av{width:32px;height:32px;border-radius:50%;background:var(--p-light);color:var(--p);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.hact-body{flex:1;min-width:0}
+.hact-name{font-size:12px;font-weight:600;color:var(--text)}
+.hact-act{font-size:11px;color:var(--text2)}
+.hact-time{font-size:10px;color:var(--text2);white-space:nowrap}
+
+/* pagination */
+.hpag{margin-top:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.hpag-pages{display:flex;gap:4px;align-items:center}
+.hpag-btn{height:34px;min-width:34px;padding:0 10px;border-radius:8px;border:1px solid var(--bd);background:var(--card);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:4px}
+.hpag-btn:hover{border-color:var(--p);color:var(--p);background:var(--p-light)}
+.hpag-btn.active{background:var(--p);color:#fff;border-color:var(--p)}
+.hpag-per{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
+.hpag-per select{height:34px;padding:0 8px;border-radius:8px;border:1px solid var(--bd);font-size:12px;color:var(--text);outline:none;background:var(--card)}
+
+/* empty */
+.tempty{background:var(--card);border-radius:20px;padding:80px 24px;text-align:center;border:1px solid var(--bd)}
+.tempty .ti{font-size:56px;opacity:.15;margin-bottom:14px;display:block}
+.tempty h3{font-size:18px;font-weight:700;color:var(--text);margin:0 0 6px}
+.tempty p{font-size:14px;color:var(--text2);margin:0 0 20px}
+
+/* skeleton loading */
+.skel{background:linear-gradient(90deg,#edf2f7 25%,#f1f5f9 50%,#edf2f7 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skel-card{background:var(--card);border-radius:20px;padding:20px 24px;border:1px solid var(--bd);margin-bottom:14px}
+.skel-row{display:flex;gap:14px;align-items:flex-start}
+.skel-dot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
+.skel-line{height:14px;border-radius:6px;margin-bottom:8px}
+.skel-line.w60{width:60%}
+.skel-line.w40{width:40%}
+.skel-line.w80{width:80%}
+
+/* filter animation */
+.tl-card{animation:fadeIn .35s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* count up animation */
+@keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.statcard .sn{display:inline-block;animation:countUp .5s ease forwards;opacity:0}
+.statcard .sn{animation-delay:calc(var(--i)*.08s)}
+</style>
+{% endblock %}
+
+{% block content %}
+{% with stats_add=stats.added stats_transfer=stats.transferred stats_freeze=stats.frozen stats_remove=stats.removed stats_edit=stats.edited %}
+<div class="hwrap">
+  <!-- header -->
+  <div class="hhdr">
+    <div class="hhdr-l">
+      <a href="{% url 'group_detail' group.pk %}" class="hback"><i class="fas fa-arrow-left"></i></a>
+      <div>
+        <h1>Guruh tarixi</h1>
+        <p>Ushbu sahifada guruh bilan bog'liq barcha o'zgarishlar tarixini ko'rishingiz mumkin.</p>
+      </div>
+    </div>
+    <div class="hhdr-r">
+      <a href="?export=1" class="btn btn-primary"><i class="fas fa-plus"></i>Eksport</a>
+      <button class="btn btn-outline" onclick="document.querySelector('.hfilters').scrollIntoView({behavior:'smooth'})"><i class="fas fa-filter"></i>Filter</button>
+    </div>
+  </div>
+
+  <!-- stats -->
+  <div class="stats">
+    <div class="statcard"><div class="si" style="color:var(--p)"><i class="fas fa-book"></i></div><div class="sn" style="--i:1">{{ stats.total }}</div><div class="st">Jami yozuvlar</div></div>
+    <div class="statcard"><div class="si" style="color:var(--success)"><i class="fas fa-user-plus"></i></div><div class="sn" style="--i:2">{{ stats_add }}</div><div class="st">Qo'shilgan</div></div>
+    <div class="statcard"><div class="si" style="color:var(--p)"><i class="fas fa-exchange-alt"></i></div><div class="sn" style="--i:3">{{ stats_transfer }}</div><div class="st">Ko'chirilgan</div></div>
+    <div class="statcard"><div class="si" style="color:var(--warning)"><i class="fas fa-snowflake"></i></div><div class="sn" style="--i:4">{{ stats_freeze }}</div><div class="st">Muzlatilgan</div></div>
+    <div class="statcard"><div class="si" style="color:var(--danger)"><i class="fas fa-user-minus"></i></div><div class="sn" style="--i:5">{{ stats_remove }}</div><div class="st">Chiqarilgan</div></div>
+    <div class="statcard"><div class="si" style="color:#7c3aed"><i class="fas fa-pen"></i></div><div class="sn" style="--i:6">{{ stats_edit }}</div><div class="st">Tahrirlangan</div></div>
+  </div>
+
+  <div class="h2col">
+    <div class="hmain">
+      <!-- filters -->
+      <div class="hfilters">
+        <form method="get" id="filterForm">
+          <div class="hf-row">
+            <div class="hf-field hf-search-wrap">
+              <label>Qidirish</label>
+              <i class="fas fa-search"></i>
+              <input type="text" name="q" class="hf-input search" placeholder="O'quvchini qidirish..." value="{{ request.GET.q }}">
+            </div>
+            <div class="hf-field">
+              <label>Sanadan</label>
+              <input type="date" name="from" class="hf-input" value="{{ request.GET.from }}">
+            </div>
+            <div class="hf-field">
+              <label>Sanagacha</label>
+              <input type="date" name="to" class="hf-input" value="{{ request.GET.to }}">
+            </div>
+            <div class="hf-field">
+              <label>Amal turi</label>
+              <select name="action" class="hf-input">
+                <option value="">Barchasi</option>
+                <option value="student" {% if request.GET.action == 'student' %}selected{% endif %}>Qo'shildi</option>
+                <option value="transfer" {% if request.GET.action == 'transfer' %}selected{% endif %}>Ko'chirildi</option>
+                <option value="freeze" {% if request.GET.action == 'freeze' %}selected{% endif %}>Muzlatildi</option>
+                <option value="remove" {% if request.GET.action == 'remove' %}selected{% endif %}>Chiqarildi</option>
+                <option value="edit" {% if request.GET.action == 'edit' %}selected{% endif %}>Tahrirlandi</option>
+                <option value="archive" {% if request.GET.action == 'archive' %}selected{% endif %}>Arxivlandi</option>
+              </select>
+            </div>
+            <div class="hf-field">
+              <label>Administrator</label>
+              <select name="admin" class="hf-input">
+                <option value="">Barchasi</option>
+                {% for emp in employees %}
+                <option value="{{ emp.first_name }} {{ emp.last_name }}" {% if request.GET.admin == emp.first_name|add:' '|add:emp.last_name %}selected{% endif %}>{{ emp.first_name }} {{ emp.last_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="hf-actions">
+              <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i>Qidirish</button>
+              <a href="{% url 'group_history' group.pk %}" class="btn btn-outline btn-sm">Reset</a>
+            </div>
+          </div>
+          <input type="hidden" name="per_page" value="{{ request.GET.per_page }}">
+        </form>
+      </div>
+
+      <!-- timeline -->
+      {% if logs %}
+      <div class="tl" id="timeline">
+        <div class="tl-line"></div>
+        {% for log in logs %}
+        <div class="tl-card" data-c="{{ log.category }}">
+          <div class="tl-dot
+            {% if log.category == 'student' or log.category == 'create' %}green
+            {% elif log.category == 'transfer' %}blue
+            {% elif log.category == 'freeze' %}orange
+            {% elif log.category == 'remove' %}red
+            {% elif log.category == 'edit' or log.category == 'extend' %}purple
+            {% else %}gray{% endif %}">
+          </div>
+          <div class="tl-body">
+            <div class="tl-top">
+              <div class="tl-act">
+                <div class="tl-act-icon
+                  {% if log.category == 'student' or log.category == 'create' %}green
+                  {% elif log.category == 'transfer' %}blue
+                  {% elif log.category == 'freeze' %}orange
+                  {% elif log.category == 'remove' %}red
+                  {% elif log.category == 'edit' or log.category == 'extend' %}purple
+                  {% else %}gray{% endif %}">
+                  {% if log.category == 'create' %}<i class="fas fa-plus"></i>
+                  {% elif log.category == 'student' %}<i class="fas fa-user-plus"></i>
+                  {% elif log.category == 'transfer' %}<i class="fas fa-exchange-alt"></i>
+                  {% elif log.category == 'freeze' %}<i class="fas fa-snowflake"></i>
+                  {% elif log.category == 'remove' %}<i class="fas fa-user-minus"></i>
+                  {% elif log.category == 'edit' %}<i class="fas fa-pen"></i>
+                  {% elif log.category == 'extend' %}<i class="fas fa-calendar-plus"></i>
+                  {% elif log.category == 'archive' %}<i class="fas fa-archive"></i>
+                  {% elif log.category == 'delete' %}<i class="fas fa-trash"></i>
+                  {% else %}<i class="fas fa-circle"></i>{% endif %}
+                </div>
+                <span class="tl-act-title">
+                  {% if log.category == 'create' %}✅ Yaratildi
+                  {% elif log.category == 'student' %}✅ Qo'shildi
+                  {% elif log.category == 'transfer' %}🔄 Guruh almashtirildi
+                  {% elif log.category == 'freeze' %}❄️ Muzlatildi
+                  {% elif log.category == 'remove' %}🚪 Chiqarildi
+                  {% elif log.category == 'edit' %}📝 Tahrirlandi
+                  {% elif log.category == 'extend' %}📅 Kun qo'shildi
+                  {% elif log.category == 'archive' %}📦 Arxivlandi
+                  {% else %}📌 {{ log.category_label }}{% endif %}
+                </span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="tl-time"><i class="far fa-clock"></i>{{ log.created_at|date:"d.m.Y" }} <span style="color:var(--text2)">{{ log.created_at|date:"H:i" }}</span></span>
+                <span class="tl-badge
+                  {% if log.category == 'student' or log.category == 'create' %}green
+                  {% elif log.category == 'transfer' %}blue
+                  {% elif log.category == 'freeze' %}orange
+                  {% elif log.category == 'remove' %}red
+                  {% elif log.category == 'edit' or log.category == 'extend' %}purple
+                  {% else %}gray{% endif %}">
+                  {% if log.category == 'student' or log.category == 'create' %}Added
+                  {% elif log.category == 'transfer' %}Transferred
+                  {% elif log.category == 'freeze' %}Frozen
+                  {% elif log.category == 'remove' %}Removed
+                  {% elif log.category == 'edit' or log.category == 'extend' %}Edited
+                  {% elif log.category == 'archive' %}Archived
+                  {% else %}{{ log.category_label }}{% endif %}
+                </span>
+              </div>
+            </div>
+            <div class="tl-info">
+              {% if log.student_name %}
+              <div class="tl-info-item"><span class="tl-avatar">{{ log.student_name|first }}</span> <strong>{{ log.student_name }}</strong></div>
+              {% endif %}
+              {% if log.student_phone %}
+              <div class="tl-info-item"><i class="fas fa-phone" style="font-size:11px"></i> {{ log.student_phone }}</div>
+              {% endif %}
+              <div class="tl-info-item"><i class="fas fa-layer-group" style="font-size:11px"></i> {{ log.group_name }}</div>
+              {% if log.created_by %}
+              <div class="tl-info-item"><i class="fas fa-user-shield" style="font-size:11px"></i> <strong>{{ log.created_by }}</strong></div>
+              {% endif %}
+            </div>
+            {% if log.detail %}
+            <div class="tl-detail-text">{{ log.detail }}</div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- pagination -->
+      {% if page_obj.paginator.num_pages > 1 or logs.paginator.num_pages > 1 %}
+      {% with p=logs|default:page_obj %}
+      {% if p.paginator.num_pages > 1 %}
+      <div class="hpag">
+        <div class="hpag-pages">
+          {% if p.has_previous %}
+          <a href="?page={{ p.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.from %}&from={{ request.GET.from }}{% endif %}{% if request.GET.to %}&to={{ request.GET.to }}{% endif %}{% if request.GET.action %}&action={{ request.GET.action }}{% endif %}{% if request.GET.admin %}&admin={{ request.GET.admin }}{% endif %}" class="hpag-btn"><i class="fas fa-chevron-left"></i></a>
+          {% endif %}
+          {% for n in p.paginator.page_range %}
+          {% if n >= p.number|add:"-2" and n <= p.number|add:"2" %}
+          <a href="?page={{ n }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.from %}&from={{ request.GET.from }}{% endif %}{% if request.GET.to %}&to={{ request.GET.to }}{% endif %}{% if request.GET.action %}&action={{ request.GET.action }}{% endif %}{% if request.GET.admin %}&admin={{ request.GET.admin }}{% endif %}" class="hpag-btn {% if n == p.number %}active{% endif %}">{{ n }}</a>
+          {% endif %}
+          {% endfor %}
+          {% if p.has_next %}
+          <a href="?page={{ p.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.from %}&from={{ request.GET.from }}{% endif %}{% if request.GET.to %}&to={{ request.GET.to }}{% endif %}{% if request.GET.action %}&action={{ request.GET.action }}{% endif %}{% if request.GET.admin %}&admin={{ request.GET.admin }}{% endif %}" class="hpag-btn"><i class="fas fa-chevron-right"></i></a>
+          {% endif %}
+        </div>
+        <form method="get" class="hpag-per">
+          <span>Ko'rsatish:</span>
+          <select name="per_page" onchange="this.form.submit()">
+            <option value="20" {% if request.GET.per_page == '20' or not request.GET.per_page %}selected{% endif %}>20</option>
+            <option value="50" {% if request.GET.per_page == '50' %}selected{% endif %}>50</option>
+            <option value="100" {% if request.GET.per_page == '100' %}selected{% endif %}>100</option>
+          </select>
+          <span>ta yozuv</span>
+          {% for key,vals in request.GET.lists %}
+          {% if key != 'per_page' and key != 'page' %}
+          {% for v in vals %}
+          <input type="hidden" name="{{ key }}" value="{{ v }}">
+          {% endfor %}
+          {% endif %}
+          {% endfor %}
+        </form>
+      </div>
+      {% endif %}
+      {% endwith %}
+      {% endif %}
+      {% else %}
+      <!-- empty state -->
+      <div class="tempty">
+        <span class="ti">📜</span>
+        <h3>Hozircha tarix mavjud emas</h3>
+        <p>Bu guruh uchun hech qanday o'zgarish qayd etilmagan</p>
+        <a href="{% url 'group_history' group.pk %}" class="btn btn-primary"><i class="fas fa-sync-alt"></i>Yangilash</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- right activity panel -->
+    <div class="hside">
+      <div class="hpanel">
+        <h3><span class="dot"></span>Oxirgi faoliyat</h3>
+        {% with logs|slice:":10" as recent %}
+        {% if recent %}
+          {% for log in recent %}
+          <div class="hact">
+            <div class="hact-av">{{ log.student_name|default:log.created_by|first|upper }}</div>
+            <div class="hact-body">
+              <div class="hact-name">{{ log.student_name|default:log.description|truncatechars:18 }}</div>
+              <div class="hact-act">{{ log.category_label }}</div>
+            </div>
+            <div class="hact-time">{{ log.created_at|timesince }} oldin</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="text-align:center;padding:30px 0;color:var(--text2);font-size:13px">Faoliyat yo'q</div>
+        {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// category filter from URL
+(function(){
+  var url = new URL(window.location);
+  var act = url.searchParams.get('action');
+  if(act){
+    document.querySelectorAll('.tl-card').forEach(function(c){
+      if(c.getAttribute('data-c') !== act) c.classList.add('hide');
+    });
+  }
+})();
+</script>
+{% endwith %}
+{% endblock %}

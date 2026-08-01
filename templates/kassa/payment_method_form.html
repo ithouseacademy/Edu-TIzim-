@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}To'lov usulini tahrirlash | Kassa{% endblock %}
+{% block extra_css %}
+<style>
+  :root{--k-primary:#2001FF;--k-primary-hover:#1800cc;--k-text:#111827;--k-muted:#4b5563;--k-border:#e5e7eb;--k-bg:#f9fafb;}
+  .k-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;}
+  .k-header h1{font-size:1.25rem;font-weight:800;color:var(--k-primary);margin:0;}
+  .k-btn{padding:7px 14px;border-radius:8px;font-size:.8rem;font-weight:500;text-decoration:none;border:1px solid var(--k-border);background:#fff;color:var(--k-text);display:inline-flex;align-items:center;gap:6px;transition:all .15s;}
+  .k-btn:hover{background:var(--k-bg);}
+  .k-form-card{background:#fff;border:1px solid var(--k-border);border-radius:12px;max-width:500px;}
+  .k-form-top{padding:16px 20px;border-bottom:1px solid var(--k-border);display:flex;align-items:center;gap:10px;}
+  .k-form-top .k-pm-icon{width:32px;height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;}
+  .k-form-top .k-pm-icon svg{width:20px;height:20px;}
+  .k-form-top h3{font-size:.88rem;font-weight:500;margin:0;color:var(--k-text);}
+  .k-form-body{padding:20px;}
+  .k-form-body label{display:block;font-size:.78rem;font-weight:500;color:var(--k-text);margin-bottom:4px;}
+  .k-form-body input[type="text"],.k-form-body input[type="number"]{width:100%;padding:8px 12px;border:1px solid var(--k-border);border-radius:8px;font-size:.82rem;background:#fff;color:var(--k-text);margin-bottom:12px;box-sizing:border-box;}
+  .k-form-body input:focus{border-color:var(--k-primary);box-shadow:0 0 0 3px rgba(32,1,255,.08);outline:none;}
+  .k-form-actions{display:flex;gap:8px;justify-content:flex-end;padding-top:8px;}
+  .k-form-actions button,.k-form-actions a{padding:7px 16px;border-radius:8px;font-size:.8rem;font-weight:500;text-decoration:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s;}
+  .k-form-actions .k-cancel{background:#fff;border:1px solid var(--k-border);color:var(--k-muted);}
+  .k-form-actions .k-cancel:hover{background:var(--k-bg);}
+  .k-form-actions .k-submit{background:var(--k-primary);color:#fff;}
+  .k-form-actions .k-submit:hover{background:var(--k-primary-hover);}
+  .k-icon-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;padding:8px;border:1px solid var(--k-border);border-radius:8px;background:var(--k-bg);}
+  .k-icon-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;border-radius:10px;border:2px solid transparent;cursor:pointer;transition:all .15s;background:#fff;gap:4px;}
+  .k-icon-item:hover{border-color:#d1d5db;}
+  .k-icon-item.selected{border-color:var(--k-primary);background:#f0f4ff;}
+  .k-icon-item svg{width:28px;height:28px;}
+  .k-icon-item .k-ilabel{font-size:.62rem;color:var(--k-muted);text-align:center;line-height:1.1;}
+  .k-icon-item.selected .k-ilabel{color:var(--k-primary);font-weight:600;}
+  .k-icon-preview{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:var(--k-bg);border:1px solid var(--k-border);margin-bottom:12px;}
+  .k-icon-preview svg{width:24px;height:24px;}
+  .k-icon-preview span{font-size:.82rem;color:var(--k-text);font-weight:500;}
+  .k-upload-zone{border:2px dashed var(--k-border);border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:12px;display:none;}
+  .k-upload-zone:hover{border-color:var(--k-primary);background:#f8faff;}
+  .k-upload-zone input[type="file"]{display:none;}
+  .k-upload-zone img{max-width:48px;max-height:36px;object-fit:contain;margin:0 auto 6px;display:block;}
+  .k-upload-zone p{font-size:.75rem;color:var(--k-muted);margin:2px 0;}
+  @media(max-width:480px){.k-icon-grid{grid-template-columns:repeat(3,1fr);}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="k-page">
+
+  <div class="k-header">
+    <h1>To'lov usulini tahrirlash</h1>
+    <a href="{% url 'payment_method_list' %}" class="k-btn"><i class="fas fa-arrow-left"></i> Orqaga</a>
+  </div>
+
+  <div class="k-form-card">
+    <div class="k-form-top">
+      <div class="k-pm-icon" style="background:{{ method.color }}15;color:{{ method.color }};">
+        {% if method.icon == 'custom' and method.custom_image %}<img src="{{ method.custom_image.url }}" style="width:20px;height:20px;object-fit:contain;">
+        {% elif method.icon == 'cash' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+        {% elif method.icon == 'click' %}<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+        {% elif method.icon == 'payme' %}<svg viewBox="0 0 24 24"><path d="M7.706 0h103.833c1.145 0 2.155.477 2.728 1.396l10.068 16.511c.774 1.294.639 2.86-.472 4.153l-14.176 16.511c-.774.885-1.784 1.345-2.929 1.345H3.224c-1.987 0-3.435-1.566-3.199-3.54L3.767 3.541C4.002 1.532 5.72 0 7.706 0z" fill="%2300D4AA"/><text x="56" y="24" font-family="Arial" font-weight="bold" font-size="15" fill="%23000">payme</text></svg>
+        {% elif method.icon == 'visa' %}<svg viewBox="0 0 48 16" fill="currentColor"><path d="M18.2 14.5L20.7 2h3.2l-4.7 12.5zm11-12.3c-.6-.2-1.6-.5-2.8-.5-3.1 0-5.3 1.6-5.3 3.9 0 1.7 1.5 2.6 2.7 3.2 1.2.5 1.6.9 1.6 1.4 0 .8-1 1.1-1.9 1.1-1.3 0-2-.2-3-.7l-.4-.2-.4 2.5c.7.3 2 .6 3.3.6 3.3 0 5.4-1.6 5.4-4 0-1.4-.9-2.4-2.8-3.3-1.2-.6-1.9-1-1.9-1.4 0-.5.6-1 1.9-1 .8 0 1.5.2 2 .4l.2.1.6-2.2zm7.8 0h-2.3c-.7 0-1.3.2-1.6.9L29.7 14.5h3.4l.5-1.4h4l.3 1.4h3l-1.9-12.5zm-3.8 8l1.6-4.3.9 4.3zm13-8.3l-3.3 8.8c-.3.7-.5.9-1.1.9-.6 0-1-.2-1.5-.5l-.5 1.8c.5.2 1.2.4 2 .4 1.6 0 2.4-.8 3.2-2.8l3.3-8.6zm-15.5-.2h3.2l2 6.5.6-6.5h3.2l-3 12.5h-3.1zM41.5 2h-3.2c-1 0-1.7.3-2.1 1.2l-5.5 11.3h3.6l.8-2.1h6.2l.5 2.1H46l-4.5-12.5zm-3.5 8.1l1.4-3.8.8 3.8z"/></svg>
+        {% elif method.icon == 'mastercard' %}<svg viewBox="0 0 36 22"><circle cx="13" cy="11" r="10" fill="#EB001B" opacity=".9"/><circle cx="23" cy="11" r="10" fill="#F79E1B" opacity=".9"/><path d="M18 2.5a10 10 0 010 17A10 10 0 0018 2.5z" fill="#FF5F00"/></svg>
+        {% elif method.icon == 'uzcard' %}<svg viewBox="0 0 48 18"><rect width="48" height="18" rx="3" fill="%23002480"/><text x="24" y="13" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="white">UzCard</text></svg>
+        {% elif method.icon == 'humo' %}<svg viewBox="0 0 48 18"><rect width="48" height="18" rx="3" fill="%231A1A2E"/><text x="24" y="13" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="%2300D4AA">HUMO</text></svg>
+        {% elif method.icon == 'voucher' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 9a3 3 0 013-3h14a3 3 0 013 3 3 3 0 01-3 3v0a3 3 0 01-3 3H5a3 3 0 01-3-3 3 3 0 013-3z"/><path d="M13 6v12" stroke-dasharray="2 2"/></svg>
+        {% else %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        {% endif %}
+      </div>
+      <h3>{{ method.name }}</h3>
+    </div>
+    <div class="k-form-body">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label>Nomi *</label>
+        <input type="text" name="name" value="{{ method.name }}" required>
+        <label>Logo tanlang</label>
+        <div class="k-icon-preview">
+          <div id="previewBox" class="k-pm-icon" style="background:{{ method.color }}15;color:{{ method.color }};width:24px;height:24px;">
+            {% if method.icon == 'cash' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+            {% elif method.icon == 'click' %}<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+            {% elif method.icon == 'payme' %}<svg viewBox="0 0 24 24"><path d="M7.706 0h103.833c1.145 0 2.155.477 2.728 1.396l10.068 16.511c.774 1.294.639 2.86-.472 4.153l-14.176 16.511c-.774.885-1.784 1.345-2.929 1.345H3.224c-1.987 0-3.435-1.566-3.199-3.54L3.767 3.541C4.002 1.532 5.72 0 7.706 0z" fill="%2300D4AA"/><text x="56" y="24" font-family="Arial" font-weight="bold" font-size="15" fill="%23000">payme</text></svg>
+            {% elif method.icon == 'visa' %}<svg viewBox="0 0 48 16" fill="currentColor"><path d="M18.2 14.5L20.7 2h3.2l-4.7 12.5z"/></svg>
+            {% elif method.icon == 'mastercard' %}<svg viewBox="0 0 36 22"><circle cx="13" cy="11" r="10" fill="#EB001B" opacity=".9"/><circle cx="23" cy="11" r="10" fill="#F79E1B" opacity=".9"/></svg>
+            {% elif method.icon == 'uzcard' %}<svg viewBox="0 0 48 18"><rect width="48" height="18" rx="3" fill="%23002480"/><text x="24" y="13" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="white">UzCard</text></svg>
+            {% elif method.icon == 'humo' %}<svg viewBox="0 0 48 18"><rect width="48" height="18" rx="3" fill="%231A1A2E"/><text x="24" y="13" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="%2300D4AA">HUMO</text></svg>
+            {% elif method.icon == 'voucher' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 9a3 3 0 013-3h14a3 3 0 013 3 3 3 0 01-3 3v0a3 3 0 01-3 3H5a3 3 0 01-3-3 3 3 0 013-3z"/><path d="M13 6v12" stroke-dasharray="2 2"/></svg>
+            {% else %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            {% endif %}
+          </div>
+          <span id="iconLabel">{{ method.name }}</span>
+        </div>
+        <input type="hidden" name="icon" id="iconInput" value="{{ method.icon }}">
+        <div class="k-icon-grid" id="iconGrid">
+          <div class="k-icon-item{% if method.icon == 'cash' %} selected{% endif %}" data-icon="cash" data-name="Naqd pul"><svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg><span class="k-ilabel">Naqd pul</span></div>
+          <div class="k-icon-item{% if method.icon == 'click' %} selected{% endif %}" data-icon="click" data-name="Click"><svg viewBox="0 0 24 24" fill="#00C853"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg><span class="k-ilabel">Click</span></div>
+          <div class="k-icon-item{% if method.icon == 'payme' %} selected{% endif %}" data-icon="payme" data-name="Payme"><svg viewBox="0 0 24 24"><path d="M7.706 0h103.833c1.145 0 2.155.477 2.728 1.396l10.068 16.511c.774 1.294.639 2.86-.472 4.153l-14.176 16.511c-.774.885-1.784 1.345-2.929 1.345H3.224c-1.987 0-3.435-1.566-3.199-3.54L3.767 3.541C4.002 1.532 5.72 0 7.706 0z" fill="%2300D4AA"/><text x="56" y="24" font-family="Arial" font-weight="bold" font-size="15" fill="%23000">payme</text></svg><span class="k-ilabel">Payme</span></div>
+          <div class="k-icon-item{% if method.icon == 'visa' %} selected{% endif %}" data-icon="visa" data-name="Visa"><svg viewBox="0 0 48 16" fill="%231A1F71"><path d="M18.2 14.5L20.7 2h3.2l-4.7 12.5zm11-12.3c-.6-.2-1.6-.5-2.8-.5-3.1 0-5.3 1.6-5.3 3.9 0 1.7 1.5 2.6 2.7 3.2 1.2.5 1.6.9 1.6 1.4 0 .8-1 1.1-1.9 1.1-1.3 0-2-.2-3-.7l-.4-.2-.4 2.5c.7.3 2 .6 3.3.6 3.3 0 5.4-1.6 5.4-4 0-1.4-.9-2.4-2.8-3.3-1.2-.6-1.9-1-1.9-1.4 0-.5.6-1 1.9-1 .8 0 1.5.2 2 .4l.2.1.6-2.2zm7.8 0h-2.3c-.7 0-1.3.2-1.6.9L29.7 14.5h3.4l.5-1.4h4l.3 1.4h3l-1.9-12.5zm-3.8 8l1.6-4.3.9 4.3zm13-8.3l-3.3 8.8c-.3.7-.5.9-1.1.9-.6 0-1-.2-1.5-.5l-.5 1.8c.5.2 1.2.4 2 .4 1.6 0 2.4-.8 3.2-2.8l3.3-8.6zm-15.5-.2h3.2l2 6.5.6-6.5h3.2l-3 12.5h-3.1zM41.5 2h-3.2c-1 0-1.7.3-2.1 1.2l-5.5 11.3h3.6l.8-2.1h6.2l.5 2.1H46l-4.5-12.5zm-3.5 8.1l1.4-3.8.8 3.8z"/></svg><span class="k-ilabel">Visa</span></div>
+          <div class="k-icon-item{% if method.icon == 'mastercard' %} selected{% endif %}" data-icon="mastercard" data-name="Mastercard"><svg viewBox="0 0 36 22"><circle cx="13" cy="11" r="10" fill="#EB001B" opacity=".9"/><circle cx="23" cy="11" r="10" fill="#F79E1B" opacity=".9"/><path d="M18 2.5a10 10 0 010 17A10 10 0 0018 2.5z" fill="#FF5F00"/></svg><span class="k-ilabel">Mastercard</span></div>
+          <div class="k-icon-item{% if method.icon == 'uzcard' %} selected{% endif %}" data-icon="uzcard" data-name="UzCard"><svg viewBox="0 0 48 18"><rect width="48" height="18" rx="3" fill="%23002480"/><text x="24" y="13" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="white">UzCard</text></svg><span class="k-ilabel">UzCard</span></div>
+          <div class="k-icon-item{% if method.icon == 'humo' %} selected{% endif %}" data-icon="humo" data-name="Humo"><svg viewBox="0 0 48 18"><rect width="48" height="18" rx="3" fill="%231A1A2E"/><text x="24" y="13" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="%2300D4AA">HUMO</text></svg><span class="k-ilabel">Humo</span></div>
+          <div class="k-icon-item{% if method.icon == 'voucher' %} selected{% endif %}" data-icon="voucher" data-name="Voucher"><svg viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="1.8"><path d="M2 9a3 3 0 013-3h14a3 3 0 013 3 3 3 0 01-3 3v0a3 3 0 01-3 3H5a3 3 0 01-3-3 3 3 0 013-3z"/><path d="M13 6v12" stroke-dasharray="2 2"/></svg><span class="k-ilabel">Voucher</span></div>
+          <div class="k-icon-item{% if method.icon == 'custom' %} selected{% endif %}" data-icon="custom" data-name="Boshqa (rasm)"><svg viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span class="k-ilabel">Boshqa (rasm)</span></div>
+        </div>
+        <div class="k-upload-zone" id="uploadZone" onclick="document.getElementById('customImageInput').click()">
+          <input type="file" name="custom_image" id="customImageInput" accept="image/*">
+          <div id="uploadPreview">
+            {% if method.icon == 'custom' and method.custom_image %}<img src="{{ method.custom_image.url }}" alt="Current">{% endif %}
+          </div>
+          <p>Rasmni yangilash</p>
+          <p style="color:var(--k-primary);font-weight:500;font-size:.75rem;">Faylni tanlang yoki tashlang</p>
+        </div>
+        <label>Rang</label>
+        <input type="color" name="color" value="{{ method.color }}" style="width:60px;height:36px;border:none;cursor:pointer;margin-bottom:12px;">
+        <label>Tartib</label>
+        <input type="number" name="order" value="{{ method.order }}" min="0">
+        <div class="k-form-actions">
+          <a href="{% url 'payment_method_list' %}" class="k-cancel">Bekor qilish</a>
+          <button type="submit" class="k-submit">Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const grid = document.getElementById('iconGrid');
+  const input = document.getElementById('iconInput');
+  const previewBox = document.getElementById('previewBox');
+  const label = document.getElementById('iconLabel');
+  const uploadZone = document.getElementById('uploadZone');
+  const customInput = document.getElementById('customImageInput');
+  const uploadPreview = document.getElementById('uploadPreview');
+  if (!grid) return;
+
+  if (input.value === 'custom') uploadZone.style.display = 'block';
+
+  grid.addEventListener('click', function(e) {
+    const item = e.target.closest('.k-icon-item');
+    if (!item) return;
+    grid.querySelectorAll('.k-icon-item').forEach(i => i.classList.remove('selected'));
+    item.classList.add('selected');
+    const icon = item.dataset.icon;
+    input.value = icon;
+    label.textContent = item.dataset.name;
+    previewBox.innerHTML = item.querySelector('svg').outerHTML;
+    if (icon === 'custom') {
+      uploadZone.style.display = 'block';
+    } else {
+      uploadZone.style.display = 'none';
+      customInput.value = '';
+      uploadPreview.innerHTML = '';
+    }
+  });
+
+  customInput.addEventListener('change', function() {
+    if (this.files.length) {
+      const file = this.files[0];
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        uploadPreview.innerHTML = '<img src="' + ev.target.result + '" alt="Preview">';
+        previewBox.innerHTML = '<img src="' + ev.target.result + '" style="width:24px;height:24px;object-fit:contain;">';
+        label.textContent = file.name;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+});
+</script>
+{% endblock %}

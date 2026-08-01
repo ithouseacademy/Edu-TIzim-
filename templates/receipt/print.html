@@ -1,0 +1,190 @@
+{% load dict_filters %}{% if not inline %}
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chek #{{ transaction.pk }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #f8fafc; display: flex; justify-content: center; padding: 24px; }
+    .receipt-wrap { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 460px; width: 100%; overflow: hidden; }
+    .receipt-inner { padding: 32px; }
+    @media (max-width: 480px) { .receipt-inner { padding: 20px; } }
+    .rc-logo-wrap { text-align: center; margin-bottom: 12px; }
+    .rc-logo-wrap img { max-height: 64px; max-width: 180px; border-radius: 8px; }
+    .rc-academy { text-align: center; margin-bottom: 4px; }
+    .rc-academy .name { font-size: 20px; font-weight: 900; letter-spacing: 1px; color: #0f172a; }
+    .rc-academy .tagline { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .rc-title { text-align: center; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+    .rc-receipt-no { text-align: center; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 8px; letter-spacing: 0.3px; }
+    .rc-divider { border: none; border-top: 1.5px dashed #e2e8f0; margin: 12px 0; }
+    .rc-divider.solid { border-top-style: solid; border-width: 2px; }
+    .rc-section-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .rc-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+    .rc-row .rc-label { color: #64748b; font-weight: 500; white-space: nowrap; }
+    .rc-row .rc-value { font-weight: 600; color: #0f172a; text-align: right; }
+    .rc-amount-box { text-align: center; padding: 12px 0; }
+    .rc-amount-box .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+    .rc-amount-box .value { font-size: 28px; font-weight: 900; letter-spacing: 0.5px; margin-top: 4px; }
+    .rc-balance { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 4px 0; }
+    .rc-balance .lbl { color: #64748b; }
+    .rc-balance .val { color: #0f172a; }
+    .rc-message { text-align: center; padding: 8px 0; }
+    .rc-message .main { font-weight: 800; font-size: 12px; color: #0f172a; }
+    .rc-thanks { text-align: center; font-size: 13px; font-weight: 700; margin: 8px 0; }
+    .rc-footer { text-align: center; font-size: 11px; font-weight: 500; color: #94a3b8; margin-top: 8px; }
+    .rc-notes { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 4px; }
+    .rc-contact { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; font-size: 10px; color: #64748b; margin-top: 8px; }
+    .rc-contact i { margin-right: 3px; }
+    .rc-qr-wrap { text-align: center; margin-top: 12px; }
+    .rc-qr-wrap #qrcode { display: inline-block; padding: 8px; background: white; border-radius: 8px; }
+    .no-print { text-align: center; margin-top: 16px; }
+    .no-print button { padding: 10px 20px; border: none; background: #2001FF; color: #fff; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; margin: 0 6px; border-radius: 8px; }
+    .no-print button:last-child { background: #e2e8f0; color: #334155; }
+
+    @media print {
+      @page { margin: 0; size: {{ settings.paper_width|default:"58mm" }} {{ settings.paper_height|default:"210mm" }}; }
+      body { padding: 0; margin: 0; background: #fff; }
+      .receipt-wrap { max-width: 100%; box-shadow: none; border-radius: 0; }
+      .receipt-inner { padding: {{ settings.paper_padding|default:"2mm" }}; }
+      * { font-family: 'Courier New', Courier, monospace !important; color: #000 !important; font-weight: 900 !important; letter-spacing: 0 !important; }
+      .rc-logo-wrap img { max-height: 40px; max-width: 120px; }
+      .rc-academy .name { font-size: {{ settings.font_name|default:"20px" }}; text-align: center; margin-bottom: 1px; }
+      .rc-academy .tagline { font-size: {{ settings.font_tagline|default:"9px" }}; text-align: center; text-transform: uppercase; margin-bottom: 2px; }
+      .rc-title { font-size: {{ settings.font_title|default:"12px" }}; text-align: center; text-transform: uppercase; margin: 4px 0 2px; }
+      .rc-receipt-no { font-size: {{ settings.font_row|default:"9px" }}; text-align: center; margin-bottom: 4px; }
+      .rc-divider { margin: 5px 0; border-top: 1px dashed #000; }
+      .rc-divider.solid { border-top: 2px solid #000; }
+      .rc-section-title { font-size: 8px; text-align: left; margin-bottom: 4px; }
+      .rc-row { font-size: {{ settings.font_row|default:"9px" }}; padding: 1.5px 0; display: flex; justify-content: space-between; }
+      .rc-row .rc-label { white-space: nowrap; }
+      .rc-row .rc-value { text-align: right; }
+      .rc-amount-box { text-align: center; padding: 6px 0; }
+      .rc-amount-box .label { font-size: {{ settings.font_amount_label|default:"8px" }}; }
+      .rc-amount-box .value { font-size: {{ settings.font_amount|default:"22px" }}; margin: 2px 0; }
+      .rc-balance { font-size: {{ settings.font_balance|default:"9px" }}; padding: 2px 0; display: flex; justify-content: space-between; }
+      .rc-message .main { font-size: {{ settings.font_row|default:"9px" }}; }
+      .rc-thanks { font-size: {{ settings.font_thanks|default:"11px" }}; text-align: center; margin: 5px 0 2px; }
+      .rc-footer { font-size: {{ settings.font_footer|default:"8px" }}; text-align: center; }
+      .rc-notes { font-size: {{ settings.font_notes|default:"8px" }}; text-align: center; }
+      .rc-contact { font-size: {{ settings.font_contact|default:"8px" }}; text-align: center; line-height: 1.5; margin-top: 3px; }
+      .rc-contact i { display: none; }
+      .rc-qr-wrap { display: none; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+{% endif %}
+
+{% with accent=settings.accent_color|default:"#2001FF" %}
+<div class="receipt-wrap">
+  <div class="receipt-inner">
+
+    {% if settings.logo_url %}
+    <div class="rc-logo-wrap">
+      <img src="{{ settings.logo_url }}" alt="Logo">
+    </div>
+    {% endif %}
+
+    <div class="rc-academy">
+      <div class="name">{{ settings.academy_name|default:"IT HOUSE ACADEMY" }}</div>
+      <div class="tagline" style="color:{{ accent }}">{{ settings.tagline|default:"SIFATLI TA'LIM MARKAZI" }}</div>
+    </div>
+
+    <div class="rc-title" style="color:{{ accent }}">{{ settings.receipt_title|default:"TO'LOV CHEKI" }}</div>
+    <div class="rc-receipt-no">{{ settings.receipt_prefix|default:"Chek #" }}{{ transaction.pk }}</div>
+
+    <hr class="rc-divider">
+
+    <div class="rc-section-title">To'lov ma'lumotlari</div>
+    <div class="rc-row"><span class="rc-label">Sana:</span><span class="rc-value">{{ transaction.created_at|date:"d.m.Y H:i" }}</span></div>
+    <div class="rc-row"><span class="rc-label">Kassir:</span><span class="rc-value">{{ transaction.created_by|default:"Admin" }}</span></div>
+    <div class="rc-row"><span class="rc-label">O'quvchi:</span><span class="rc-value">{{ transaction.student.first_name }} {{ transaction.student.last_name }}</span></div>
+    <div class="rc-row"><span class="rc-label">Telefon:</span><span class="rc-value">{{ transaction.student.phone }}</span></div>
+    {% if transaction.payment_method %}
+    <div class="rc-row"><span class="rc-label">To'lov turi:</span><span class="rc-value">{{ transaction.payment_method|title }}</span></div>
+    {% endif %}
+    <div class="rc-row"><span class="rc-label">Miqdori:</span><span class="rc-value">{{ transaction.amount|spacesep }} so'm</span></div>
+
+    <hr class="rc-divider">
+
+    <div class="rc-amount-box">
+      <div class="label">{{ settings.payment_text|default:"To'lov summasi" }}</div>
+      <div class="value" style="color:{{ accent }}">{{ transaction.amount|spacesep }} so'm</div>
+    </div>
+
+    <hr class="rc-divider">
+
+    <div class="rc-balance">
+      <span class="lbl">Joriy balans:</span>
+      <span class="val">{{ transaction.balance_after|spacesep }} so'm</span>
+    </div>
+
+    {% if settings.message_text %}
+    <hr class="rc-divider">
+    <div class="rc-message">
+      <div class="main">{{ settings.message_text }}</div>
+    </div>
+    {% endif %}
+
+    {% if transaction.description %}
+    <hr class="rc-divider">
+    <div class="rc-row"><span class="rc-label">Izoh:</span><span class="rc-value">{{ transaction.description }}</span></div>
+    {% endif %}
+
+    <hr class="rc-divider solid">
+
+    <div class="rc-thanks" style="color:{{ accent }}">{{ settings.thank_you_text|default:"Rahmat!" }}</div>
+    <div class="rc-footer">{{ settings.footer_text|default:"Bizni tanlaganingiz uchun rahmat!" }}</div>
+
+    {% if settings.extra_notes %}
+    <div class="rc-notes">{{ settings.extra_notes }}</div>
+    {% endif %}
+
+    <div class="rc-contact">
+      {% if settings.phone %}<span><i class="fas fa-phone"></i> {{ settings.phone }}</span>{% endif %}
+      {% if settings.telegram %}<span><i class="fab fa-telegram-plane"></i> {{ settings.telegram }}</span>{% endif %}
+      {% if settings.instagram %}<span><i class="fab fa-instagram"></i> {{ settings.instagram }}</span>{% endif %}
+      {% if settings.website %}<span><i class="fas fa-globe"></i> {{ settings.website }}</span>{% endif %}
+    </div>
+
+    {% if settings.address %}
+    <div class="rc-notes" style="margin-top:2px;">{{ settings.address }}</div>
+    {% endif %}
+
+    <div class="rc-qr-wrap">
+      <div id="qrcode"></div>
+    </div>
+
+  </div>
+
+  {% if not inline %}
+  <div class="no-print">
+    <button onclick="window.print()"><i class="fas fa-print"></i> Chop etish</button>
+    <button onclick="window.close()"><i class="fas fa-times"></i> Yopish</button>
+  </div>
+  {% endif %}
+</div>
+{% endwith %}
+
+{% if not inline %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  var qrLink = "{{ settings.qr_link|default:'' }}";
+  if (qrLink) {
+    new QRCode(document.getElementById('qrcode'), {
+      text: qrLink, width: 90, height: 90,
+      colorDark: '#0f172a', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  }
+</script>
+</body>
+</html>
+{% endif %}

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Statistika | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Statistika</h2>
+    </div>
+</div>
+<div class="stats-grid">
+    <div class="stat-card blue">
+        <div class="stat-icon"><i class="fas fa-book"></i></div>
+        <div class="stat-info">
+            <span class="stat-number">{{ total_courses }}</span>
+            <span class="stat-label">Kurslar</span>
+        </div>
+    </div>
+    <div class="stat-card indigo">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+            <span class="stat-number">{{ total_groups }}</span>
+            <span class="stat-label">Guruhlar</span>
+        </div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
+        <div class="stat-info">
+            <span class="stat-number">{{ total_students }}</span>
+            <span class="stat-label">O'quvchilar</span>
+        </div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+            <span class="stat-number">{{ pending_students }}</span>
+            <span class="stat-label">Kutilyotgan o'quvchilar</span>
+        </div>
+    </div>
+</div>
+
+<div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-pie"></i> Guruhlar bo'yicha</h3>
+        </div>
+        <div class="card-body">
+            <div class="mini-stats">
+                <div class="mini-stat">
+                    <span class="mini-num">{{ active_groups }}</span>
+                    <span class="mini-label">Aktiv guruhlar</span>
+                </div>
+                <div class="mini-stat">
+                    <span class="mini-num">{{ pending_groups_count }}</span>
+                    <span class="mini-label">Kutilyotgan guruhlar</span>
+                </div>
+                <div class="mini-stat">
+                    <span class="mini-num">{{ online_groups }}</span>
+                    <span class="mini-label">Onlayn</span>
+                </div>
+                <div class="mini-stat">
+                    <span class="mini-num">{{ offline_groups }}</span>
+                    <span class="mini-label">Oflayn</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-calendar-week"></i> Dars kunlari</h3>
+        </div>
+        <div class="card-body">
+            <div class="mini-stats">
+                <div class="mini-stat">
+                    <span class="mini-num">{{ toq_groups }}</span>
+                    <span class="mini-label">Toq kunlar</span>
+                </div>
+                <div class="mini-stat">
+                    <span class="mini-num">{{ juft_groups }}</span>
+                    <span class="mini-label">Juft kunlar</span>
+                </div>
+                <div class="mini-stat">
+                    <span class="mini-num">{{ har_kun_groups }}</span>
+                    <span class="mini-label">Har kunlik</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-clipboard-list"></i> Marketing statistikasi</h3>
+        </div>
+        <div class="card-body">
+            <div class="status-bars">
+                {% for s in survey_stats %}
+                <div class="status-item">
+                    <div class="status-label">
+                        <span>{{ s.name }}</span>
+                        <span>{{ s.count }} ta</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill blue" style="width: {% widthratio s.count total_survey_students 100 %}%"></div>
+                    </div>
+                </div>
+                {% empty %}
+                <p style="text-align: center; color: #94a3b8; padding: 20px;">
+                    <i class="fas fa-chart-pie" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
+                    Hali ma'lumot yo'q
+                </p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-user-graduate"></i> O'quvchilar guruhlar bo'yicha</h3>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <table class="table min">
+                <thead>
+                    <tr>
+                        <th>Guruh</th>
+                        <th>O'quvchilar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for g in group_students %}
+                    <tr>
+                        <td>{{ g.name }}</td>
+                        <td><span class="badge badge-blue">{{ g.count }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="2" class="empty">Guruhlar mavjud emas</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <h3><i class="fas fa-clock"></i> Oxirgi qo'shilgan o'quvchilar</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table min">
+            <thead>
+                <tr>
+                    <th>Ism</th>
+                    <th>Guruh</th>
+                    <th>Telefon</th>
+                    <th>Marketing</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in recent_students %}
+                <tr>
+                    <td>{{ s.first_name }} {{ s.last_name }}</td>
+                    <td>{% with gs=s.groups.all %}{% if gs %}{% for g in gs %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}-{% endif %}{% endwith %}</td>
+                    <td>{{ s.phone }}</td>
+                    <td>{{ s.marketing_survey.name|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="empty">O'quvchilar yo'q</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.mini-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.mini-stat {
+    text-align: center;
+    padding: 16px 12px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+.mini-num {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+.mini-label {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 500;
+    margin-top: 4px;
+}
+</style>
+{% endblock %}

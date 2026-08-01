@@ -1,0 +1,626 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | Edu Tizim{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block extra_css %}
+<style>
+.content{padding:16px 20px!important;}
+.form-card{border-radius:12px!important;}
+.form-card .card-header{padding:14px 20px!important;}
+.form-card .card-header h3{font-size:1rem!important;}
+.form-card .card-body{padding:20px!important;}
+.form-row-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:20px;}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-group label{font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;}
+.form-group .form-control,.form-group select,.form-group input[type="text"],.form-group input[type="number"],.form-group input[type="tel"],.form-group input[type="date"],.form-group input[type="email"]{height:36px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-family:var(--font);color:var(--text);background:#fff;outline:none;transition:all .15s;width:100%;}
+.form-group .form-control:focus,.form-group select:focus,.form-group input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+.field-error{font-size:.72rem;color:var(--danger);margin-top:3px;}
+.form-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--border);}
+.form-actions .btn{padding:8px 20px!important;font-size:.85rem!important;}
+.alert-info{display:flex;align-items:center;gap:10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;font-size:.8rem;margin-bottom:16px;}
+.alert-info i{font-size:1rem;flex-shrink:0;}
+
+.pick-btn{display:inline-flex;align-items:center;gap:8px;padding:8px 18px;border:1.5px solid var(--primary);border-radius:8px;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:var(--primary);font-size:.85rem;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;}
+.pick-btn:hover{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.25);}
+.pick-btn i{font-size:11px;}
+.pick-btn .cnt{font-size:.68rem;background:rgba(255,255,255,.7);padding:1px 7px;border-radius:10px;margin-left:2px;font-weight:700;}
+.pick-btn:hover .cnt{background:rgba(255,255,255,.3);}
+
+.tags-wrap{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.tag-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:.75rem;font-weight:500;color:var(--primary);}
+.tag-chip .tag-x{width:16px;height:16px;border-radius:50%;background:#dbeafe;border:none;color:var(--primary);font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:var(--font);line-height:1;}
+.tag-chip .tag-x:hover{background:#dc2626;color:#fff;}
+
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);z-index:9998;display:none;align-items:center;justify-content:center;opacity:0;transition:opacity .25s;}
+.modal-overlay.show{display:flex;opacity:1;}
+.modal-box{background:#fff;border-radius:16px;width:92%;max-width:600px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 25px 70px rgba(0,0,0,.25);transform:translateY(20px) scale(.97);transition:transform .25s;overflow:hidden;}
+.modal-overlay.show .modal-box{transform:translateY(0) scale(1);}
+
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f1f5f9;flex-shrink:0;}
+.modal-hdr-left{display:flex;align-items:center;gap:10px;}
+.modal-hdr-left i{font-size:1.1rem;color:var(--primary);}
+.modal-hdr-left h3{font-size:1rem;font-weight:700;color:var(--text);margin:0;}
+.modal-hdr-count{font-size:.72rem;color:var(--text-muted);background:var(--bg);padding:2px 8px;border-radius:8px;}
+.modal-close{width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;color:var(--text-muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.modal-close:hover{background:#fee2e2;color:#dc2626;}
+
+.modal-search{padding:12px 20px;border-bottom:1px solid #f1f5f9;flex-shrink:0;}
+.modal-search-wrap{position:relative;}
+.modal-search-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:13px;pointer-events:none;}
+.modal-search-wrap input{width:100%;height:38px;padding:0 14px 0 36px;border:1.5px solid var(--border);border-radius:10px;font-size:.85rem;font-family:var(--font);color:var(--text);background:#f8fafc;outline:none;transition:all .15s;}
+.modal-search-wrap input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+.modal-search-wrap input::placeholder{color:#94a3b8;}
+
+.modal-body{flex:1;overflow-y:auto;padding:12px 20px;scroll-behavior:smooth;}
+.modal-body::-webkit-scrollbar{width:5px;}
+.modal-body::-webkit-scrollbar-track{background:transparent;}
+.modal-body::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;}
+
+.modal-list{display:flex;flex-direction:column;gap:6px;}
+
+.pick-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:10px;position:relative;}
+.pick-card:hover{border-color:#93c5fd;background:#f8faff;box-shadow:0 2px 8px rgba(37,99,235,.06);}
+.pick-card.selected{border-color:var(--primary);background:linear-gradient(135deg,#eff6ff,#dbeafe);box-shadow:0 0 0 2px rgba(37,99,235,.15);}
+.pick-card-check{width:20px;height:20px;border-radius:6px;border:2px solid #cbd5e1;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px;background:#fff;}
+.pick-card.selected .pick-card-check{background:var(--primary);border-color:var(--primary);}
+.pick-card.selected .pick-card-check::after{content:'\f00c';font-family:'Font Awesome 6 Free';font-weight:900;font-size:10px;color:#fff;}
+.pick-card-body{flex:1;min-width:0;}
+.pick-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.pick-card-name{font-weight:700;font-size:.85rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pick-card-badge{font-size:9px;padding:1px 7px;border-radius:10px;font-weight:600;white-space:nowrap;}
+.pick-card-meta{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:.72rem;color:var(--text-light);}
+.pick-card-meta span{display:inline-flex;align-items:center;gap:3px;}
+.pick-card-meta i{color:var(--primary);width:10px;text-align:center;font-size:9px;}
+.pick-card-foot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:4px;border-top:1px solid #f1f5f9;font-size:.68rem;color:var(--text-muted);}
+.pick-card-foot .gf-t{color:#6366f1;font-weight:500;}
+.pick-card-foot .gf-c{color:var(--primary);font-weight:600;}
+
+.modal-pagination{display:flex;align-items:center;justify-content:center;gap:4px;padding:10px 20px;border-top:1px solid #f1f5f9;flex-shrink:0;background:#fafbfc;}
+.modal-page-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:.8rem;font-weight:600;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.modal-page-btn:hover{border-color:var(--primary);color:var(--primary);background:#f0f5ff;}
+.modal-page-btn.active{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(37,99,235,.25);}
+.modal-page-btn:disabled{opacity:.35;cursor:not-allowed;}
+.modal-page-btn.page-nav{width:auto;padding:0 10px;font-size:.72rem;gap:4px;}
+.modal-page-ellipsis{width:24px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.8rem;}
+
+.modal-ftr{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-top:1px solid #f1f5f9;flex-shrink:0;background:#f8fafc;}
+.modal-ftr-count{font-size:.82rem;font-weight:600;color:var(--primary);}
+.modal-ftr-btns{display:flex;gap:8px;}
+.modal-ftr-btns .btn{padding:8px 20px!important;font-size:.82rem!important;}
+
+.modal-empty{padding:40px;text-align:center;color:var(--text-muted);font-size:.85rem;}
+.modal-empty i{font-size:2rem;opacity:.2;display:block;margin-bottom:8px;color:var(--primary);}
+
+.status-aktiv{background:#dcfce7;color:#166534;}
+.status-kutilyotgan{background:#fef9c3;color:#854d0e;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="card form-card">
+    <div class="card-header">
+        <h3><i class="fas {% if 'qo\'shish' in title %}fa-plus-circle{% else %}fa-edit{% endif %}"></i> {{ title }}</h3>
+    </div>
+    <div class="card-body">
+        <div class="alert-info">
+            <i class="fas fa-info-circle"></i>
+            <span><strong>Guruhni bo'sh qoldirsangiz</strong>, o'quvchi avtomatik <strong>"Kutilyotganlar"</strong> bo'limiga tushadi.</span>
+        </div>
+        <form method="post" id="studentForm">
+            {% csrf_token %}
+            <div class="form-row-grid">
+                {% for field in form %}
+                {% if field.name == 'desired_course' %}
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>{{ field.label }}</label>
+                    <button type="button" class="pick-btn" id="openCourseBtn">
+                        <i class="fas fa-book-open"></i> Kurslarni tanlash
+                        <span class="cnt" id="courseBtnCount">0 ta tanlangan</span>
+                    </button>
+                    <div id="courseTags" class="tags-wrap"></div>
+                    <div style="display:none;">{{ field }}</div>
+                    {% if field.errors %}
+                    <div class="field-error">{{ field.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                {% elif field.name == 'groups' %}
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>{{ field.label }}</label>
+                    <button type="button" class="pick-btn" id="openGroupBtn">
+                        <i class="fas fa-layer-group"></i> Guruhlarni tanlash
+                        <span class="cnt" id="groupBtnCount">0 ta tanlangan</span>
+                    </button>
+                    <div id="groupTags" class="tags-wrap"></div>
+                    <div style="display:none;">{{ field }}</div>
+                    {% if field.errors %}
+                    <div class="field-error">{{ field.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                    <div class="field-error">{{ field.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            <div class="form-actions">
+                <a href="{% url 'student_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Bekor qilish</a>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Saqlash</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{ course_data|json_script:"course-json-data" }}
+{{ group_data|json_script:"group-json-data" }}
+
+<div class="modal-overlay" id="courseModal">
+    <div class="modal-box">
+        <div class="modal-hdr">
+            <div class="modal-hdr-left">
+                <i class="fas fa-book-open"></i>
+                <h3>Kurslarni tanlang</h3>
+                <span class="modal-hdr-count" id="cmTotal">0 ta kurs</span>
+            </div>
+            <button class="modal-close" id="closeCourseModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-search">
+            <div class="modal-search-wrap">
+                <i class="fas fa-search"></i>
+                <input id="cmSearch" type="text" placeholder="Kurs nomi bo'yicha qidirish..." autocomplete="off">
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="modal-list" id="cmList"></div>
+            <div id="cmEmpty" class="modal-empty" style="display:none;">
+                <i class="fas fa-search"></i>
+                Hech qanday kurs topilmadi
+            </div>
+        </div>
+        <div class="modal-ftr">
+            <span class="modal-ftr-count" id="cmSelCount">0 ta tanlangan</span>
+            <div class="modal-ftr-btns">
+                <button type="button" class="btn btn-secondary" id="cmClearBtn"><i class="fas fa-times"></i> Tozalash</button>
+                <button type="button" class="btn btn-primary" id="cmConfirmBtn"><i class="fas fa-check"></i> Tasdiqlash</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="groupModal">
+    <div class="modal-box" style="max-width:740px;">
+        <div class="modal-hdr">
+            <div class="modal-hdr-left">
+                <i class="fas fa-layer-group"></i>
+                <h3>Guruhlarni tanlang</h3>
+                <span class="modal-hdr-count" id="gmTotal">0 ta guruh</span>
+            </div>
+            <button class="modal-close" id="closeGroupModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-search">
+            <div class="modal-search-wrap">
+                <i class="fas fa-search"></i>
+                <input id="gmSearch" type="text" placeholder="Guruh nomi, kurs, o'qituvchi bo'yicha qidirish..." autocomplete="off">
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="modal-list" id="gmList"></div>
+            <div id="gmEmpty" class="modal-empty" style="display:none;">
+                <i class="fas fa-search"></i>
+                Hech qanday guruh topilmadi
+            </div>
+        </div>
+        <div class="modal-pagination" id="gmPagination"></div>
+        <div class="modal-ftr">
+            <span class="modal-ftr-count" id="gmSelCount">0 ta tanlangan</span>
+            <div class="modal-ftr-btns">
+                <button type="button" class="btn btn-secondary" id="gmClearBtn"><i class="fas fa-times"></i> Tozalash</button>
+                <button type="button" class="btn btn-primary" id="gmConfirmBtn"><i class="fas fa-check"></i> Tasdiqlash</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ===== KURSLAR MODAL =====
+    (function() {
+        var allCourses = [];
+        try { allCourses = JSON.parse(document.getElementById('course-json-data').textContent); } catch(e) { allCourses = []; }
+        var selectedIds = {};
+        var filtered = allCourses.slice();
+        var select = document.getElementById('id_desired_course');
+        var modal = document.getElementById('courseModal');
+        var listEl = document.getElementById('cmList');
+        var emptyEl = document.getElementById('cmEmpty');
+        var searchEl = document.getElementById('cmSearch');
+        var totalEl = document.getElementById('cmTotal');
+        var selCountEl = document.getElementById('cmSelCount');
+        var btnCountEl = document.getElementById('courseBtnCount');
+        var tagsEl = document.getElementById('courseTags');
+
+        if (select) {
+            for (var i = 0; i < select.options.length; i++) {
+                if (select.options[i].selected && select.options[i].value) {
+                    selectedIds[select.options[i].value] = true;
+                }
+            }
+        }
+
+        function sync() {
+            if (!select) return;
+            for (var i = 0; i < select.options.length; i++) {
+                select.options[i].selected = !!selectedIds[select.options[i].value];
+            }
+        }
+
+        function renderTags() {
+            if (!tagsEl) return;
+            tagsEl.innerHTML = '';
+            var keys = Object.keys(selectedIds);
+            keys.forEach(function(id) {
+                var c = null;
+                for (var i = 0; i < allCourses.length; i++) {
+                    if (String(allCourses[i].pk) === String(id)) { c = allCourses[i]; break; }
+                }
+                if (!c) return;
+                var tag = document.createElement('span');
+                tag.className = 'tag-chip';
+                tag.innerHTML = c.name + ' <button type="button" class="tag-x" data-remove-course="' + c.pk + '">&times;</button>';
+                tagsEl.appendChild(tag);
+            });
+            if (btnCountEl) btnCountEl.textContent = keys.length > 0 ? keys.length + ' ta tanlangan' : allCourses.length + ' ta';
+        }
+
+        function renderList() {
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            if (filtered.length === 0) {
+                emptyEl.style.display = '';
+            } else {
+                emptyEl.style.display = 'none';
+                filtered.forEach(function(c) {
+                    var sel = selectedIds[String(c.pk)];
+                    var div = document.createElement('div');
+                    div.className = 'pick-card' + (sel ? ' selected' : '');
+                    div.dataset.id = c.pk;
+                    div.innerHTML =
+                        '<div class="pick-card-check"></div>' +
+                        '<div class="pick-card-body">' +
+                            '<div class="pick-card-top">' +
+                                '<div class="pick-card-name">' + c.name + '</div>' +
+                            '</div>' +
+                        '</div>';
+                    listEl.appendChild(div);
+                });
+            }
+        }
+
+        function openModal() {
+            filtered = allCourses.slice();
+            searchEl.value = '';
+            totalEl.textContent = allCourses.length + ' ta kurs';
+            renderList();
+            updateCount();
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            setTimeout(function() { searchEl.focus(); }, 150);
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        function updateCount() {
+            var c = Object.keys(selectedIds).length;
+            selCountEl.textContent = c + ' ta tanlangan';
+        }
+
+        document.getElementById('openCourseBtn').addEventListener('click', openModal);
+        document.getElementById('closeCourseModal').addEventListener('click', closeModal);
+        document.getElementById('cmClearBtn').addEventListener('click', function() {
+            selectedIds = {};
+            sync(); renderTags(); renderList(); updateCount();
+        });
+        document.getElementById('cmConfirmBtn').addEventListener('click', closeModal);
+
+        searchEl.addEventListener('input', function() {
+            var q = this.value.trim().toLowerCase();
+            filtered = allCourses.filter(function(c) {
+                return !q || c.name.toLowerCase().indexOf(q) !== -1;
+            });
+            totalEl.textContent = filtered.length + ' ta kurs';
+            renderList();
+        });
+
+        listEl.addEventListener('click', function(e) {
+            var card = e.target.closest('.pick-card');
+            if (!card) return;
+            var id = String(card.dataset.id);
+            if (selectedIds[id]) {
+                delete selectedIds[id];
+            } else {
+                selectedIds[id] = true;
+            }
+            card.classList.toggle('selected');
+            sync(); renderTags(); updateCount();
+        });
+
+        tagsEl.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-remove-course]');
+            if (!btn) return;
+            var id = String(btn.dataset.removeCourse);
+            delete selectedIds[id];
+            sync(); renderTags(); renderList(); updateCount();
+        });
+
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeModal();
+        });
+
+        renderTags();
+    })();
+
+    // ===== GRUHLAR MODAL =====
+    (function() {
+        var allGroups = [];
+        try { allGroups = JSON.parse(document.getElementById('group-json-data').textContent); } catch(e) { allGroups = []; }
+        var selectedIds = {};
+        var filtered = allGroups.slice();
+        var currentPage = 1;
+        var PER_PAGE = 10;
+        var select = document.getElementById('id_groups');
+        var modal = document.getElementById('groupModal');
+        var listEl = document.getElementById('gmList');
+        var emptyEl = document.getElementById('gmEmpty');
+        var searchEl = document.getElementById('gmSearch');
+        var totalEl = document.getElementById('gmTotal');
+        var selCountEl = document.getElementById('gmSelCount');
+        var btnCountEl = document.getElementById('groupBtnCount');
+        var tagsEl = document.getElementById('groupTags');
+        var pagEl = document.getElementById('gmPagination');
+
+        if (select) {
+            for (var i = 0; i < select.options.length; i++) {
+                if (select.options[i].selected && select.options[i].value) {
+                    selectedIds[select.options[i].value] = true;
+                }
+            }
+        }
+
+        function sync() {
+            if (!select) return;
+            for (var i = 0; i < select.options.length; i++) {
+                select.options[i].selected = !!selectedIds[select.options[i].value];
+            }
+        }
+
+        function renderTags() {
+            if (!tagsEl) return;
+            tagsEl.innerHTML = '';
+            var keys = Object.keys(selectedIds);
+            keys.forEach(function(id) {
+                var g = null;
+                for (var i = 0; i < allGroups.length; i++) {
+                    if (String(allGroups[i].pk) === String(id)) { g = allGroups[i]; break; }
+                }
+                if (!g) return;
+                var tag = document.createElement('span');
+                tag.className = 'tag-chip';
+                tag.innerHTML = g.name + ' <button type="button" class="tag-x" data-remove-group="' + g.pk + '">&times;</button>';
+                tagsEl.appendChild(tag);
+            });
+            if (btnCountEl) btnCountEl.textContent = keys.length > 0 ? keys.length + ' ta tanlangan' : allGroups.length + ' ta';
+        }
+
+        function updateCount() {
+            var c = Object.keys(selectedIds).length;
+            selCountEl.textContent = c + ' ta tanlangan';
+        }
+
+        function buildCard(g) {
+            var sel = selectedIds[String(g.pk)];
+            var div = document.createElement('div');
+            div.className = 'pick-card' + (sel ? ' selected' : '');
+            div.dataset.id = g.pk;
+            var days = g.days || '';
+            var time = g.time_range || '';
+            var room = g.room || '';
+            var level = g.level || '';
+            div.innerHTML =
+                '<div class="pick-card-check"></div>' +
+                '<div class="pick-card-body">' +
+                    '<div class="pick-card-top">' +
+                        '<div class="pick-card-name">' + g.name + '</div>' +
+                        '<span class="pick-card-badge status-' + g.status + '">' + g.status.charAt(0).toUpperCase() + g.status.slice(1) + '</span>' +
+                    '</div>' +
+                    '<div class="pick-card-meta">' +
+                        '<span><i class="fas fa-book"></i>' + g.course_name + '</span>' +
+                        (level ? '<span><i class="fas fa-layer-group"></i>' + level + '</span>' : '') +
+                        (days ? '<span><i class="far fa-calendar-alt"></i>' + days + '</span>' : '') +
+                        (time ? '<span><i class="far fa-clock"></i>' + time + '</span>' : '') +
+                        (room ? '<span><i class="fas fa-door-open"></i>' + room + '</span>' : '') +
+                    '</div>' +
+                    '<div class="pick-card-foot">' +
+                        '<span class="gf-t"><i class="fas fa-chalkboard-teacher"></i> ' + (g.teacher_name || '-') + '</span>' +
+                        '<span class="gf-c"><i class="fas fa-user-graduate"></i> ' + g.student_count + '</span>' +
+                    '</div>' +
+                '</div>';
+            return div;
+        }
+
+        function renderPagination() {
+            if (!pagEl) return;
+            var totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (totalPages <= 1) { pagEl.innerHTML = ''; return; }
+            var html = '<button class="modal-page-btn page-nav" id="gmPrev" ' + (currentPage <= 1 ? 'disabled' : '') + '><i class="fas fa-chevron-left"></i></button>';
+            var pages = [];
+            if (totalPages <= 7) {
+                for (var i = 1; i <= totalPages; i++) pages.push(i);
+            } else {
+                pages.push(1);
+                if (currentPage > 3) pages.push('...');
+                var rs = Math.max(2, currentPage - 1);
+                var re = Math.min(totalPages - 1, currentPage + 1);
+                for (var p = rs; p <= re; p++) pages.push(p);
+                if (currentPage < totalPages - 2) pages.push('...');
+                pages.push(totalPages);
+            }
+            pages.forEach(function(p) {
+                if (p === '...') {
+                    html += '<span class="modal-page-ellipsis">...</span>';
+                } else {
+                    html += '<button class="modal-page-btn' + (p === currentPage ? ' active' : '') + '" data-page="' + p + '">' + p + '</button>';
+                }
+            });
+            html += '<button class="modal-page-btn page-nav" id="gmNext" ' + (currentPage >= totalPages ? 'disabled' : '') + '><i class="fas fa-chevron-right"></i></button>';
+            pagEl.innerHTML = html;
+        }
+
+        function renderList() {
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            var totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+            var start = (currentPage - 1) * PER_PAGE;
+            var end = start + PER_PAGE;
+            var items = filtered.slice(start, end);
+            if (items.length === 0) {
+                emptyEl.style.display = '';
+            } else {
+                emptyEl.style.display = 'none';
+                items.forEach(function(g) { listEl.appendChild(buildCard(g)); });
+            }
+            renderPagination();
+        }
+
+        function openModal() {
+            filtered = allGroups.slice();
+            currentPage = 1;
+            searchEl.value = '';
+            totalEl.textContent = allGroups.length + ' ta guruh';
+            renderList();
+            updateCount();
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            setTimeout(function() { searchEl.focus(); }, 150);
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        document.getElementById('openGroupBtn').addEventListener('click', openModal);
+        document.getElementById('closeGroupModal').addEventListener('click', closeModal);
+        document.getElementById('gmClearBtn').addEventListener('click', function() {
+            selectedIds = {};
+            sync(); renderTags(); renderList(); updateCount();
+        });
+        document.getElementById('gmConfirmBtn').addEventListener('click', closeModal);
+
+        searchEl.addEventListener('input', function() {
+            var q = this.value.trim().toLowerCase();
+            filtered = allGroups.filter(function(g) {
+                var s = (g.name + ' ' + g.course_name + ' ' + g.teacher_name + ' ' + g.times + ' ' + g.level).toLowerCase();
+                return !q || s.indexOf(q) !== -1;
+            });
+            currentPage = 1;
+            totalEl.textContent = filtered.length + ' ta guruh';
+            renderList();
+        });
+
+        listEl.addEventListener('click', function(e) {
+            var card = e.target.closest('.pick-card');
+            if (!card) return;
+            var id = String(card.dataset.id);
+            if (selectedIds[id]) {
+                delete selectedIds[id];
+            } else {
+                selectedIds[id] = true;
+            }
+            card.classList.toggle('selected');
+            sync(); renderTags(); updateCount();
+        });
+
+        pagEl.addEventListener('click', function(e) {
+            var pageBtn = e.target.closest('[data-page]');
+            var prevBtn = e.target.closest('#gmPrev');
+            var nextBtn = e.target.closest('#gmNext');
+            if (pageBtn) {
+                currentPage = parseInt(pageBtn.dataset.page);
+                renderList();
+                listEl.scrollTop = 0;
+            } else if (prevBtn && currentPage > 1) {
+                currentPage--;
+                renderList();
+            } else if (nextBtn) {
+                var tp = Math.ceil(filtered.length / PER_PAGE);
+                if (currentPage < tp) { currentPage++; renderList(); }
+            }
+        });
+
+        tagsEl.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-remove-group]');
+            if (!btn) return;
+            var id = String(btn.dataset.removeGroup);
+            delete selectedIds[id];
+            sync(); renderTags(); renderList(); updateCount();
+        });
+
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeModal();
+        });
+
+        renderTags();
+    })();
+
+    // ===== TELEFON FORMATLASH =====
+    document.querySelectorAll('.phone-input').forEach(function(inp) {
+        if (!inp.value || inp.value === '+998') inp.value = '+998 ';
+        inp.addEventListener('input', function() {
+            var pos = this.selectionStart;
+            var oldLen = this.value.length;
+            var digits = this.value.replace(/\D/g, '');
+            if (!digits.startsWith('998')) digits = '998' + digits.replace(/^998/, '');
+            if (digits.length > 12) digits = digits.substring(0, 12);
+            var formatted = '+' + digits.substring(0, 3);
+            if (digits.length > 3) formatted += ' ' + digits.substring(3, 5);
+            if (digits.length > 5) formatted += ' ' + digits.substring(5, 8);
+            if (digits.length > 8) formatted += ' ' + digits.substring(8, 10);
+            if (digits.length > 10) formatted += ' ' + digits.substring(10, 12);
+            this.value = formatted;
+            var newLen = this.value.length;
+            this.setSelectionRange(pos + (newLen - oldLen), pos + (newLen - oldLen));
+        });
+        inp.addEventListener('focus', function() {
+            if (!this.value || this.value === '+998') this.value = '+998 ';
+        });
+        inp.addEventListener('blur', function() {
+            var digits = this.value.replace(/\D/g, '');
+            if (digits === '998') this.value = '';
+        });
+    });
+
+    // ===== ESCAPE TUGMASI =====
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            var cm = document.getElementById('courseModal');
+            var gm = document.getElementById('groupModal');
+            if (cm && cm.classList.contains('show')) {
+                cm.classList.remove('show');
+                document.body.style.overflow = '';
+            } else if (gm && gm.classList.contains('show')) {
+                gm.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+        }
+    });
+
+});
+</script>
+{% endblock %}

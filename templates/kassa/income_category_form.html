@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Kategoriyani tahrirlash | Kassa{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2><i class="fas fa-pen" style="color:#059669;"></i> Kirim kategoriyasini tahrirlash</h2>
+  </div>
+</div>
+<div style="max-width:500px;background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);padding:24px;">
+  <form method="post">
+    {% csrf_token %}
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">Kategoriya nomi *</label>
+      <input type="text" name="name" value="{{ category.name }}" required class="form-control" placeholder="Kategoriya nomini kiriting">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">Tartib raqami</label>
+      <input type="number" name="order" value="{{ category.order }}" min="0" class="form-control">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <a href="{% url 'income_category_list' %}" style="padding:10px 20px;background:#f1f5f9;color:var(--text);border:1px solid var(--border);border-radius:8px;text-decoration:none;font-size:0.9rem;">Bekor qilish</a>
+      <button type="submit" style="padding:10px 24px;background:#059669;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:0.9rem;cursor:pointer;">Saqlash</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

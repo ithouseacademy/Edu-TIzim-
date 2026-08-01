@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+@media (max-width:768px) {
+  .stats-grid { grid-template-columns:1fr;gap:12px; }
+  .stat-card { padding:16px;gap:14px; }
+  .stat-icon { width:40px;height:40px;font-size:1.1rem; }
+  .stat-number { font-size:1.4rem; }
+  .stat-label { font-size:0.78rem; }
+  .row[style*="grid"] { grid-template-columns:1fr !important;gap:12px !important;margin-top:12px !important; }
+  .card-header { padding:14px 16px; }
+  .card-header h3 { font-size:0.9rem; }
+  .card-body { padding:16px; }
+}
+.dash-footer { margin-top:32px;padding-top:24px;border-top:1px solid var(--border);text-align:center; }
+.dash-footer .goto-btn { display:inline-flex;align-items:center;gap:10px;padding:14px 28px;border-radius:12px;background:var(--primary);color:#fff;text-decoration:none;font-size:15px;font-weight:600;transition:all .2s; }
+.dash-footer .goto-btn:hover { background:var(--primary-dark);transform:translateY(-2px);box-shadow:0 8px 24px rgba(37,99,235,0.3); }
+.dash-footer .goto-btn i { font-size:18px; }
+@media (max-width:480px) {
+  .dash-footer .goto-btn { width:100%;justify-content:center; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Dashboard</h2>
+    </div>
+</div>
+<div class="stats-grid">
+    <div class="stat-card blue">
+        <div class="stat-icon"><i class="fas fa-book"></i></div>
+        <div class="stat-info">
+            <span class="stat-number">{{ course_count }}</span>
+            <span class="stat-label">Kurslar</span>
+        </div>
+    </div>
+    <div class="stat-card indigo">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+            <span class="stat-number">{{ group_count }}</span>
+            <span class="stat-label">Guruhlar</span>
+        </div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
+        <div class="stat-info">
+            <span class="stat-number">{{ student_count }}</span>
+            <span class="stat-label">O'quvchilar</span>
+        </div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
+        <div class="stat-info">
+            <span class="stat-number">{{ survey_count }}</span>
+            <span class="stat-label">So'rovnomalar</span>
+        </div>
+    </div>
+    <div class="stat-card" style="border-left: 4px solid #d97706;">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #d97706, #f59e0b);"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+            <span class="stat-number">{{ pending_student_count }}</span>
+            <span class="stat-label">Kutilyotgan o'quvchilar</span>
+        </div>
+    </div>
+</div>
+
+<div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-pie"></i> Guruh holati</h3>
+        </div>
+        <div class="card-body">
+            <div class="status-bars">
+                <div class="status-item">
+                    <div class="status-label">
+                        <span><span class="dot active"></span> Aktiv</span>
+                        <span>{{ active_groups }}</span>
+                    </div>
+                    <div class="progress-bar">
+                        {% with total=active_groups|add:pending_groups %}
+                        {% if total > 0 %}
+                        <div class="progress-fill blue" style="width: {% widthratio active_groups total 100 %}%"></div>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">
+                        <span><span class="dot pending"></span> Kutilyotgan</span>
+                        <span>{{ pending_groups }}</span>
+                    </div>
+                    <div class="progress-bar">
+                        {% with total=active_groups|add:pending_groups %}
+                        {% if total > 0 %}
+                        <div class="progress-fill yellow" style="width: {% widthratio pending_groups total 100 %}%"></div>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-bar"></i> Qayerdan keldingiz? statistikasi</h3>
+        </div>
+        <div class="card-body">
+            <div class="status-bars">
+                {% for s in survey_stats %}
+                <div class="status-item">
+                    <div class="status-label">
+                        <span>{{ s.name }}</span>
+                        <span>{{ s.student_count }} ta</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill blue" style="width: {% widthratio s.student_count student_count 100 %}%"></div>
+                    </div>
+                </div>
+                {% empty %}
+                <p style="text-align: center; color: #94a3b8; padding: 20px;">
+                    <i class="fas fa-chart-pie" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
+                    Hali hech qanday ma'lumot yo'q
+                </p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="dash-footer">
+    <a href="{% url 'admin_mobile_groups' %}" class="goto-btn">
+        <i class="fas fa-layer-group"></i>
+        Guruhlarga o'tish <span style="font-size:12px;opacity:0.7;">(bugungi guruhlar)</span>
+        <i class="fas fa-arrow-right"></i>
+    </a>
+</div>
+{% endblock %}

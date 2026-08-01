@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}O'quvchini ko'chirish | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2><i class="fas fa-exchange-alt" style="color:#2563eb;"></i> O'quvchini ko'chirish</h2>
+  </div>
+  <div class="page-header-right">
+    <a href="{% url 'group_detail' group.pk %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Orqaga</a>
+  </div>
+</div>
+
+<div class="row" style="max-width:720px;margin:0 auto;">
+  <div class="card" style="border:none;box-shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.04);overflow:hidden;">
+    <div style="padding:24px 32px;border-bottom:1px solid #f1f5f9;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:40px;height:40px;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#2563eb;">{{ student.first_name|first }}{{ student.last_name|first }}</div>
+        <div>
+          <div style="font-size:16px;font-weight:600;color:#0f172a;">{{ student.first_name }} {{ student.last_name }}</div>
+          <div style="font-size:13px;color:#64748b;">{{ student.phone|default:"Telefon yo'q" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:32px;">
+      <div style="display:flex;align-items:stretch;gap:0;margin-bottom:32px;">
+        <div style="flex:1;padding:20px;background:#0f172a;border-radius:12px 0 0 12px;position:relative;">
+          <div style="font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Joriy guruh</div>
+          <div style="font-size:18px;font-weight:700;color:white;">{{ group.name }}</div>
+          <div style="font-size:13px;color:#94a3b8;margin-top:4px;">{{ group.course.name }}</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;width:48px;background:#f8fafc;flex-shrink:0;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+        </div>
+        <div style="flex:1;padding:20px;background:#f8fafc;border:2px dashed #e2e8f0;border-radius:0 12px 12px 0;border-left:none;min-height:80px;display:flex;flex-direction:column;justify-content:center;" id="targetGroupDisplay">
+          <div style="font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Yangi guruh</div>
+          <div style="font-size:18px;font-weight:700;color:#0f172a;" id="targetGroupName">—</div>
+          <div style="font-size:13px;color:#64748b;margin-top:2px;" id="targetGroupInfo"></div>
+        </div>
+      </div>
+
+      <form method="GET" id="filterForm" style="margin-bottom:24px;">
+        <div style="display:flex;gap:12px;align-items:end;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Kurs</label>
+            <select name="course_id" onchange="this.form.submit()" style="width:100%;padding:10px 14px;font-size:14px;color:#0f172a;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;appearance:none;cursor:pointer;outline:none;">
+              <option value="">—</option>
+              {% for c in courses %}
+              <option value="{{ c.pk }}" {% if selected_course_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">O'qituvchi</label>
+            <select name="teacher_id" onchange="this.form.submit()" style="width:100%;padding:10px 14px;font-size:14px;color:#0f172a;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;appearance:none;cursor:pointer;outline:none;">
+              <option value="">—</option>
+              {% for t in teachers %}
+              <option value="{{ t.pk }}" {% if selected_teacher_id == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.first_name }} {{ t.last_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </form>
+
+      <form method="post">
+        {% csrf_token %}
+        <div style="margin-bottom:20px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Yangi guruh</label>
+          <select name="new_group" required style="width:100%;padding:10px 14px;font-size:14px;color:#0f172a;background:white;border:1px solid #e2e8f0;border-radius:8px;appearance:none;cursor:pointer;outline:none;transition:border-color .15s;" onchange="this.style.borderColor='#2563eb';updateTargetGroup(this)" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'">
+            <option value="">Tanlang</option>
+            <option value="pending" style="color:#d97706;">↳ Kutilyotganlarga o'tkazish</option>
+            {% if groups %}
+            <option disabled style="color:#94a3b8;font-size:12px;">──────── guruhlar ────────</option>
+            {% endif %}
+            {% for g in groups %}
+            <option value="{{ g.pk }}" data-info="{{ g.course.name }}" data-time="{% with lt=g.lesson_times.first %}{{ lt.get_days_display|default:'' }} {{ lt.start_time|time:'H:i'|default:'' }}-{{ lt.end_time|time:'H:i'|default:'' }}{% endwith %}">
+              {{ g.name }} — {% with lt=g.lesson_times.first %}{{ lt.start_time|time:"H:i"|default:"–" }}-{{ lt.end_time|time:"H:i"|default:"–" }}{% endwith %}{% with lt=g.lesson_times.first %} {{ lt.get_days_display|default:"" }}{% endwith %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="margin-bottom:24px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Ko'chirish sababi</label>
+          <textarea name="reason" rows="2" style="width:100%;padding:10px 14px;font-size:14px;color:#0f172a;background:white;border:1px solid #e2e8f0;border-radius:8px;resize:none;outline:none;font-family:inherit;transition:border-color .15s;" placeholder="Sababni yozing..." onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <button type="submit" style="flex:1;padding:12px;background:#0f172a;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#0f172a'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+            Ko'chirish
+          </button>
+          <a href="{% url 'group_detail' group.pk %}" style="padding:12px 24px;background:white;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;display:flex;align-items:center;transition:background .15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">Bekor qilish</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function updateTargetGroup(select) {
+  var nameEl = document.getElementById('targetGroupName');
+  var infoEl = document.getElementById('targetGroupInfo');
+  var displayEl = document.getElementById('targetGroupDisplay');
+  var val = select.value;
+  if (!val) {
+    nameEl.textContent = '—';
+    infoEl.textContent = '';
+    displayEl.style.background = '#f8fafc';
+    displayEl.style.borderStyle = 'dashed';
+    displayEl.style.borderColor = '#e2e8f0';
+    return;
+  }
+  if (val === 'pending') {
+    nameEl.textContent = 'Kutilyotganlar';
+    infoEl.textContent = 'Guruhsiz o\'quvchilar';
+    displayEl.style.background = '#fffbeb';
+    displayEl.style.borderStyle = 'solid';
+    displayEl.style.borderColor = '#f59e0b';
+    return;
+  }
+  var opt = select.querySelector('option[value="' + val + '"]');
+  if (opt) {
+    nameEl.textContent = opt.textContent.split('—')[0].trim();
+    var info = [];
+    var di = opt.getAttribute('data-info');
+    var dt = opt.getAttribute('data-time');
+    if (di) info.push(di);
+    if (dt) info.push(dt);
+    infoEl.textContent = info.join(' · ');
+    displayEl.style.background = '#f0f7ff';
+    displayEl.style.borderStyle = 'solid';
+    displayEl.style.borderColor = '#2563eb';
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,859 @@
+{% extends "base.html" %}
+{% block title %}{{ group.name }} | Edu Tizim{% endblock %}
+{% load dict_filters %}
+{% block content %}
+
+<style>
+  .price-display:hover i.fa-pen { opacity: 1 !important; }
+  .settings-menu {
+    position: absolute; right: 0; top: 100%; z-index: 100;
+    background: white; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    border: 1px solid #e2e8f0; min-width: 200px; padding: 6px; display: none;
+  }
+  .settings-menu.show { display: block; }
+  .settings-menu a {
+    display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+    border-radius: 8px; text-decoration: none; font-size: 13px; color: #334155;
+    transition: background 0.15s;
+  }
+  .settings-menu a:hover { background: #f1f5f9; }
+  .settings-menu a.danger { color: #dc2626; }
+  .settings-menu a.danger:hover { background: #fef2f2; }
+  .settings-menu hr { margin: 4px 0; border: none; border-top: 1px solid #e2e8f0; }
+
+  .student-row { transition: background 0.15s; }
+  .student-row:hover { background: #eff6ff; }
+  .student-add-btn {
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid #d1d5db;
+    background: white; cursor: pointer; display: inline-flex; align-items: center;
+    justify-content: center; color: #2563eb; font-size: 14px; transition: all 0.15s;
+  }
+  .student-add-btn:hover { background: #2563eb; color: white; border-color: #2563eb; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(15,23,42,0.5); backdrop-filter: blur(2px);
+    display: none; align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: white; border-radius: 16px; width: 520px; max-width: 94vw;
+    max-height: 80vh; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+  .student-menu { position: relative; }
+  .student-menu-btn {
+    width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    color: #94a3b8; font-size: 14px; transition: all 0.15s;
+  }
+  .student-menu-btn:hover { background: #f1f5f9; color: #334155; }
+  .student-toolbar {
+    position: absolute; right: 32px; top: 50%; transform: translateY(-50%) scale(0.9);
+    z-index: 200; display: none; align-items: center; gap: 2px;
+    background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+    border: 1px solid #e2e8f0; padding: 3px; opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .student-toolbar.show { display: flex; opacity: 1; transform: translateY(-50%) scale(1); }
+  .student-toolbar a {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 6px; text-decoration: none;
+    color: #475569; font-size: 12px; transition: all 0.15s;
+  }
+  .student-toolbar a:hover { background: #f1f5f9; color: #2563eb; }
+  .student-toolbar a.danger:hover { background: #fef2f2; color: #dc2626; }
+  .student-toolbar .sep { width: 1px; height: 18px; background: #e2e8f0; }
+  .att-select:focus { border-color:#2001ff; box-shadow:0 0 0 3px rgba(32,1,255,0.1); }
+</style>
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h2>{{ group.name }}</h2>
+    <span class="page-header-count">Guruh profili</span>
+  </div>
+</div>
+
+<!-- GURUH MA'LUMOTLARI + 3-NUQTA -->
+<div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px 24px; margin-bottom: 24px; position: relative;">
+  <div style="position: absolute; top: 16px; right: 16px;">
+    <button onclick="toggleSettings()" style="width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 18px;" title="Sozlamalar">
+      <i class="fas fa-ellipsis-v"></i>
+    </button>
+    <div class="settings-menu" id="settingsMenu">
+      <a href="{% url 'group_history' group.pk %}"><i class="fas fa-history" style="color: #8b5cf6;"></i> Tarix</a>
+      <a href="{% url 'group_settings' group.pk %}"><i class="fas fa-cog" style="color: #2563eb;"></i> Tahrirlash</a>
+      <a href="{% url 'group_extend' group.pk %}"><i class="fas fa-calendar-plus" style="color: #2563eb;"></i> Kun qo'shish</a>
+      <a href="{% url 'transfer_all_students' group.pk %}"><i class="fas fa-exchange-alt" style="color: #7c3aed;"></i> Barcha o'quvchini ko'chirish</a>
+      <a href="{% url 'group_freeze' group.pk %}"><i class="fas fa-snowflake" style="color: #0ea5e9;"></i> Muzlatish</a>
+      <hr>
+      {% if group.status != 'arxivlangan' %}
+      <a href="{% url 'group_archive' group.pk %}" style="color: #c2410c;"><i class="fas fa-archive"></i> Arxivlash</a>
+      {% endif %}
+      <a href="{% url 'group_delete' group.pk %}" class="danger"><i class="fas fa-trash"></i> O'chirish</a>
+    </div>
+  </div>
+  <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+    <tbody>
+      <tr>
+        <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569; width: 160px;">Nomi</td>
+        <td style="padding: 6px 12px 6px 0; color: #1e293b;">{{ group.name }}</td>
+        <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569; width: 160px;">Darjasi</td>
+        <td style="padding: 6px 12px 6px 0; color: #1e293b;">{{ group.course.name }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569;">Kurs vaqti</td>
+        <td style="padding: 6px 12px 6px 0; color: #1e293b;">
+          {% with lt=group.lesson_times.first %}
+            {{ lt.start_time|time:"H:i"|default:"-" }} - {{ lt.end_time|time:"H:i"|default:"-" }}
+          {% endwith %}
+        </td>
+        <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569;">Turi</td>
+        <td style="padding: 6px 12px 6px 0; color: #1e293b;">
+          <span style="background: #dbeafe; color: #1d4ed8; padding: 2px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">{{ group.get_education_type_display }}</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569;">Xona</td>
+        <td style="padding: 6px 12px 6px 0; color: #1e293b;">{{ group.room.name|default:"-" }}</td>
+        <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569;">Kurs</td>
+        <td style="padding: 6px 12px 6px 0; color: #1e293b;">{{ group.course.name }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569;">Kun</td>
+
+        <td style="padding: 6px 12px 6px 0; color: #1e293b;">`
+          <span style="background: #fef3c7; color: #b45309; padding: 2px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">{{ group.get_day_type_display }}</span>
+            kunlar: {{ group.days|default:"-" }}
+        </td>
+        
+        <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569;">O'qituvchi</td>
+        <td style="padding: 6px 12px 6px 0; color: #1e293b;">{{ group.teacher.first_name|default:"" }} {{ group.teacher.last_name|default:"-" }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569;">1 dars narxi</td>
+        <td style="padding: 6px 12px 6px 0; color: #1e293b;">
+          {% if group.lesson_price %}
+          <span style="font-weight: 600; color: #16a34a;">{{ group.lesson_price|floatformat:0 }} so'm</span>
+          {% else %}
+          <span style="color: #94a3b8;">Belgilanmagan</span>
+          {% endif %}
+        </td>
+      <tr>
+        <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569;">Guruh vaqti</td>
+        <td style="padding: 6px 12px 6px 0; color: #1e293b;" colspan="3">
+          {{ group.start_date|date:"d.m.Y" }} - {{ group.end_date|date:"d.m.Y" }}
+          {% if group.is_date_overdue %}
+            <span style="background:#dc2626;color:white;font-size:12px;font-weight:600;padding:2px 10px;border-radius:20px;margin-left:8px;">Muddati o'tgan</span>
+          {% elif group.is_ending_soon %}
+            <span style="background:#dc2626;color:white;font-size:12px;font-weight:600;padding:2px 10px;border-radius:20px;margin-left:8px;">Tugashiga {{ group.remaining_days }} kun</span>
+          {% endif %} 
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+function toggleSettings() {
+  document.getElementById('settingsMenu').classList.toggle('show');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#settingsMenu') && !e.target.closest('button[onclick="toggleSettings()"]')) {
+    document.getElementById('settingsMenu').classList.remove('show');
+  }
+});
+</script>
+
+
+
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+  <a href="{% url 'group_davom' group.pk %}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#2001ff;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;">
+    <i class="fas fa-arrow-right"></i> Davomat
+  </a>
+  <button onclick="openAllModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+    <i class="fas fa-user-plus"></i> Guruhga o'quvchi qo'shish
+  </button>
+  <button onclick="openPendingModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#f59e0b;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+    <i class="fas fa-clock"></i> Kutilyotganlarni qo'shish
+  </button>
+</div>
+
+<!-- O'QUVCHILAR JADVALI -->
+<div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; gap: 8px;">
+    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+      <i class="fas fa-user-graduate"></i> O'quvchilar ({{ students.count }})
+    </h3>
+    <div style="display: flex; gap: 8px;">
+      <button onclick="openAllModal()" class="btn btn-sm" style="background: #f1f5f9; color: #475569; padding: 6px 14px; border-radius: 6px; border: 1px solid #e2e8f0; cursor: pointer; font-size: 13px;">
+        <i class="fas fa-users"></i> Barcha o'quvchilar
+      </button>
+      <button onclick="openPendingModal()" class="btn btn-sm" style="background: #fffbeb; color: #92400e; padding: 6px 14px; border-radius: 6px; border: 1px solid #fde68a; cursor: pointer; font-size: 13px;">
+        <i class="fas fa-clock"></i> Kutilyotganlar
+      </button>
+      <a href="{% url 'group_detail_export_excel' group.pk %}" class="btn btn-sm" style="background:#2001ff;color:white;padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;text-decoration:none;" title="Excel"><i class="fas fa-file-excel"></i> Excel</a>
+      <a href="{% url 'group_detail_export_csv' group.pk %}" class="btn btn-sm" style="background:#2001ff;color:white;padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;text-decoration:none;" title="CSV"><i class="fas fa-file-csv"></i> CSV</a>
+    </div>
+  </div>
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+      <thead>
+        <tr style="background: #f1f5f9; border-bottom: 2px solid #e2e8f0;">
+          <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #475569;">№</th>
+          <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #475569;">O'QUVCHI ISM</th>
+          <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #475569;">BALANS</th>
+          <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #475569;">DARS NARXI</th>
+          <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #475569;">QO'SHILGAN SANASI</th>
+          <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #475569;">TELEFON RAQAM</th>
+          <th style="padding: 10px 12px; text-align: center; font-weight: 600; color: #475569; width: 50px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr style="border-bottom: 1px solid #e2e8f0; {% if forloop.counter|divisibleby:2 %}background: #fafbfc;{% endif %}">
+          <td style="padding: 10px 12px; color: #1e293b;">{{ forloop.counter }}</td>
+          <td style="padding: 10px 12px;">
+            <a href="{% url 'student_profile' s.pk %}" style="color: #2563eb; text-decoration: none; font-weight: 500;">{{ s.first_name }} {{ s.last_name }}</a>
+              <span style="display:block;font-size:11px;color:#94a3b8;margin-top:1px;">{{ s.total_groups }} ta kurs</span>
+          </td>
+          <td style="padding: 10px 12px; color: #1e293b;">
+            {% with bal=s|get_balance %}
+            <span style="font-weight: 600; {% if bal.balance < 0 %}color: #dc2626;{% else %}color: #16a34a;{% endif %}">
+              {{ bal.balance|floatformat:0 }}
+            </span>
+            {% endwith %}
+          </td>
+          <td style="padding: 10px 12px; color: #1e293b;">
+            {% with slp=student_prices|get_item:s.pk has=student_prices|has_key:s.pk %}
+            <div class="price-display" onclick="editPrice(this, {{ s.pk }}, {{ group.pk }})" style="cursor:pointer;display:flex;align-items:center;gap:4px;">
+              <span class="price-text" style="font-weight:600;">
+                {% if has %}{{ slp|floatformat:0 }}{% elif group.lesson_price %}{{ group.lesson_price|floatformat:0 }}{% else %}0{% endif %}
+              </span>
+              <i class="fas fa-pen" style="font-size:9px;color:#94a3b8;opacity:0;transition:opacity 0.15s;"></i>
+            </div>
+            <div style="font-size:10px;{% if has %}color:#8b5cf6;{% elif group.lesson_price %}color:#94a3b8;{% endif %}margin-top:2px;">
+              {% if has %}Shaxsiy{% elif group.lesson_price %}Guruh narxi{% endif %}
+            </div>
+            {% endwith %}
+          </td>
+          <td style="padding: 10px 12px; color: #1e293b;">
+            {{ s.created_at|date:"d.m.Y"|default:"-" }}<br>
+            <span style="color: #94a3b8; font-size: 12px;">{{ s.created_at|time:"H:i"|default:"" }}</span>
+          </td>
+          <td style="padding: 10px 12px; color: #1e293b; font-family: monospace;">{{ s.phone|default:"-" }}</td>
+          <td style="padding: 10px 12px; text-align: center;">
+            <div class="student-menu">
+              <button class="student-menu-btn" onclick="event.stopPropagation();toggleStudentMenu(this)" title="Amallar">
+                <i class="fas fa-ellipsis-v"></i>
+              </button>
+              <div class="student-toolbar">
+                <a href="{% url 'student_profile' s.pk %}" title="O'quv tarixi"><i class="fas fa-history"></i></a>
+                <a href="{% url 'transfer_student' group_pk=group.pk student_pk=s.pk %}" title="Boshqa guruhga o'tkazish"><i class="fas fa-exchange-alt"></i></a>
+                <a href="{% url 'student_profile' s.pk %}" title="Profil"><i class="fas fa-user"></i></a>
+                <a href="{% url 'graduate_student' group_pk=group.pk student_pk=s.pk %}" title="Bitirish"><i class="fas fa-graduation-cap" style="color:#16a34a;"></i></a>
+                <span class="sep"></span>
+                <a href="{% url 'student_delete' s.pk %}" class="danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                <a href="#" class="danger" title="Guruhdan chiqarish" onclick="event.stopPropagation();openRemoveModal('{{ s.pk }}','{{ s.first_name }} {{ s.last_name }}')"><i class="fas fa-user-minus"></i></a>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="padding: 30px 12px; text-align: center; color: #94a3b8;">Guruhda o'quvchilar yo'q</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- BARCHA O'QUVCHILARNI QO'SHISH MODAL -->
+<div class="modal-overlay" id="addAllModal" onclick="if(event.target===this)closeAllModal()">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+      <h3 style="margin:0;font-size:15px;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:8px;">
+        <i class="fas fa-users" style="color:#2563eb;"></i> Barcha o'quvchilar
+      </h3>
+      <button onclick="closeAllModal()" style="width:28px;height:28px;border-radius:6px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:12px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+      <div style="position:relative;">
+        <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;pointer-events:none;"></i>
+        <input id="allSearchInput" type="text" placeholder="Ism, familya yoki tel. oxirgi 4 raqami..." oninput="filterAllStudents()" style="width:100%;padding:9px 12px 9px 34px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;outline:none;">
+      </div>
+    </div>
+    <div style="overflow-y:auto;flex:1;max-height:50vh;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;position:sticky;top:0;">
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#64748b;">O'quvchi</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#64748b;">Telefon</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#64748b;">Guruh</th>
+            <th style="padding:10px 12px;text-align:center;font-weight:600;color:#64748b;width:60px;"></th>
+          </tr>
+        </thead>
+        <tbody id="allStudentList">
+          {% for s in all_students %}
+          <tr class="all-student-row" style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:8px 12px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">{{ s.first_name|first|upper }}</div>
+                <div>
+                  <div style="font-weight:500;color:#1e293b;">{{ s.first_name }} {{ s.last_name }}</div>
+                  <div style="font-size:11px;color:#94a3b8;">{{ s.created_at|date:"d.m.Y" }}</div>
+                </div>
+              </div>
+            </td>
+            <td style="padding:8px 12px;color:#334155;font-family:monospace;font-size:12px;" class="all-phone">{{ s.phone|default:"-" }}</td>
+            <td style="padding:8px 12px;font-size:12px;">
+              {% with groups=s.groups.all %}
+                {% if groups|length == 1 %}<span style="color:#2563eb;">{{ groups.0.name }}</span>
+                {% elif groups|length > 1 %}<span style="color:#2563eb;">{{ groups.0.name }}</span><span style="color:#94a3b8;font-size:11px;">+{{ groups|length|add:"-1" }}</span>
+                {% else %}<span style="color:#f59e0b;">Guruhsiz</span>{% endif %}
+              {% endwith %}
+            </td>
+            <td style="padding:8px 12px;text-align:center;">
+              {% if group in s.groups.all %}
+              <span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#f59e0b;"><i class="fas fa-check"></i> Qo'shilgan</span>
+              {% else %}
+              <a href="{% url 'add_student_to_group' group_pk=group.pk student_pk=s.pk %}" class="student-add-btn" onclick="return confirm('{{ s.first_name }} {{ s.last_name }} ni guruhga qo\'shishni tasdiqlaysizmi?')"><i class="fas fa-plus"></i></a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="padding:30px 12px;text-align:center;color:#94a3b8;"><i class="fas fa-search" style="font-size:24px;margin-bottom:6px;opacity:0.4;display:block;"></i>O'quvchilar mavjud emas</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- KUTILYOTGAN O'QUVCHILARNI QO'SHISH MODAL -->
+<div class="modal-overlay" id="addPendingModal" onclick="if(event.target===this)closePendingModal()">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+      <h3 style="margin:0;font-size:15px;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:8px;">
+        <i class="fas fa-clock" style="color:#f59e0b;"></i> Kutilyotgan o'quvchilar
+      </h3>
+      <button onclick="closePendingModal()" style="width:28px;height:28px;border-radius:6px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:12px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+      <div class="form-group" style="margin-bottom:8px;">
+        <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px;display:block;">Kursni tanlang</label>
+        <select id="modalCourseSelect" class="form-control" onchange="filterPendingByCourse()">
+          <option value="">-- Barcha kurslar --</option>
+          {% for c in courses %}
+          <option value="{{ c.pk }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="position:relative;">
+        <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;pointer-events:none;"></i>
+        <input id="pendingSearchInput" type="text" placeholder="Ism, familya yoki tel. oxirgi 4 raqami..." oninput="filterPendingStudents()" style="width:100%;padding:9px 12px 9px 34px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;outline:none;">
+      </div>
+    </div>
+    <div style="overflow-y:auto;flex:1;max-height:50vh;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <tbody>
+          {% for s in pending_students %}
+          <tr class="pending-student" data-courses="{% for dc in s.desired_course.all %}{% if not forloop.first %},{% endif %}{{ dc.pk }}{% endfor %}" style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:8px 12px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">{{ s.first_name|first|upper }}</div>
+                <div>
+                  <div style="font-weight:500;color:#1e293b;">{{ s.first_name }} {{ s.last_name }}</div>
+                  <div style="font-size:11px;color:#94a3b8;">{{ s.phone|default:"-" }}</div>
+                  {% with dcourses=s.desired_course.all %}
+                  {% if dcourses %}
+                  <div style="font-size:11px;color:#3b82f6;margin-top:2px;">
+                    {% for dc in dcourses %}{{ dc.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                  </div>
+                  {% endif %}
+                  {% endwith %}
+                </div>
+              </div>
+            </td>
+            <td style="padding:8px 12px;text-align:right;">
+              <a href="{% url 'add_student_to_group' group_pk=group.pk student_pk=s.pk %}" class="student-add-btn" onclick="return confirm('{{ s.first_name }} {{ s.last_name }} ni guruhga qo\'shishni tasdiqlaysizmi?')"><i class="fas fa-plus"></i></a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="2" style="padding:30px 12px;text-align:center;color:#94a3b8;">
+              <i class="fas fa-inbox" style="font-size:24px;margin-bottom:6px;opacity:0.4;display:block;"></i>
+              Kutilyotgan o'quvchilar mavjud emas
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function openAllModal() {
+  document.getElementById('addAllModal').classList.add('show');
+  document.getElementById('allSearchInput').value = '';
+  filterAllStudents();
+  setTimeout(function(){ document.getElementById('allSearchInput').focus(); }, 100);
+}
+function closeAllModal() {
+  document.getElementById('addAllModal').classList.remove('show');
+}
+function filterAllStudents() {
+  var q = document.getElementById('allSearchInput').value.trim().toLowerCase();
+  var rows = document.querySelectorAll('#allStudentList .all-student-row');
+  for (var i = 0; i < rows.length; i++) {
+    var name = (rows[i].querySelector('td div div:first-child')?.textContent || '').toLowerCase();
+    var phone = (rows[i].querySelector('.all-phone')?.textContent || '').toLowerCase();
+    rows[i].style.display = (!q || name.indexOf(q) !== -1 || phone.indexOf(q) !== -1 || phone.endsWith(q)) ? '' : 'none';
+  }
+}
+function openPendingModal() {
+  document.getElementById('addPendingModal').classList.add('show');
+  document.getElementById('pendingSearchInput').value = '';
+  document.getElementById('modalCourseSelect').value = '';
+  filterPendingByCourse();
+  filterPendingStudents();
+  setTimeout(function(){ document.getElementById('modalCourseSelect').focus(); }, 100);
+}
+function closePendingModal() {
+  document.getElementById('addPendingModal').classList.remove('show');
+}
+function filterPendingByCourse() {
+  var coursePk = document.getElementById('modalCourseSelect').value;
+  document.querySelectorAll('.pending-student').forEach(function(row) {
+    if (!coursePk) {
+      row.style.display = '';
+    } else {
+      var courses = row.getAttribute('data-courses') || '';
+      row.style.display = courses.split(',').indexOf(coursePk) !== -1 ? '' : 'none';
+    }
+  });
+  filterPendingStudents();
+}
+function filterPendingStudents() {
+  var q = document.getElementById('pendingSearchInput').value.trim().toLowerCase();
+  document.querySelectorAll('.pending-student').forEach(function(row) {
+    if (row.style.display === 'none') return;
+    var name = (row.querySelector('div div:first-child')?.textContent || '').toLowerCase();
+    var phone = (row.querySelector('div div:nth-child(2) div:nth-child(2)')?.textContent || '').toLowerCase();
+    row.style.display = (!q || name.indexOf(q) !== -1 || phone.indexOf(q) !== -1 || phone.endsWith(q)) ? '' : 'none';
+  });
+}
+function toggleStudentMenu(btn) {
+  var d = btn.parentElement.querySelector('.student-toolbar');
+  var all = document.querySelectorAll('.student-toolbar.show');
+  for (var i = 0; i < all.length; i++) {
+    if (all[i] !== d) all[i].classList.remove('show');
+  }
+  d.classList.toggle('show');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.student-menu')) {
+    var all = document.querySelectorAll('.student-toolbar.show');
+    for (var i = 0; i < all.length; i++) all[i].classList.remove('show');
+  }
+});
+function openRemoveModal(studentPk, studentName) {
+  document.getElementById('removeStudentPk').value = studentPk;
+  document.getElementById('removeStudentName').textContent = studentName;
+  document.getElementById('removeModal').classList.add('show');
+}
+function closeRemoveModal() {
+  document.getElementById('removeModal').classList.remove('show');
+}
+</script>
+
+<!-- CHIQARISH SABABI MODAL -->
+<div class="modal-overlay" id="removeModal" onclick="if(event.target===this)closeRemoveModal()">
+  <div class="modal-box" style="max-width:420px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+      <h3 style="margin:0;font-size:15px;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:8px;">
+        <i class="fas fa-user-minus" style="color:#dc2626;"></i> Guruhdan chiqarish
+      </h3>
+      <button onclick="closeRemoveModal()" style="width:28px;height:28px;border-radius:6px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="post" action="" id="removeForm">
+      {% csrf_token %}
+      <div style="padding:20px;">
+        <p style="font-size:14px;color:#334155;margin-bottom:16px;">
+          <strong id="removeStudentName"></strong> ni guruhdan chiqarish sababini yozing:
+        </p>
+        <textarea name="reason" rows="3" required style="width:100%;padding:10px 14px;font-size:14px;color:#1e293b;background:#f8fafc;border:1px solid #d1d5db;border-radius:10px;resize:vertical;outline:none;" placeholder="Chiqarish sababini yozing..."></textarea>
+        <input type="hidden" id="removeStudentPk" value="">
+        <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+          <button type="button" onclick="closeRemoveModal()" class="btn btn-secondary">Bekor qilish</button>
+          <button type="submit" class="btn btn-danger"><i class="fas fa-user-minus"></i> Chiqarish</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.getElementById('removeForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var pk = document.getElementById('removeStudentPk').value;
+  this.action = "{% url 'remove_student_from_group' group_pk=group.pk student_pk=0 %}".replace('0', pk);
+  this.submit();
+});
+</script>
+
+{% if removed_logs %}
+<!-- CHIQIB KETGAN O'QUVCHILAR -->
+<div id="removedSection" style="background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden;margin-top:24px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+    <h3 id="removedTitle" style="margin:0;font-size:16px;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-user-slash" style="color:#dc2626;"></i> Chiqib ketgan o'quvchilar ({{ removed_logs|length }})
+    </h3>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:12px;color:#64748b;font-weight:500;">
+      <span id="switchLabel">Yopiq</span>
+      <div style="position:relative;width:40px;height:22px;background:#e2e8f0;border-radius:11px;transition:background .2s;" id="switchTrack">
+        <input type="checkbox" id="removedToggle" style="display:none;" onchange="toggleRemoved(this)">
+        <div style="position:absolute;top:2px;left:2px;width:18px;height:18px;background:white;border-radius:50%;transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,0.15);" id="switchThumb"></div>
+      </div>
+    </label>
+  </div>
+  <div id="removedBodyWrap" style="overflow:hidden;transition:max-height .35s ease,opacity .35s;max-height:0;opacity:0;">
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">#</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">O'QUVCHI</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">TELEFON</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">CHIQARILGAN SANASI</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">KIM CHIQARGAN</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">SABAB</th>
+            <th style="padding:10px 12px;text-align:center;font-weight:600;color:#475569;width:40px;"></th>
+          </tr>
+        </thead>
+        <tbody id="removedLogsBody">
+          {% for log in removed_logs %}
+          <tr id="removed-row-{{ log.pk }}" style="border-bottom:1px solid #e2e8f0;{% if forloop.counter|divisibleby:2 %}background:#fafbfc;{% endif %}transition:opacity .3s;">
+            <td style="padding:10px 12px;color:#1e293b;">{{ forloop.counter }}</td>
+            <td style="padding:10px 12px;">
+              <a href="{% url 'student_profile' log.student.pk %}" style="color:#2563eb;text-decoration:none;font-weight:500;">{{ log.student.first_name }} {{ log.student.last_name }}</a>
+            </td>
+            <td style="padding:10px 12px;color:#334155;font-family:monospace;">{{ log.student.phone|default:"-" }}</td>
+            <td style="padding:10px 12px;color:#1e293b;">{{ log.created_at|date:"d.m.Y" }}</td>
+            <td style="padding:10px 12px;color:#334155;font-weight:600;white-space:nowrap;">{{ log.created_by|default:"—" }}</td>
+            <td style="padding:10px 12px;color:#64748b;font-style:italic;">{{ log.reason }}</td>
+            <td style="padding:10px 12px;text-align:center;">
+              <input type="checkbox" style="width:16px;height:16px;cursor:pointer;accent-color:#dc2626;" onchange="dismissRemoved({{ log.pk }}, this)">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+var CSRF = '{{ csrf_token }}';
+function toggleRemoved(cb) {
+  var wrap = document.getElementById('removedBodyWrap');
+  var track = document.getElementById('switchTrack');
+  var thumb = document.getElementById('switchThumb');
+  var label = document.getElementById('switchLabel');
+  if (cb.checked) {
+    wrap.style.maxHeight = wrap.scrollHeight + 'px';
+    wrap.style.opacity = '1';
+    track.style.background = '#2563eb';
+    thumb.style.transform = 'translateX(18px)';
+    label.textContent = 'Ochiq';
+    setTimeout(function(){wrap.style.maxHeight='none'}, 350);
+  } else {
+    wrap.style.maxHeight = wrap.scrollHeight + 'px';
+    setTimeout(function(){wrap.style.maxHeight='0';wrap.style.opacity='0'}, 10);
+    track.style.background = '#e2e8f0';
+    thumb.style.transform = 'translateX(0)';
+    label.textContent = 'Yopiq';
+  }
+}
+function dismissRemoved(pk, cb) {
+  fetch('/log/' + pk + '/dismiss/', {method:'post',headers:{'X-CSRFToken':CSRF}})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.ok){
+        var row=document.getElementById('removed-row-'+pk);
+        if(row){row.style.opacity='0';setTimeout(function(){row.remove();updateRemovedCount()},300)}
+      } else {cb.checked=false}
+    })
+    .catch(function(){cb.checked=false});
+}
+function updateRemovedCount() {
+  var rows=document.getElementById('removedLogsBody').querySelectorAll('tr');
+  var title=document.getElementById('removedTitle');
+  if(title)title.innerHTML='<i class="fas fa-user-slash" style="color:#dc2626;"></i> Chiqib ketgan o\'quvchilar ('+rows.length+')';
+  if(rows.length===0){
+    var sec=document.getElementById('removedSection');
+    if(sec){sec.style.opacity='0';setTimeout(function(){sec.remove()},300)}
+  }
+}
+</script>
+{% endif %}
+
+{% if frozen_students %}
+<!-- MUZLATILGAN O'QUVCHILAR -->
+<div style="background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden;margin-top:24px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+    <h3 style="margin:0;font-size:16px;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-snowflake" style="color:#2563eb;"></i> Muzlatilgan o'quvchilar ({{ frozen_students|length }})
+    </h3>
+  </div>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+          <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">#</th>
+          <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">O'QUVCHI</th>
+          <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">TELEFON</th>
+          <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">MUZLATILGACHA</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in frozen_students %}
+        <tr style="border-bottom:1px solid #e2e8f0;{% if forloop.counter|divisibleby:2 %}background:#fafbfc;{% endif %}">
+          <td style="padding:10px 12px;color:#1e293b;">{{ forloop.counter }}</td>
+          <td style="padding:10px 12px;">
+            <a href="{% url 'student_profile' s.pk %}" style="color:#2563eb;text-decoration:none;font-weight:500;">{{ s.first_name }} {{ s.last_name }}</a>
+            <span style="display:block;font-size:11px;color:#94a3b8;margin-top:1px;">{{ s.total_groups }} ta kurs</span>
+          </td>
+          <td style="padding:10px 12px;color:#334155;font-family:monospace;">{{ s.phone|default:"-" }}</td>
+          <td style="padding:10px 12px;color:#dc2626;font-size:12px;">
+            {% with remaining=s.frozen_until|timeuntil %}
+            {{ s.frozen_until|date:"d.m.Y" }} ({{ remaining }} qoldi)
+            {% endwith %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if graduated_students %}
+<!-- BITIRILGAN O'QUVCHILAR -->
+<div style="background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden;margin-top:24px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+    <h3 style="margin:0;font-size:16px;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-graduation-cap" style="color:#16a34a;"></i> Bitirilgan o'quvchilar ({{ graduated_students|length }})
+    </h3>
+  </div>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+          <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">#</th>
+          <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">O'QUVCHI</th>
+          <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">TELEFON</th>
+          <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">GURUHLAR</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in graduated_students %}
+        <tr style="border-bottom:1px solid #e2e8f0;{% if forloop.counter|divisibleby:2 %}background:#fafbfc;{% endif %}">
+          <td style="padding:10px 12px;color:#1e293b;">{{ forloop.counter }}</td>
+          <td style="padding:10px 12px;">
+            <a href="{% url 'student_profile' s.pk %}" style="color:#2563eb;text-decoration:none;font-weight:500;">{{ s.first_name }} {{ s.last_name }}</a>
+            <span style="display:block;font-size:11px;color:#94a3b8;margin-top:1px;">{{ s.total_groups }} ta kurs</span>
+          </td>
+          <td style="padding:10px 12px;color:#334155;font-family:monospace;">{{ s.phone|default:"-" }}</td>
+          <td style="padding:10px 12px;color:#64748b;font-size:12px;">
+            {% for g in s.groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Orqaga tugmasi -->
+<div style="margin-top: 20px;">
+  <a href="{% url 'group_list' %}" class="btn btn-secondary" style="display: inline-block; padding: 8px 20px; background: #f1f5f9; color: #475569; border-radius: 6px; text-decoration: none; border: 1px solid #e2e8f0;">
+    <i class="fas fa-arrow-left"></i> Orqaga
+  </a>
+</div>
+
+<!-- ===== DAVOMAT MODAL ===== -->
+<div class="modal-overlay" id="attendanceModal" onclick="if(event.target===this)closeAttendanceModal()">
+  <div class="modal-box" style="width:520px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid #e2e8f0;background:#fafbff;">
+      <div>
+        <h3 style="margin:0;font-size:16px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;">
+          <i class="fas fa-clipboard-check" style="color:#2001ff;"></i> {{ group.name }}
+        </h3>
+        <span style="font-size:12px;color:#64748b;display:flex;align-items:center;gap:12px;margin-top:2px;">
+          <span><i class="far fa-calendar-alt" style="width:14px;"></i> {% now "d.m.Y" %}</span>
+          {% if today_lesson %}
+          <span><i class="far fa-clock" style="width:14px;"></i> {{ today_lesson.start_time|time:"H:i" }}—{{ today_lesson.end_time|time:"H:i" }}</span>
+          {% endif %}
+        </span>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="closeAttendanceModal()" style="padding:8px 16px;border-radius:8px;border:1px solid #d1d5db;background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:#374151;transition:all .15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">Bekor qilish</button>
+        <button onclick="saveAttendance()" style="padding:8px 16px;border-radius:8px;border:none;background:#2001ff;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;box-shadow:0 2px 8px rgba(32,1,255,0.25);" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">Saqlash</button>
+      </div>
+    </div>
+    <div style="overflow-y:auto;max-height:50vh;padding:4px 0;" id="attendanceBody">
+      {% for s in students %}
+      {% with saved=attendance_map|get_item:s.id %}
+      <div class="attendance-row" data-student-id="{{ s.id }}" style="display:flex;align-items:center;padding:10px 24px;border-bottom:1px solid #f1f5f9;transition:background .15s;flex-wrap:wrap;gap:6px;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background='transparent'">
+        <span style="width:28px;font-size:13px;color:#94a3b8;font-weight:500;">{{ forloop.counter }}.</span>
+        <span style="flex:1;font-size:13px;font-weight:500;color:#1e293b;min-width:120px;">{{ s.first_name }} {{ s.last_name }} <span style="font-weight:400;font-size:11px;color:#94a3b8;">({{ s.total_groups }} ta kurs)</span></span>
+        <select class="att-select" onchange="onStatusChange(this)" style="padding:6px 10px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:12px;font-weight:600;outline:none;cursor:pointer;background:#fff;transition:border-color .15s;min-width:110px;text-align:center;">
+          <option value="present" {% if not saved or saved == "present" %}selected{% endif %}>Keldi</option>
+          <option value="absent" {% if saved == "absent" %}selected{% endif %}>Kelmadi</option>
+          <option value="excused" {% if saved == "excused" %}selected{% endif %}>Sababli</option>
+        </select>
+        <select class="att-reason" style="display:none;padding:5px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:11px;outline:none;background:#f8fafc;min-width:120px;">
+          <option value="">Sababni tanlang...</option>
+          {% for r in absence_reasons %}
+          <option value="{{ r.name|escapejs }}">{{ r.name }}</option>
+          {% endfor %}
+          <option value="__other__">Boshqa</option>
+        </select>
+        <input type="text" class="att-notes" placeholder="Izoh" style="width:120px;padding:5px 10px;font-size:12px;border:1px solid #e2e8f0;border-radius:8px;outline:none;background:#f8fafc;" value="{% with note=attendance_notes|get_item:s.id %}{{ note }}{% endwith %}">
+      </div>
+      {% endwith %}
+      {% endfor %}
+    </div>
+    <div style="padding:10px 24px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#64748b;background:#fafbff;">
+      <span><i class="far fa-user"></i> <strong style="color:#0f172a;">{{ students.count }}</strong> ta o'quvchi</span>
+      <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;background:#eef0ff;color:#2001ff;font-weight:600;"><i class="far fa-calendar-alt"></i> Bugun</span>
+    </div>
+  </div>
+</div>
+
+<script>
+function openAttendanceModal() {
+  document.getElementById('attendanceModal').classList.add('show');
+}
+function closeAttendanceModal() {
+  document.getElementById('attendanceModal').classList.remove('show');
+}
+function onStatusChange(sel) {
+  var row = sel.closest('.attendance-row');
+  var reasonSel = row.querySelector('.att-reason');
+  var notes = row.querySelector('.att-notes');
+  if (sel.value === 'absent' || sel.value === 'excused') {
+    reasonSel.style.display = 'inline-block';
+  } else {
+    reasonSel.style.display = 'none';
+    reasonSel.value = '';
+  }
+}
+function saveAttendance() {
+  var items = document.querySelectorAll('#attendanceBody .attendance-row');
+  var records = [];
+  items.forEach(function(el) {
+    var sel = el.querySelector('.att-select');
+    var reasonSel = el.querySelector('.att-reason');
+    var notes = el.querySelector('.att-notes');
+    var status = sel.value;
+    var reason = '';
+    var comment = notes ? notes.value.trim() : '';
+    if (status === 'absent' || status === 'excused') {
+      reason = reasonSel ? reasonSel.value : '';
+      if (reason === '__other__') reason = '';
+    }
+    var finalNotes = '';
+    if (reason && comment) finalNotes = reason + ' | ' + comment;
+    else if (reason) finalNotes = reason;
+    else if (comment) finalNotes = comment;
+    records.push({
+      student_id: parseInt(el.dataset.studentId),
+      status: status,
+      notes: finalNotes
+    });
+  });
+  fetch('{% url "take_attendance" %}', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+    body: JSON.stringify({group_id: {{ group.id }}, records: records})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.ok) {
+      closeAttendanceModal();
+      alert('Davomat saqlandi ✅');
+    } else {
+      alert('Xatolik: ' + (data.error || ''));
+    }
+  })
+  .catch(function() { alert('Xatolik yuz berdi'); });
+}
+
+function editPrice(el, studentPk, groupPk) {
+  var container = el;
+  var textSpan = container.querySelector('.price-text');
+  var currentPrice = textSpan.textContent.trim();
+  var input = document.createElement('input');
+  input.type = 'number';
+  input.value = currentPrice;
+  input.style.width = '80px';
+  input.style.padding = '4px 8px';
+  input.style.border = '1px solid #2001ff';
+  input.style.borderRadius = '6px';
+  input.style.fontSize = '12px';
+  input.style.textAlign = 'right';
+  input.style.outline = 'none';
+  input.autofocus = true;
+
+  var okBtn = document.createElement('button');
+  okBtn.textContent = 'OK';
+  okBtn.type = 'button';
+  okBtn.style.marginLeft = '4px';
+  okBtn.style.padding = '4px 10px';
+  okBtn.style.borderRadius = '6px';
+  okBtn.style.border = 'none';
+  okBtn.style.background = '#2001ff';
+  okBtn.style.color = 'white';
+  okBtn.style.fontSize = '11px';
+  okBtn.style.fontWeight = '600';
+  okBtn.style.cursor = 'pointer';
+
+  container.innerHTML = '';
+  container.appendChild(input);
+  container.appendChild(okBtn);
+  input.focus();
+
+  function save() {
+    var val = input.value.trim();
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/groups/' + groupPk + '/student-price/' + studentPk + '/';
+    var csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrfmiddlewaretoken';
+    csrf.value = '{{ csrf_token }}';
+    form.appendChild(csrf);
+    var priceInput = document.createElement('input');
+    priceInput.type = 'hidden';
+    priceInput.name = 'price';
+    priceInput.value = val;
+    form.appendChild(priceInput);
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  okBtn.onclick = save;
+  input.onkeydown = function(e) {
+    if (e.key === 'Enter') save();
+    if (e.key === 'Escape') window.location.reload();
+  };
+}
+</script>
+
+{% endblock %}

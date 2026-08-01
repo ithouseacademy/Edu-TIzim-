@@ -1,0 +1,924 @@
+{% extends "base.html" %}
+{% load static %}
+{% load dict_filters %}
+{% block title %}Davomat jadvali - {{ group.name }} | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+.max-w-1600{max-width:1600px;margin:0 auto;padding:24px 28px}
+@media(max-width:768px){.max-w-1600{padding:14px}}
+@media(max-width:480px){.max-w-1600{padding:8px}}
+
+/* HEADER ROW */
+.header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+@media(max-width:768px){.header-row{flex-direction:column;align-items:stretch;gap:8px}}
+.header-left{display:flex;align-items:center;gap:12px}
+.back-btn{width:36px;height:36px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:pointer;transition:all .15s;flex-shrink:0}
+.back-btn:hover{color:#2001ff;border-color:#2001ff}
+.back-btn i{font-size:14px}
+h1{font-size:20px;font-weight:700;color:#0f172a;letter-spacing:-.3px}
+@media(max-width:768px){h1{font-size:17px}}
+@media(max-width:480px){h1{font-size:15px}}
+.header-right{display:flex;align-items:center;gap:10px}
+@media(max-width:768px){.header-right{width:100%;justify-content:space-between}}
+@media(max-width:480px){.header-right{gap:4px}}
+.export-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;font-size:12px;font-weight:600;color:#475569;cursor:pointer;transition:all .15s}
+.export-btn:hover{border-color:#2001ff;color:#2001ff;background:#eef0ff}
+@media(max-width:480px){.export-btn{font-size:10px;padding:4px 8px}}
+select.sel{padding:7px 28px 7px 12px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-weight:500;color:#475569;background:#fff;appearance:none;cursor:pointer;outline:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='%2394a3b8'%3E%3Cpath d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;transition:border-color .15s}
+select.sel:focus{border-color:#2001ff;box-shadow:0 0 0 3px rgba(32,1,255,.06)}
+@media(max-width:480px){select.sel{font-size:10px;padding:4px 24px 4px 8px;background-position:right 6px center}}
+
+/* STATS ROW */
+.stats-row{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+@media(max-width:480px){.stats-row{gap:4px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}}
+.stat-chip{display:flex;align-items:center;gap:6px;padding:8px 16px 8px 12px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 12px rgba(0,0,0,.03);font-size:13px;font-weight:600;white-space:nowrap}
+@media(max-width:480px){.stat-chip{padding:4px 10px 4px 8px;font-size:10px;flex-shrink:0}}
+.stat-chip .num{font-size:18px;font-weight:800}
+@media(max-width:480px){.stat-chip .num{font-size:12px}}
+.stat-chip.total{color:#2001ff}
+.stat-chip.present{color:#16a34a}
+.stat-chip.absent{color:#dc2626}
+.stat-chip.excused{color:#ea580c}
+
+/* DESKTOP TABLE */
+.desktop-wrap{display:block}
+@media(max-width:768px){.desktop-wrap{display:none}}
+.table-card{background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 12px rgba(0,0,0,.03);overflow:hidden}
+.table-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:#f8fafc;padding:10px 12px;font-size:10px;font-weight:600;color:#64748b;text-align:left;border-bottom:2px solid #e2e8f0;white-space:nowrap;position:sticky;top:0;z-index:10;text-transform:uppercase;letter-spacing:.5px}
+thead th.num-col{text-align:center;padding:8px 2px;min-width:52px;left:0;z-index:12;background:#f8fafc;text-transform:none;letter-spacing:0}
+thead th.name-col{min-width:220px;left:40px;z-index:12;background:#f8fafc}
+thead th.lesson-col{text-align:center;padding:8px 2px;min-width:52px;font-size:10px;cursor:pointer;transition:background .15s;text-transform:none;letter-spacing:0}
+thead th.lesson-col:hover{background:#eef2ff}
+thead th.lesson-col .d-num{display:block;font-size:11px;font-weight:700;color:#0f172a;text-transform:none;letter-spacing:0}
+thead th.lesson-col .d-date{display:block;font-size:8px;font-weight:500;color:#94a3b8;text-transform:none;letter-spacing:0;margin-top:1px}
+.day-indicator{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;margin-top:4px;font-size:9px;font-weight:800;border:1.5px solid transparent;cursor:pointer;transition:all .15s}
+.day-indicator.all-present{background:#dcfce7;border-color:#86efac;color:#16a34a}
+.day-indicator.some-missed{background:#fef3c7;border-color:#fde68a;color:#d97706}
+.day-indicator.all-missed{background:#fef2f2;border-color:#fecaca;color:#dc2626}
+.day-indicator.none-marked{background:#f1f5f9;border-color:#e2e8f0;color:#94a3b8}
+.day-indicator:hover{transform:scale(1.15)}
+tbody td{padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+tbody tr:hover{background:#fafbff}
+tbody td.num-col{font-size:11px;font-weight:700;color:#0f172a;text-align:center;position:sticky;left:0;background:inherit;z-index:5;padding:8px 2px;min-width:52px}
+tbody td.name-col{position:sticky;left:40px;background:inherit;z-index:5}
+.name-cell{display:flex;align-items:center;gap:10px}
+.name-av{width:32px;height:32px;border-radius:10px;background:#eef0ff;color:#2001ff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.name-text{font-weight:600;color:#1e293b;font-size:13px;display:flex;align-items:center;gap:6px}
+.hist{width:24px;height:24px;border-radius:50%;background:#eef2ff;color:#2001ff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;border:none;transition:all .15s;flex-shrink:0}
+.hist:hover{background:#2001ff;color:#fff}
+.hist.active{background:#2001ff;color:#fff}
+td.phone-col{color:#94a3b8;font-size:11px;font-weight:500}
+td.balance-col{color:#94a3b8;font-size:11px;font-weight:500}
+td.reason-col{color:#94a3b8;font-size:11px;font-weight:500}
+
+/* ATTENDANCE BUTTON */
+.att-cell{text-align:center;padding:4px 2px}
+.att-btn{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:2px solid #e2e8f0;background:#fff;cursor:pointer;transition:all .15s;font-size:12px;position:relative}
+.att-btn:active{transform:scale(.85)}
+.att-btn.present{border-color:#22c55e;color:#16a34a}
+.att-btn.absent{border-color:#ef4444;color:#dc2626}
+.att-btn.excused{border-color:#f59e0b;color:#ea580c}
+.att-btn.none{border-color:#e2e8f0;color:#cbd5e1}
+.att-btn:hover{transform:scale(1.1);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.att-btn.flash{animation:flash .3s ease}
+@keyframes flash{0%{box-shadow:0 0 0 0 rgba(32,1,255,.4)}50%{box-shadow:0 0 0 6px rgba(32,1,255,.15)}to{box-shadow:0 0 0 0 rgba(32,1,255,0)}}
+
+/* POPUP MENU */
+.popup-menu{position:fixed;z-index:1000;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);border:1px solid #e2e8f0;padding:4px;min-width:140px;display:none;animation:popFade .15s ease}
+.popup-menu.show{display:block}
+@keyframes popFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.popup-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:background .1s;border:none;width:100%;text-align:left;background:transparent}
+.popup-item:hover{background:#f8fafc}
+.popup-item .pi-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px}
+.popup-item.green .pi-icon{background:#dcfce7;color:#16a34a}
+.popup-item.green{color:#16a34a}
+.popup-item.red .pi-icon{background:#fef2f2;color:#dc2626}
+.popup-item.red{color:#dc2626}
+.popup-item.orange .pi-icon{background:#fff7ed;color:#ea580c}
+.popup-item.orange{color:#ea580c}
+.popup-item.gray .pi-icon{background:#f1f5f9;color:#94a3b8}
+.popup-item.gray{color:#64748b}
+
+/* COMMENT POPUP */
+.comment-popup{position:fixed;z-index:1000;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);border:1px solid #e2e8f0;padding:12px;min-width:240px;display:none;animation:popFade .15s ease}
+.comment-popup.show{display:block}
+.comment-popup .cp-title{font-size:12px;font-weight:700;color:#0f172a;margin-bottom:8px}
+.comment-popup .cp-title i{margin-right:4px}
+.comment-popup select,.comment-popup input{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;outline:none;background:#f8fafc;margin-bottom:6px}
+.comment-popup select:focus,.comment-popup input:focus{border-color:#2001ff}
+.comment-popup .cp-actions{display:flex;gap:6px;margin-top:4px}
+.comment-popup .cp-actions button{flex:1;padding:7px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all .1s}
+.comment-popup .cp-actions .cp-save{background:#2001ff;color:#fff}
+.comment-popup .cp-actions .cp-save:hover{background:#1a00e0}
+.comment-popup .cp-actions .cp-skip{background:#f1f5f9;color:#64748b}
+.comment-popup .cp-actions .cp-skip:hover{background:#e2e8f0}
+
+/* DATE POPOVER */
+.date-popup{position:fixed;z-index:1000;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);border:1px solid #e2e8f0;padding:6px;min-width:170px;display:none;animation:popFade .15s ease}
+.date-popup.show{display:block}
+.date-popup .dp-hdr{font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;padding:6px 10px 8px}
+.date-popup .dp-btn{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;transition:all .1s;border:none;width:100%;text-align:left;background:transparent}
+.date-popup .dp-btn:hover{background:#f8fafc}
+.date-popup .dp-btn .dpi{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px}
+.date-popup .dp-btn.mark .dpi{background:#dcfce7;color:#16a34a}
+.date-popup .dp-btn.mark{color:#16a34a}
+.date-popup .dp-btn.clear .dpi{background:#f1f5f9;color:#94a3b8}
+.date-popup .dp-btn.clear{color:#64748b}
+
+/* SAVE BAR */
+.save-bar{display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid #f1f5f9;background:#fff}
+.save-bar .btn-cancel{padding:8px 20px;border-radius:10px;font-size:13px;font-weight:600;border:none;background:#f1f5f9;color:#64748b;cursor:pointer;transition:background .15s}
+.save-bar .btn-cancel:hover{background:#e2e8f0}
+.save-bar .btn-save{display:inline-flex;align-items:center;gap:6px;padding:8px 20px;border-radius:10px;font-size:13px;font-weight:600;border:none;background:#2001ff;color:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(32,1,255,.25);transition:all .15s}
+.save-bar .btn-save:hover{background:#1a00e0;transform:translateY(-1px)}
+.save-bar .btn-save:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+/* MOBILE */
+.mobile-view{display:none;margin-bottom:80px}
+@media(max-width:768px){.mobile-view{display:block}}
+.m-card{background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 12px rgba(0,0,0,.03);display:flex;align-items:center;gap:12px;cursor:pointer;transition:transform .15s;user-select:none}
+.m-card:active{transform:scale(.98)}
+.m-av{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;position:relative}
+.m-av .ring{position:absolute;inset:-3px;border-radius:12px;border:3px solid transparent}
+.m-av.present{background:#22c55e}
+.m-av.present .ring{border-color:rgba(34,197,94,.3)}
+.m-av.absent{background:#ef4444}
+.m-av.absent .ring{border-color:rgba(239,68,68,.3)}
+.m-av.excused{background:#f59e0b}
+.m-av.excused .ring{border-color:rgba(245,158,11,.3)}
+.m-av.none{background:#94a3b8}
+.m-av.none .ring{border-color:rgba(148,163,184,.3)}
+.m-info{flex:1;min-width:0}
+.m-name{font-size:14px;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:6px}
+.m-status{font-size:12px;font-weight:500;margin-top:2px;display:flex;align-items:center;gap:4px}
+.m-badge{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;border:1.5px solid}
+.m-badge.present{border-color:#86efac;background:#dcfce7;color:#16a34a}
+.m-badge.absent{border-color:#fecaca;background:#fef2f2;color:#dc2626}
+.m-badge.excused{border-color:#fed7aa;background:#fff7ed;color:#ea580c}
+.m-badge.none{border-color:#e2e8f0;background:#f8fafc;color:#cbd5e1}
+
+/* MOBILE SHEET */
+.sheet-overlay{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.35);backdrop-filter:blur(2px);display:none}
+.sheet-overlay.show{display:block}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;z-index:1000;padding:12px 16px 28px;max-height:80vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,.15);transform:translateY(100%);transition:transform .3s}
+.sheet.open{transform:translateY(0)}
+.sheet .s-handle{width:36px;height:4px;border-radius:2px;background:#e2e8f0;margin:0 auto 14px}
+.sheet .s-title{font-size:16px;font-weight:700;color:#0f172a;text-align:center;margin-bottom:14px}
+.sheet .s-btn{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;font-size:15px;font-weight:600;border:1.5px solid;width:100%;text-align:left;cursor:pointer;transition:transform .15s;background:transparent;margin-bottom:8px}
+.sheet .s-btn:active{transform:scale(.98)}
+.sheet .s-btn i{font-size:16px}
+.sheet .s-btn.green{border-color:#86efac;background:#dcfce7;color:#16a34a}
+.sheet .s-btn.red{border-color:#fecaca;background:#fef2f2;color:#dc2626}
+.sheet .s-btn.orange{border-color:#fed7aa;background:#fff7ed;color:#ea580c}
+.sheet .s-btn.gray{border-color:#e2e8f0;background:#f8fafc;color:#64748b}
+.sheet .s-notes-trigger{display:block;margin:8px auto 0;width:36px;height:36px;border-radius:50%;border:1.5px dashed #e2e8f0;background:#f8fafc;cursor:pointer;color:#94a3b8;transition:all .15s;font-size:16px}
+.sheet .s-notes-trigger:hover{color:#2001ff;border-color:#2001ff;background:#eef0ff}
+.sheet .s-notes{display:none;margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0}
+.sheet .s-notes.show{display:block}
+.sheet .s-notes label{font-size:12px;font-weight:600;color:#64748b;display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.sheet .s-notes label i{color:#6366f1}
+.sheet .s-notes .flex-row{display:flex;gap:8px;flex-wrap:wrap}
+.sheet .s-notes select,.sheet .s-notes input{flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:13px;outline:none;background:#f8fafc;min-width:100px}
+.sheet .s-notes .save-note-btn{padding:10px 16px;border-radius:10px;border:none;background:#2001ff;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+
+/* HISTORY */
+.hist-box{margin-top:8px;max-height:150px;overflow-y:auto}
+.hist-box .hist-title{font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:4px}
+.hist-item{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #f8fafc;font-size:12px;color:#64748b}
+.hist-item .h-date{font-weight:600;color:#94a3b8;white-space:nowrap;min-width:50px;font-size:11px}
+.hist-item .h-status{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap}
+.hist-item .h-status.green-bg{background:#dcfce7;color:#16a34a}
+.hist-item .h-status.red-bg{background:#fef2f2;color:#dc2626}
+.hist-item .h-status.orange-bg{background:#fff7ed;color:#ea580c}
+.hist-item .h-notes{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* TOAST */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:600;display:none;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.toast.success{background:#16a34a;color:#fff}
+.toast.error{background:#dc2626;color:#fff}
+
+/* HISTORY DRAWER */
+.hist-overlay{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.35);backdrop-filter:blur(2px);display:none}
+.hist-overlay.show{display:block}
+.hist-drawer{position:fixed;top:0;right:0;bottom:0;z-index:9999;background:#fff;box-shadow:-8px 0 40px rgba(0,0,0,.15);width:380px;max-width:calc(100vw - 40px);display:none;flex-direction:column;animation:slideInRight .25s ease}
+.hist-drawer.show{display:flex}
+@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.hist-drawer-hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid #f1f5f9;flex-shrink:0}
+.hist-drawer-hdr span{font-size:15px;font-weight:700;color:#0f172a}
+.hist-drawer-close{width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.hist-drawer-close:hover{background:#e2e8f0;color:#64748b}
+.hist-drawer-body{padding:14px 20px 20px;overflow-y:auto;flex:1}
+.hist-drawer-body .hist-item{padding:10px 0;border-bottom:1px solid #f8fafc;font-size:13px}
+.hist-drawer-body .hist-item:last-child{border-bottom:none}
+
+/* Inline Tarix & Izohlar */
+.inline-history{margin:16px;background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.05);overflow:hidden}
+.inline-history .ih-title{padding:14px 16px;font-size:14px;font-weight:700;color:#0f172a;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px}
+.inline-history .ih-title i{color:#2001ff}
+.inline-history .ih-list{max-height:480px;overflow-y:auto}
+.inline-history .ih-item{padding:10px 16px;border-bottom:1px solid #f8fafc;display:flex;flex-direction:column;gap:3px}
+.inline-history .ih-item:last-child{border-bottom:none}
+.inline-history .ih-row1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.inline-history .ih-name{font-weight:600;font-size:13px;color:#0f172a;min-width:120px}
+.inline-history .ih-name:hover{color:#2001ff}
+.inline-history .ih-date{font-size:11px;color:#94a3b8;white-space:nowrap}
+.inline-history .ih-status{font-size:10px;font-weight:600;padding:2px 10px;border-radius:20px;white-space:nowrap}
+.inline-history .ih-notes{font-size:12px;color:#64748b;padding-left:2px}
+.inline-history .ih-teacher{font-size:10px;color:#cbd5e1;padding-left:2px}
+.inline-history .ih-teacher i{font-size:8px;margin-right:4px}
+.inline-history .ih-empty{padding:40px 16px;text-align:center;color:#94a3b8;font-size:13px}
+</style>
+{% endblock %}
+{% block content %}
+<div style="padding:0;">
+
+{% if not lesson_dates %}
+<div class="table-card" style="text-align:center;padding:60px 20px;">
+  <i class="fas fa-calendar-times" style="font-size:36px;color:#2001ff;opacity:.3;margin-bottom:12px;"></i>
+  <h3 style="font-size:16px;color:#0f172a;margin-bottom:4px;">Dars kunlari topilmadi</h3>
+  <p style="font-size:13px;color:#94a3b8;">Bu oyda dars kunlari yo'q</p>
+</div>
+{% else %}
+
+<!-- HEADER -->
+<div class="header-row">
+  <div class="header-left">
+    {% if is_admin %}
+    <a href="{% url 'group_detail' group.pk %}" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    {% else %}
+    <a href="{% url 'teacher_group_detail' group.pk %}" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    {% endif %}
+    <h1>Davomat jadvali</h1>
+  </div>
+  <div class="header-right">
+    <a href="?export=1" class="export-btn"><i class="fas fa-download"></i> Export</a>
+    <form method="GET" id="monthForm" style="display:flex;gap:8px;">
+      <select name="year" class="sel" onchange="document.getElementById('monthForm').submit()">
+        {% for y in years %}<option value="{{ y }}" {% if y == sel_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+      <select name="month" class="sel" onchange="document.getElementById('monthForm').submit()">
+        {% for m in months_uz %}<option value="{{ forloop.counter }}" {% if forloop.counter == sel_month %}selected{% endif %}>{{ m }}</option>{% endfor %}
+      </select>
+    </form>
+    <input type="date" id="quickDate" class="sel" style="padding:5px 10px;font-size:12px;" value="{{ specific_date|date:'Y-m-d'|default:today|date:'Y-m-d' }}">
+    <button class="export-btn" onclick="goToDate()" title="Tanlangan sanaga o'tish"><i class="fas fa-calendar-day"></i></button>
+  </div>
+</div>
+
+<!-- GURUH INFO TABLE (detail page style) -->
+<div style="background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);padding:20px 24px;margin-bottom:20px;">
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <tbody>
+      <tr>
+        <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;width:160px;">Nomi</td>
+        <td style="padding:6px 12px 6px 0;color:#1e293b;">{{ group.name }}</td>
+        <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;width:160px;">Darjasi</td>
+        <td style="padding:6px 12px 6px 0;color:#1e293b;">{{ group.course.name }}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;">Kurs vaqti</td>
+        <td style="padding:6px 12px 6px 0;color:#1e293b;">
+          {% with lt=group.lesson_times.first %}
+            {{ lt.start_time|time:"H:i"|default:"-" }} - {{ lt.end_time|time:"H:i"|default:"-" }}
+          {% endwith %}
+        </td>
+        <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;">Turi</td>
+        <td style="padding:6px 12px 6px 0;color:#1e293b;">
+          <span style="background:#dbeafe;color:#1d4ed8;padding:2px 12px;border-radius:20px;font-size:12px;font-weight:500;">{{ group.get_education_type_display }}</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;">Xona</td>
+        <td style="padding:6px 12px 6px 0;color:#1e293b;">{{ group.room.name|default:"-" }}</td>
+        <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;">Kurs</td>
+        <td style="padding:6px 12px 6px 0;color:#1e293b;">{{ group.course.name }}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;">Kun</td>
+        <td style="padding:6px 12px 6px 0;color:#1e293b;">
+          <span style="background:#fef3c7;color:#b45309;padding:2px 12px;border-radius:20px;font-size:12px;font-weight:500;">{{ group.get_day_type_display }}</span>
+          kunlar: {% for lt in group.lesson_times.all %}{{ lt.days }}{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}
+        </td>
+        <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;">O'qituvchi</td>
+        <td style="padding:6px 12px 6px 0;color:#1e293b;">{{ group.teacher.first_name|default:"" }} {{ group.teacher.last_name|default:"-" }}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;">Guruh vaqti</td>
+        <td style="padding:6px 12px 6px 0;color:#1e293b;" colspan="3">
+          {{ group.start_date|date:"d.m.Y" }} - {{ group.end_date|date:"d.m.Y" }}
+          {% if is_ending_soon %}
+            <span style="background:#dc2626;color:white;font-size:12px;font-weight:600;padding:2px 10px;border-radius:20px;margin-left:8px;">Tugashiga {{ remaining_days }} kun</span>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- STATS ROW -->
+<div class="stats-row">
+  <div class="stat-chip total"><span class="num">{{ total }}</span> Jami o'quvchi</div>
+  <div class="stat-chip present"><span class="num" id="sKel">{{ present_count }}</span> Keldi</div>
+  <div class="stat-chip absent"><span class="num" id="sKelma">{{ absent_count }}</span> Kelmadi</div>
+  <div class="stat-chip excused"><span class="num" id="sSab">{{ excused_count }}</span> Sababli</div>
+</div>
+
+<!-- DESKTOP TABLE -->
+<div class="desktop-wrap">
+<div class="table-card">
+<div class="table-scroll">
+<table>
+<thead><tr>
+  <th class="num-col">№</th>
+  <th class="name-col">O'quvchi</th>
+  <th style="min-width:120px">Sabab</th>
+  {% for ld in lesson_dates %}
+  <th class="lesson-col" onclick="openDatePopup(this,'{{ ld|date:"Y-m-d" }}')">
+    <span class="d-num">{{ forloop.counter }}-dars</span>
+    <span class="d-date">{{ ld|date:"d.m" }}</span>
+    <span class="day-indicator" data-date="{{ ld|date:"Y-m-d" }}" id="di-{{ forloop.counter }}">–</span>
+  </th>
+  {% endfor %}
+  <th style="min-width:50px;text-align:center;font-size:12px;"><i class="fas fa-history"></i></th>
+</tr></thead>
+<tbody>
+{% for s in students %}{% with dn=att_notes|get_key:s.id %}
+<tr data-sid="{{ s.id }}" data-name="{{ s.first_name|lower }} {{ s.last_name|lower }}">
+  <td class="num-col">{{ forloop.counter }}</td>
+  <td class="name-col">
+    <div class="name-cell">
+      <div class="name-av">{{ s.first_name|first|upper }}{{ s.last_name|first|upper }}</div>
+      <div style="min-width:0">
+        <div class="name-text" style="flex-wrap:wrap"><a href="{% url 'student_profile' s.id %}" style="color:#0f172a;text-decoration:none;">{{ s.first_name }} {{ s.last_name }}</a></div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Tel: +998 {{ s.phone }}</div>
+        {% with nl=student_notes_list|get_key:s.id %}
+        {% if nl %}
+        <div style="font-size:11px;color:#dc2626;margin-top:2px;line-height:1.3;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {% for n in nl %}{% if forloop.first %}{{ n.notes }}{% endif %}{% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+  </td>
+  <td class="reason-col" id="rc-{{ s.id }}">{% with dn=att_notes|get_key:s.id %}{% if dn %}{% for ld in lesson_dates reversed %}{% with di=ld|date:"Y-m-d" %}{% with hn=dn|get_item:di %}{% if hn %}{{ hn }}{% endif %}{% endwith %}{% endwith %}{% endfor %}{% endif %}{% endwith %}</td>
+  {% for ld in lesson_dates %}{% with di=ld|date:"Y-m-d" %}{% with st=att_matrix|get_key:s.id|get_item:di %}
+  <td class="att-cell">
+    <button class="att-btn {% if st %}{{ st }}{% else %}none{% endif %}"
+            onclick="openPopup(this,{{ s.id }},'{{ di }}')"
+            data-att="true"
+            title="{% if st == 'present' %}Keldi{% elif st == 'absent' %}Kelmadi{% elif st == 'excused' %}Sababli{% else %}Belgilanmagan{% endif %}">
+      {% if st == 'present' %}<i class="fas fa-check"></i>
+      {% elif st == 'absent' %}<i class="fas fa-times"></i>
+      {% elif st == 'excused' %}<i class="fas fa-exclamation"></i>
+      {% else %}<i class="fas fa-minus"></i>{% endif %}
+    </button>
+  </td>
+  {% endwith %}{% endwith %}{% endfor %}
+  <td style="text-align:center;padding:4px;">
+    <button class="hist {% if student_att_history|get_key:s.id %}active{% endif %}" onclick="event.stopPropagation();openHistory({{ s.id }})" title="Tarix va izohlar" style="position:static;"><i class="fas fa-history"></i></button>
+  </td>
+</tr>
+{% endwith %}{% empty %}
+<tr><td colspan="{{ lesson_dates|length|add:4 }}" style="text-align:center;padding:40px;color:#94a3b8;"><i class="fas fa-users" style="font-size:24px;opacity:.4;display:block;margin-bottom:8px;"></i>O'quvchilar yo'q</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+<!-- SAVE BAR -->
+{% if lesson_dates %}
+<div class="save-bar">
+  <button class="btn-cancel" onclick="history.back()"><i class="fas fa-times"></i> Bekor qilish</button>
+  <button class="btn-save" onclick="saveAll()"><i class="fas fa-check"></i> Saqlash</button>
+</div>
+{% endif %}
+</div>
+</div>
+
+<!-- MOBILE -->
+<div class="mobile-view">
+{% for s in students %}
+<div class="m-card" data-sid="{{ s.id }}" data-name="{{ s.first_name|lower }} {{ s.last_name|lower }}" onclick="openSheet({{ s.id }})">
+  {% with st=att_matrix|get_key:s.id|get_item:today|default:"none" %}
+  <div class="m-av {{ st }}">{{ s.first_name|first|upper }}{{ s.last_name|first|upper }}<div class="ring"></div></div>
+  <div class="m-info">
+    <div class="m-name">{{ s.first_name }} {{ s.last_name }}
+      <button class="hist" onclick="event.stopPropagation();openHistory({{ s.id }})"><i class="fas fa-history"></i></button>
+    </div>
+    <div class="m-status" id="ms-{{ s.id }}">
+      {% if st == 'present' %}<i class="fas fa-check" style="color:#16a34a"></i> Keldi
+      {% elif st == 'absent' %}<i class="fas fa-times" style="color:#dc2626"></i> Kelmadi
+      {% elif st == 'excused' %}<i class="fas fa-exclamation" style="color:#ea580c"></i> Sababli
+      {% else %}<i class="fas fa-minus" style="color:#cbd5e1"></i> Belgilanmagan{% endif %}
+    </div>
+  </div>
+  <div class="m-badge {{ st }}">
+    {% if st == 'present' %}<i class="fas fa-check"></i>
+    {% elif st == 'absent' %}<i class="fas fa-times"></i>
+    {% elif st == 'excused' %}<i class="fas fa-exclamation"></i>
+    {% else %}<i class="fas fa-minus"></i>{% endif %}
+  </div>
+  {% endwith %}
+</div>
+{% empty %}
+<div style="text-align:center;padding:40px;color:#94a3b8;"><i class="fas fa-users" style="font-size:24px;opacity:.4;display:block;margin-bottom:8px;"></i>O'quvchilar yo'q</div>
+{% endfor %}
+</div>
+
+{% endif %}
+</div>
+
+<!-- TARIX & IZOHLAR (INLINE) -->
+<div class="inline-history" id="inlineHistory">
+  <div class="ih-title" style="cursor:pointer;user-select:none;" onclick="toggleHistory()">
+    <i class="fas fa-history"></i> Tarix &amp; Izohlar
+    <span id="histToggleIcon" style="margin-left:auto;font-size:12px;color:#94a3b8;"><i class="fas fa-chevron-up"></i></span>
+  </div>
+  <div class="ih-list" id="inlineHistList">
+    {% for s in students %}
+      {% with hist=student_att_history|get_key:s.id %}
+        {% if hist %}
+          {% for x in hist %}
+            <div class="ih-item">
+              <div class="ih-row1">
+                <a href="{% url 'student_profile' s.id %}" class="ih-name" style="text-decoration:none;color:#0f172a;">{{ s.first_name }} {{ s.last_name }}</a>
+                <span class="ih-date">{{ x.datetime }}</span>
+                <span class="ih-status {% if x.status == 'Keldi' %}green-bg{% elif x.status == 'Kelmadi' %}red-bg{% else %}orange-bg{% endif %}">{{ x.status }}</span>
+              </div>
+              <div class="ih-notes">{{ x.notes|default:"—" }}</div>
+              <div class="ih-teacher"><i class="fas fa-user"></i> {{ x.teacher|default:"Admin" }}</div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+    {% endfor %}
+    {% if students|length == 0 %}
+      <div class="ih-empty">Ma'lumot yo'q</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- POPUP MENU -->
+<div class="popup-menu" id="popupMenu">
+  <button class="popup-item green" onclick="pickStatus('present')"><span class="pi-icon"><i class="fas fa-check"></i></span> Keldi</button>
+  <button class="popup-item red" onclick="pickStatus('absent')"><span class="pi-icon"><i class="fas fa-times"></i></span> Kelmadi</button>
+  <button class="popup-item orange" onclick="pickStatus('excused')"><span class="pi-icon"><i class="fas fa-exclamation"></i></span> Sababli</button>
+  <button class="popup-item gray" onclick="pickStatus('none')"><span class="pi-icon"><i class="fas fa-minus"></i></span> Belgilanmagan</button>
+</div>
+
+<!-- COMMENT POPUP -->
+<div class="comment-popup" id="commentPopup">
+  <div class="cp-title" id="cpTitle"><i class="fas fa-comment"></i> Izoh qo'shish</div>
+  <select id="cpReason"><option value="">Sababni tanlang...</option>{% for r in absence_reasons %}<option value="{{ r.name }}" data-type="{{ r.reason_type }}">{{ r.name }}</option>{% endfor %}</select>
+  <input type="text" id="cpComment" placeholder="Izoh yozing...">
+  <div class="cp-actions">
+    <button class="cp-skip" onclick="closeCommentPopup()">Bekor qilish</button>
+    <button class="cp-save" onclick="saveComment()">Saqlash</button>
+  </div>
+</div>
+
+<!-- DATE POPUP -->
+<div class="date-popup" id="datePopup">
+  <div class="dp-hdr" id="dpTitle">1-dars · 29.06</div>
+  <button class="dp-btn mark" onclick="markAllPresent()"><span class="dpi"><i class="fas fa-check"></i></span> Barchini Keldi qilish</button>
+  <button class="dp-btn clear" onclick="clearAllDate()"><span class="dpi"><i class="fas fa-undo"></i></span> Barchini olib tashlash</button>
+</div>
+
+<!-- MOBILE SHEET OVERLAY -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
+<!-- MOBILE SHEET -->
+<div class="sheet" id="sheet">
+  <div class="s-handle"></div>
+  <div class="s-title" id="sheetName">O'quvchi</div>
+  <button class="s-btn green" onclick="sheetSetStatus('present')"><i class="fas fa-check-circle"></i> Keldi</button>
+  <button class="s-btn red" onclick="openDrawerFromSheet('absent')"><i class="fas fa-times-circle"></i> Kelmadi</button>
+  <button class="s-btn orange" onclick="openDrawerFromSheet('excused')"><i class="fas fa-exclamation-circle"></i> Sababli</button>
+  <button class="s-btn gray" onclick="sheetSetStatus('none')"><i class="fas fa-minus-circle"></i> Belgilanmagan</button>
+  <button class="s-notes-trigger" id="notesTrigger" onclick="toggleNotes()"><i class="fas fa-plus"></i></button>
+  <div class="s-notes" id="sheetNotes">
+    <label><i class="fas fa-comment"></i> Izoh qo'shish</label>
+    <div class="flex-row">
+      <select id="sheetReason"><option value="">Sababni tanlang...</option>{% for r in absence_reasons %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}</select>
+      <input type="text" id="sheetComment" placeholder="Izoh yozing...">
+      <button class="save-note-btn" onclick="saveSheetNotes()"><i class="fas fa-plus"></i></button>
+    </div>
+    <div class="hist-box" id="sheetHistory"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- HISTORY DRAWER -->
+<div class="hist-overlay" id="histOverlay" onclick="closeHistory()"></div>
+<div class="hist-drawer" id="histDrawer">
+  <div class="hist-drawer-hdr">
+    <span id="histDrawerTitle">Tarix</span>
+    <button class="hist-drawer-close" onclick="closeHistory()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="hist-drawer-body" id="histDrawerBody"></div>
+</div>
+
+<script>
+var CSRF = '{{ csrf_token }}';
+var GROUP_ID = {{ group.id }};
+var CAN_EDIT = {{ can_edit|yesno:"true,false" }};
+var IS_ADMIN = {{ is_admin|yesno:"true,false" }};
+var ST_ICONS = {'present':'<i class="fas fa-check"></i>','absent':'<i class="fas fa-times"></i>','excused':'<i class="fas fa-exclamation"></i>','none':'<i class="fas fa-minus"></i>'};
+var SNAMES = { {% for s in students %}{{ s.id }}:'{{ s.first_name|escapejs }} {{ s.last_name|escapejs }}',{% endfor %} };
+try{
+  var HIST = { {% for s in students %}{% with h=student_att_history|get_key:s.id %}{% if h %}{{ s.id }}:[{% for x in h %}{d:'{{ x.date }}',dt:'{{ x.datetime }}',st:'{{ x.status }}',nt:'{{ x.notes|escapejs }}',t:'{{ x.teacher|escapejs }}'},{% endfor %}],{% endif %}{% endwith %}{% endfor %} };
+}catch(e){console.error('HIST error:',e);var HIST={}}
+var popCtx = null;
+var datePopCtx = null;
+var sheetCtx = null;
+var sheetNotesOpen = false;
+var commentCtx = null;
+
+// ===== POPUP =====
+function openPopup(btn,sid,ds){
+  closePopup();
+  var p=document.getElementById('popupMenu');
+  var r=btn.getBoundingClientRect();
+  var t=r.bottom+6,l=r.left+r.width/2-70;
+  if(l<8)l=8;
+  if(l+140>window.innerWidth)l=window.innerWidth-148;
+  p.style.top=t+'px';p.style.left=l+'px';p.style.position='fixed';p.classList.add('show');
+  popCtx={btn:btn,sid:sid,date:ds};
+}
+function closePopup(){document.getElementById('popupMenu').classList.remove('show');popCtx=null}
+
+// ===== PICK STATUS =====
+function pickStatus(st){
+  if(!popCtx)return;
+  var sid=popCtx.sid,ds=popCtx.date,btn=popCtx.btn;
+  closePopup();
+  saveOne(sid,ds,st,function(){
+    if(btn){btn.className='att-btn '+st;btn.innerHTML=ST_ICONS[st];btn.title=st.charAt(0).toUpperCase()+st.slice(1)}
+    updateAll();
+    if(st==='absent'||st==='excused'){openCommentPopup(btn,sid,ds,st)}
+  })
+}
+
+// ===== COMMENT POPUP =====
+function openCommentPopup(btn,sid,ds,st){
+  closeCommentPopup();
+  var p=document.getElementById('commentPopup');
+  var r=btn.getBoundingClientRect();
+  var t=r.bottom+6,l=r.left+r.width/2-120;
+  if(l<8)l=8;
+  if(l+240>window.innerWidth)l=window.innerWidth-248;
+  p.style.top=t+'px';p.style.left=l+'px';p.style.position='fixed';p.classList.add('show');
+  document.getElementById('cpTitle').innerHTML='<i class="fas fa-'+(st==='absent'?'times':'exclamation')+'" style="color:'+(st==='absent'?'#dc2626':'#ea580c')+'"></i> '+(st==='absent'?'Kelmadi':'Sababli')+' — Izoh';
+  var sel=document.getElementById('cpReason');
+  sel.value='';
+  sel.querySelectorAll('option').forEach(function(o){
+    var t=o.getAttribute('data-type');
+    o.style.display=(t==='both'||t===st||!o.value)?'':'none';
+  });
+  document.getElementById('cpComment').value='';
+  commentCtx={sid:sid,date:ds,st:st,btn:btn};
+}
+function closeCommentPopup(){
+  document.getElementById('commentPopup').classList.remove('show');
+  commentCtx=null;
+}
+function saveComment(){
+  if(!commentCtx)return;
+  var sid=commentCtx.sid,ds=commentCtx.date,st=commentCtx.st,btn=commentCtx.btn;
+  var reason=document.getElementById('cpReason').value;
+  var notes=document.getElementById('cpComment').value.trim();
+  var fn='';
+  if(reason)fn=reason;
+  if(notes)fn=fn?fn+' | '+notes:notes;
+  closeCommentPopup();
+  if(!fn)return;
+  saveWithNote(sid,ds,st,fn,function(){
+    if(btn){btn.className='att-btn '+st;btn.innerHTML=ST_ICONS[st];btn.title=st}
+    updateAll()
+  });
+}
+
+// ===== SAVE =====
+async function saveOne(sid,ds,st,cb){
+  try{
+    console.log('saveOne',sid,ds,st);
+    var r=await fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify({group_id:GROUP_ID,allow_dated:true,records:[{student_id:sid,date:ds,status:st}]})});
+    var txt=await r.text();
+    console.log('saveOne response:',txt);
+    var d=JSON.parse(txt);
+    if(d.ok){showToast(st==='present'?'Keldi':st==='absent'?'Kelmadi':'Sababli');if(cb)cb()}
+    else showToast(d.error||'Xatolik',true)
+  }catch(e){console.error('saveOne error:',e);showToast('Xatolik: '+e.message,true)}
+}
+async function saveWithNote(sid,ds,st,nt,cb){
+  try{
+    console.log('saveWithNote',sid,ds,st,nt);
+    var r=await fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify({group_id:GROUP_ID,allow_dated:true,records:[{student_id:sid,date:ds,status:st,notes:nt}]})});
+    var txt=await r.text();
+    console.log('saveWithNote response:',txt);
+    var d=JSON.parse(txt);
+    if(d.ok){showToast('Saqlangan');if(cb)cb()}
+    else showToast(d.error||'Xatolik',true)
+  }catch(e){console.error('saveWithNote error:',e);showToast('Xatolik: '+e.message,true)}
+}
+
+// ===== DRAWER (DESKTOP) =====
+var drCtx=null;
+function openDrawer(sid,ds,st){
+  drCtx={sid:sid,date:ds,st:st};
+  var ov=document.getElementById('sheetOverlay');ov.classList.add('show');
+  var sh=document.getElementById('sheet');sh.classList.add('open');
+  document.getElementById('sheetName').textContent=SNAMES[sid]||'O\'quvchi';
+  document.getElementById('sheetName').setAttribute('data-sid',sid);
+  document.getElementById('sheetName').setAttribute('data-date',ds);
+  document.getElementById('sheetName').setAttribute('data-st',st);
+  document.getElementById('sheetReason').value='';
+  document.getElementById('sheetComment').value='';
+  sheetNotesOpen=false;document.getElementById('sheetNotes').classList.remove('show');
+  loadHistory(sid);
+}
+function closeDrawer(){
+  document.getElementById('sheetOverlay').classList.remove('show');
+  document.getElementById('sheet').classList.remove('open');
+  drCtx=null;
+}
+function saveDrawer(){
+  if(!drCtx)return;
+  var sid=drCtx.sid,ds=drCtx.date,st=drCtx.st;
+  var reason=document.getElementById('sheetReason').value;
+  var notes=document.getElementById('sheetComment').value.trim();
+  var fn='';
+  if(reason)fn=reason;
+  if(notes)fn=fn?fn+' | '+notes:notes;
+  if(!fn){showToast('Sabab yoki izoh yozing',true);return}
+  closeDrawer();
+  saveWithNote(sid,ds,st,fn,function(){
+    document.querySelectorAll('tr[data-sid="'+sid+'"] .att-btn').forEach(function(b){
+      b.className='att-btn '+st;b.innerHTML=ST_ICONS[st];b.title=st;
+    });
+    updateAll()
+  });
+}
+
+// ===== MOBILE SHEET =====
+function openSheet(sid){
+  sheetCtx=sid;
+  document.getElementById('sheetName').textContent=SNAMES[sid]||'O\'quvchi';
+  document.getElementById('sheetName').setAttribute('data-sid',sid);
+  var ov=document.getElementById('sheetOverlay');ov.classList.add('show');
+  var sh=document.getElementById('sheet');sh.classList.add('open');
+  document.getElementById('sheetReason').value='';
+  document.getElementById('sheetComment').value='';
+  sheetNotesOpen=false;document.getElementById('sheetNotes').classList.remove('show');
+  loadHistory(sid);
+}
+function closeSheet(){
+  document.getElementById('sheetOverlay').classList.remove('show');
+  document.getElementById('sheet').classList.remove('open');
+  sheetCtx=null;drCtx=null;
+}
+function sheetSetStatus(st){
+  if(sheetCtx===null)return;
+  var sid=sheetCtx;
+  var today='{{ today|date:"Y-m-d" }}';
+  saveOne(sid,today,st,function(){
+    updateMobileCard(sid,st);updateAll();closeSheet()
+  })
+}
+function openDrawerFromSheet(st){
+  if(sheetCtx===null)return;
+  openDrawer(sheetCtx,'{{ today|date:"Y-m-d" }}',st);
+  document.getElementById('sheetName').textContent=SNAMES[sheetCtx];
+  document.getElementById('sheetName').setAttribute('data-sid',sheetCtx);
+}
+function toggleNotes(){
+  sheetNotesOpen=!sheetNotesOpen;
+  document.getElementById('sheetNotes').classList.toggle('show',sheetNotesOpen);
+}
+function saveSheetNotes(){
+  var sid=parseInt(document.getElementById('sheetName').getAttribute('data-sid'));
+  var ds=document.getElementById('sheetName').getAttribute('data-date');
+  var st=document.getElementById('sheetName').getAttribute('data-st');
+  if(!sid||!ds||!st)return;
+  var reason=document.getElementById('sheetReason').value;
+  var notes=document.getElementById('sheetComment').value.trim();
+  var fn='';
+  if(reason)fn=reason;
+  if(notes)fn=fn?fn+' | '+notes:notes;
+  if(!fn){showToast('Sabab yoki izoh yozing',true);return}
+  closeSheet();closeDrawer();
+  saveWithNote(sid,ds,st,fn,function(){
+    updateMobileCard(sid,st);updateAll()
+  });
+}
+function loadHistory(sid){
+  var hc=document.getElementById('sheetHistory');
+  var h=HIST[sid]||[];
+  if(h.length){
+    var html='<div class="hist-title">Tarix</div>';
+    for(var x of h){
+      var sc=x.st==='Keldi'?'green-bg':x.st==='Kelmadi'?'red-bg':'orange-bg';
+      html+='<div class="hist-item" style="flex-wrap:wrap;"><span class="h-date">'+x.d.slice(5)+'</span><span class="h-status '+sc+'">'+x.st+'</span><span class="h-notes">'+(x.nt&&x.nt!=='None'?x.nt:'')+'</span>'+(x.t?'<span style="font-size:9px;color:#cbd5e1;margin-left:auto;width:100%"><i class="fas fa-user" style="font-size:7px;margin-right:3px;"></i>'+x.t+'</span>':'')+'</div>';
+    }
+    hc.innerHTML=html;
+  }else{hc.innerHTML=''}
+}
+
+// ===== QUICK DATE =====
+function goToDate(){
+  var d=document.getElementById('quickDate').value;
+  if(!d)return;
+  window.location.href='?date='+d;
+}
+
+// ===== HISTORY DRAWER =====
+function openHistory(sid){
+  var name=SNAMES[sid]||'O\'quvchi';
+  document.getElementById('histDrawerTitle').textContent=name+' — Tarix & Izohlar';
+  var body=document.getElementById('histDrawerBody');
+  var h=HIST[sid]||[];
+  if(!h.length){
+    body.innerHTML='<div style="text-align:center;padding:40px 0;color:#94a3b8;font-size:13px;"><i class="fas fa-history" style="font-size:28px;opacity:.3;display:block;margin-bottom:10px;"></i>Tarix topilmadi</div>';
+  }else{
+    var html='';
+    for(var x of h){
+      var sc=x.st==='Keldi'?'green-bg':x.st==='Kelmadi'?'red-bg':'orange-bg';
+      html+='<div class="hist-item" style="flex-direction:column;align-items:stretch;gap:2px;padding:8px 0;">';
+      html+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+      html+='<span style="font-weight:600;color:#0f172a;white-space:nowrap;font-size:12px;min-width:80px;">'+x.d+'</span>';
+      html+='<span class="h-status '+sc+'">'+x.st+'</span>';
+      html+='</div>';
+      html+='<div style="color:#64748b;font-size:12px;padding-left:2px;">'+(x.nt&&x.nt!=='None'?x.nt:'<span style="color:#cbd5e1;">&mdash;</span>')+'</div>';
+      html+='<div style="color:#cbd5e1;font-size:10px;padding-left:2px;"><i class="fas fa-user" style="font-size:8px;margin-right:4px;"></i>'+(x.t||'Admin')+'</div>';
+      html+='</div>';
+    }
+    body.innerHTML=html;
+  }
+  document.getElementById('histOverlay').classList.add('show');
+  document.getElementById('histDrawer').classList.add('show');
+}
+function closeHistory(){
+  document.getElementById('histOverlay').classList.remove('show');
+  document.getElementById('histDrawer').classList.remove('show');
+}
+
+// ===== DATE POPUP =====
+function openDatePopup(th,ds){
+  closeDatePopup();
+  var p=document.getElementById('datePopup');
+  var r=th.getBoundingClientRect();
+  var t=r.bottom+4,l=r.left+r.width/2-90;
+  if(l<4)l=4;
+  if(l+180>window.innerWidth)l=window.innerWidth-184;
+  p.style.top=t+'px';p.style.left=l+'px';p.style.position='fixed';p.classList.add('show');
+  var dn=th.querySelector('.d-num').textContent;
+  var dd=th.querySelector('.d-date').textContent;
+  document.getElementById('dpTitle').textContent=dn+' · '+dd;
+  datePopCtx={date:ds};
+}
+function closeDatePopup(){document.getElementById('datePopup').classList.remove('show');datePopCtx=null}
+
+function markAllPresent(){
+  if(!datePopCtx)return;
+  var ds=datePopCtx.date;closeDatePopup();
+  var records=[];
+  document.querySelectorAll('tr[data-sid]').forEach(function(tr){
+    var sid=parseInt(tr.getAttribute('data-sid'));if(!sid)return;
+    records.push({student_id:sid,date:ds,status:'present'});
+  });
+  if(!records.length)return;
+  saveBatch(records,function(){
+    document.querySelectorAll('tr[data-sid] .att-btn').forEach(function(btn){
+      var onclick=btn.getAttribute('onclick')||'';
+      var m=onclick.match(/'([^']+)'\)/);
+      if(m&&m[1]===ds){btn.className='att-btn present';btn.innerHTML=ST_ICONS.present;btn.title='present'}
+    });
+    updateAll()
+  })
+}
+function clearAllDate(){
+  if(!datePopCtx)return;
+  var ds=datePopCtx.date;closeDatePopup();
+  var records=[];
+  document.querySelectorAll('tr[data-sid]').forEach(function(tr){
+    var sid=parseInt(tr.getAttribute('data-sid'));if(!sid)return;
+    records.push({student_id:sid,date:ds,status:'none'});
+  });
+  if(!records.length)return;
+  saveBatch(records,function(){
+    document.querySelectorAll('tr[data-sid] .att-btn').forEach(function(btn){
+      var onclick=btn.getAttribute('onclick')||'';
+      var m=onclick.match(/'([^']+)'\)/);
+      if(m&&m[1]===ds){btn.className='att-btn none';btn.innerHTML=ST_ICONS.none;btn.title='none'}
+    });
+    updateAll()
+  })
+}
+async function saveBatch(records,cb){
+  try{
+    console.log('saveBatch',records.length,'records');
+    var r=await fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify({group_id:GROUP_ID,allow_dated:true,records:records})});
+    var txt=await r.text();
+    console.log('saveBatch response:',txt);
+    var d=JSON.parse(txt);
+    if(d.ok){showToast('Bajarildi');if(cb)cb()}
+    else showToast(d.error||'Xatolik',true)
+  }catch(e){console.error('saveBatch error:',e);showToast('Xatolik: '+e.message,true)}
+}
+
+// ===== UPDATE =====
+function updateDayIndicators(){
+  document.querySelectorAll('th.lesson-col').forEach(function(th){
+    var di=th.querySelector('.day-indicator');if(!di)return;
+    var date=di.getAttribute('data-date');if(!date)return;
+    var p=0,a=0,e=0,t=0;
+    document.querySelectorAll('tr[data-sid]').forEach(function(tr){
+      tr.querySelectorAll('.att-btn').forEach(function(btn){
+        var onclick=btn.getAttribute('onclick')||'';
+        var m=onclick.match(/'([^']+)'\)/);
+        if(m&&m[1]===date){
+          t++;
+          if(btn.classList.contains('present'))p++;
+          else if(btn.classList.contains('absent'))a++;
+          else if(btn.classList.contains('excused'))e++;
+        }
+      });
+    });
+    if(t===0){di.className='day-indicator none-marked';di.innerHTML='–'}
+    else if(a===0&&e===0){di.className='day-indicator all-present';di.innerHTML='✓'}
+    else if(a+e===t){di.className='day-indicator all-missed';di.innerHTML='✗'}
+    else{di.className='day-indicator some-missed';di.innerHTML='!'}
+  });
+}
+function updateStats(){
+  var c={present:0,absent:0,excused:0};
+  document.querySelectorAll('.att-btn').forEach(function(b){for(var s in c){if(b.classList.contains(s)){c[s]++;break}}});
+  document.getElementById('sKel').textContent=c.present;
+  document.getElementById('sKelma').textContent=c.absent;
+  document.getElementById('sSab').textContent=c.excused;
+}
+function updateMobileCard(sid,st){
+  var card=document.querySelector('.m-card[data-sid="'+sid+'"]');
+  if(!card)return;
+  var av=card.querySelector('.m-av');av.className='m-av '+st;
+  var badge=card.querySelector('.m-badge');badge.className='m-badge '+st;
+  var icons={'present':'<i class="fas fa-check"></i>','absent':'<i class="fas fa-times"></i>','excused':'<i class="fas fa-exclamation"></i>','none':'<i class="fas fa-minus"></i>'};
+  var labels={'present':'Keldi','absent':'Kelmadi','excused':'Sababli','none':'Belgilanmagan'};
+  var colors={'present':'#16a34a','absent':'#dc2626','excused':'#ea580c','none':'#cbd5e1'};
+  badge.innerHTML=icons[st]||icons.none;
+  var ms=document.getElementById('ms-'+sid);
+  if(ms)ms.innerHTML='<i class="fas fa-'+({'present':'check','absent':'times','excused':'exclamation','none':'minus'}[st]||'minus')+'" style="color:'+(colors[st]||'#cbd5e1')+'"></i> '+(labels[st]||'Belgilanmagan');
+}
+function updateAll(){updateStats();updateDayIndicators()}
+function showToast(msg,err){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+(err?'error':'success');t.style.display='block';
+  clearTimeout(t._t);t._t=setTimeout(function(){t.style.display='none'},2500);
+}
+
+// ===== SAVE ALL =====
+function saveAll(){
+  var records=[];
+  document.querySelectorAll('tr[data-sid]').forEach(function(tr){
+    var sid=parseInt(tr.getAttribute('data-sid'));if(!sid)return;
+    tr.querySelectorAll('.att-btn').forEach(function(btn){
+      var onclick=btn.getAttribute('onclick')||'';
+      var m=onclick.match(/openPopup\(this,\d+,'([^']+)'\)/);
+      if(!m)return;
+      var ds=m[1];
+      var st='';
+      for(var c of btn.classList){if(['present','absent','excused','none'].indexOf(c)!==-1){st=c;break}}
+      if(st&&st!=='none')records.push({student_id:sid,date:ds,status:st,notes:''});
+    });
+  });
+  if(!records.length){showToast('Saqlanadigan ma\'lumot yo\'q',true);return}
+  saveBatch(records,function(){showToast('Davomat saqlandi')});
+}
+
+// ===== EVENTS =====
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.popup-menu')&&!e.target.closest('[data-att]'))closePopup();
+  if(!e.target.closest('.date-popup')&&!e.target.closest('.lesson-col'))closeDatePopup();
+  if(!e.target.closest('.comment-popup'))closeCommentPopup()
+});
+document.addEventListener('DOMContentLoaded',function(){
+  console.log('Davomat page ready: can_edit='+CAN_EDIT+', is_admin='+IS_ADMIN+', group='+GROUP_ID);
+  if(!CAN_EDIT)console.warn('can_edit=false — admin bo\'lsangiz is_staff yoki is_superuser tekshiring');
+  updateAll();
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){closePopup();closeDatePopup();closeSheet();closeDrawer();closeHistory()}});
+  // Tarix toggle state
+  var hst=localStorage.getItem('histToggle');
+  if(hst==='false'){document.getElementById('inlineHistList').style.display='none';document.querySelector('#histToggleIcon i').className='fas fa-chevron-down';}
+});
+function toggleHistory(){
+  var el=document.getElementById('inlineHistList'),ic=document.querySelector('#histToggleIcon i');
+  var show=el.style.display!='none';
+  el.style.display=show?'none':'';
+  ic.className=show?'fas fa-chevron-down':'fas fa-chevron-up';
+  localStorage.setItem('histToggle',!show);
+}
+</script>
+{% endblock %}

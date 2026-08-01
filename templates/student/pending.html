@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Kutilyotgan o'quvchilar | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+.course-tabs{display:flex;gap:0;margin-bottom:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;flex-wrap:wrap;}
+.course-tab{padding:12px 20px;font-size:0.85rem;font-weight:600;color:var(--text-muted);cursor:pointer;transition:all .15s;border:none;background:none;border-bottom:2px solid transparent;text-decoration:none;display:flex;align-items:center;gap:6px;}
+.course-tab:hover{color:var(--text);background:#f8fafc;}
+.course-tab.active{color:var(--primary);border-bottom-color:var(--primary);background:#f0f5ff;}
+.course-tab .tab-count{background:var(--border);color:var(--text-light);font-size:0.7rem;padding:2px 7px;border-radius:10px;font-weight:700;}
+.course-tab.active .tab-count{background:var(--primary);color:#fff;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Kutilyotgan o'quvchilar</h2>
+        <span class="page-header-count">{{ students|length }} ta o'quvchi</span>
+    </div>
+    <div class="page-header-right" style="display:flex;gap:6px;">
+        <a href="{% url 'pending_export_excel' %}{% if active_course %}?course={{ active_course }}{% endif %}" class="btn btn-success btn-sm" style="background:#2001ff;border-color:#2001ff;color:#fff;"><i class="fas fa-file-excel"></i> Excel</a>
+        <a href="{% url 'pending_export_csv' %}{% if active_course %}?course={{ active_course }}{% endif %}" class="btn btn-success btn-sm" style="background:#2001ff;border-color:#2001ff;color:#fff;"><i class="fas fa-file-csv"></i> CSV</a>
+        <a href="{% url 'student_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Qo'shish</a>
+    </div>
+</div>
+
+<div class="course-tabs">
+    <a href="{% url 'pending_students' %}" class="course-tab {% if not active_course %}active{% endif %}">
+        <i class="fas fa-layer-group"></i> Hammasi
+        <span class="tab-count">{{ students|length }}</span>
+    </a>
+    {% for c in courses %}
+    <a href="{% url 'pending_students' %}?course={{ c.pk }}" class="course-tab {% if active_course == c.pk|stringformat:'d' %}active{% endif %}">
+        <i class="fas fa-book"></i> {{ c.name }}
+    </a>
+    {% endfor %}
+    <a href="{% url 'pending_students' %}?course=none" class="course-tab {% if active_course == 'none' %}active{% endif %}">
+        <i class="fas fa-question-circle"></i> Kurs tanlanmagan
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Ism</th>
+                    <th>Familya</th>
+                    <th>Telefon</th>
+                    <th>Kurs</th>
+                    <th>Marketing</th>
+                    <th>Qabul vaqti</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><a href="{% url 'student_profile' student.pk %}" style="color:#2563eb;">{{ student.first_name }}</a></td>
+                    <td>{{ student.last_name }}</td>
+                    <td>{{ student.phone }}</td>
+                    <td>
+                        {% with courses=student.desired_course.all %}
+                            {% for c in courses %}
+                                <span style="font-size:0.8rem;font-weight:600;color:var(--primary);">{{ c.name }}{% if not forloop.last %}, {% endif %}</span>
+                            {% empty %}
+                                <span style="font-size:0.8rem;color:var(--text-muted);">-</span>
+                            {% endfor %}
+                        {% endwith %}
+                    </td>
+                    <td>{{ student.marketing_survey.name|default:"-" }}</td>
+                    <td>{{ student.created_at|date:"d.m.Y" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'student_add_to_group' student.pk %}" class="btn btn-sm btn-primary" title="Guruhga qo'shish"><i class="fas fa-user-plus"></i></a>
+                        <a href="{% url 'student_profile' student.pk %}" class="btn btn-sm btn-secondary" title="Profil"><i class="fas fa-user"></i></a>
+                        <a href="{% url 'student_update' student.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'student_delete' student.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align:center;padding:40px;">
+                        <i class="fas fa-check-circle" style="font-size:48px;color:#16a34a;display:block;margin-bottom:12px;"></i>
+                        <h3 style="color:#374151;">Bu kursda kutilyotgan o'quvchilar yo'q</h3>
+                        <p style="color:#94a3b8;margin-top:4px;">Boshqa kursni tanlang yoki yangi o'quvchi qo'shing</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,1332 @@
+{% extends "base.html" %}
+{% load dict_filters %}
+{% block title %}{{ student.first_name }} {{ student.last_name }} | Edu Tizim{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+.content { padding: 0 !important; }
+.pp-page { padding: 4px 6px; width: 100%; max-width: 100%; overflow-x: hidden; }
+
+/* ===== HEADER ===== */
+.pp-header { background: #fff; border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,.04); display: flex; align-items: center; padding: 8px 12px; margin-bottom: 4px; gap: 10px; flex-wrap: wrap; }
+
+.pp-header-left { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; }
+.pp-avatar { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #c7d2fe, #e0e7ff); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+.pp-avatar svg { width: 34px; height: 34px; }
+.pp-avatar-name { font-size: 12px; font-weight: 600; color: #2001FF; cursor: pointer; text-align: center; white-space: nowrap; }
+.pp-avatar-name:hover { text-decoration: underline; }
+
+.pp-header-center { flex-shrink: 0; }
+.pp-balance-card { width: 150px; height: 50px; border: 1px solid #E4E7EC; border-radius: 5px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.pp-balance-card .bc-label { font-size: 9px; color: #808080; font-weight: 500; }
+.pp-balance-card .bc-value { font-size: 11px; font-weight: 700; color: #222; margin-top: 0; }
+
+.pp-header-right { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-width: 0; }
+.pp-stat-badge { height: 26px; padding: 0 8px; border: 1px solid #E4E7EC; border-radius: 4px; background: #fff; display: flex; align-items: center; gap: 3px; font-size: 10px; white-space: nowrap; flex-shrink: 0; }
+.pp-stat-badge .sb-label { color: #808080; font-weight: 400; }
+.pp-stat-badge .sb-value { color: #222; font-weight: 600; }
+.pp-header-icon { width: 24px; height: 24px; border: 1px solid #E4E7EC; border-radius: 4px; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #222; font-size: 10px; flex-shrink: 0; transition: background .12s; }
+.pp-header-icon:hover { background: #f5f5f5; }
+
+/* ===== TABS ===== */
+.pp-tabs-wrap { background: #fff; border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,.04); margin-bottom: 4px; height: 30px; overflow: hidden; }
+.pp-tabs { display: flex; align-items: stretch; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; height: 100%; padding: 0 2px; }
+.pp-tabs::-webkit-scrollbar { display: none; }
+.pp-tab { display: flex; align-items: center; padding: 0 6px; font-size: 10px; font-weight: 500; color: #808080; white-space: nowrap; cursor: pointer; border-bottom: 2px solid transparent; transition: color .12s; flex-shrink: 0; }
+.pp-tab:hover { color: #2001FF; }
+.pp-tab.active { color: #2001FF; font-weight: 600; border-bottom-color: #2001FF; }
+
+/* ===== FORM ===== */
+.pp-form-wrap { background: #fff; border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,.04); padding: 10px 12px; }
+.pp-form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 10px; }
+.pp-field { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pp-field label { font-size: 9px; font-weight: 500; color: #808080; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-field input,
+.pp-field select,
+.pp-field textarea {
+    height: 28px; padding: 0 6px; border: 1px solid #E4E7EC; border-radius: 3px;
+    font-size: 10px; font-family: 'Inter', sans-serif; color: #222; background: #fff;
+    outline: none; transition: border-color .12s; width: 100%; min-width: 0;
+}
+.pp-field textarea { height: 28px; resize: vertical; min-height: 28px; }
+.pp-field input:focus,
+.pp-field select:focus,
+.pp-field textarea:focus { border-color: #2001FF; }
+.pp-field input::placeholder,
+.pp-field select:invalid { color: #A0A0A0; }
+.pp-field .pp-val { height: 24px; padding: 0 5px; border: 1px solid #E4E7EC; border-radius: 3px; font-size: 10px; color: #222; background: #f9fafb; display: flex; align-items: center; line-height: 1; }
+
+.pp-field .pp-val.empty { color: #A0A0A0; font-size: 9px; }
+.pp-btn-blue { height: 26px; padding: 0 10px; background: #2001FF; color: #fff; border: none; border-radius: 3px; font-size: 10px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: background .12s; margin-top: 8px; }
+.pp-select { height: 28px; padding: 0 6px; border: 1px solid #E4E7EC; border-radius: 4px; width: 100%; font-size: 10px; font-family: 'Inter', sans-serif; outline: none; background: #fff; color: #222; box-sizing: border-box; appearance: auto; }
+.pp-pagination { display: flex; gap: 4px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
+.pp-page-link { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 4px; border: 1px solid #E4E7EC; border-radius: 3px; font-size: 10px; font-weight: 500; color: #222; background: #fff; cursor: pointer; text-decoration: none; transition: background .12s; }
+.pp-page-link:hover { background: #f0f0f0; }
+.pp-page-active { background: #2001FF; color: #fff; border-color: #2001FF; }
+.pp-btn-blue:hover { background: #1a00d4; }
+
+/* ===== TAB CONTENTS ===== */
+.pp-tab-content { display: none; }
+.pp-tab-content.active { display: block; }
+
+/* ===== TABLE ===== */
+.pp-table { width: 100%; border-collapse: collapse; table-layout: auto; }
+.pp-table th { text-align: left; padding: 4px 6px; font-size: 9px; font-weight: 600; color: #808080; text-transform: uppercase; letter-spacing: .2px; border-bottom: 1px solid #E4E7EC; background: #fafafa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-table td { padding: 4px 6px; font-size: 10px; color: #222; border-bottom: 1px solid #f1f1f1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-table tr:hover td { background: #fafbff; }
+
+.pp-badge { display: inline-flex; align-items: center; gap: 2px; padding: 1px 5px; border-radius: 3px; font-size: 8px; font-weight: 600; white-space: nowrap; }
+.pp-badge-green { background: #dcfce7; color: #166534; }
+.pp-badge-red { background: #fee2e2; color: #991b1b; }
+.pp-badge-blue { background: #dbeafe; color: #1e40af; }
+.pp-badge-yellow { background: #fef9c3; color: #854d0e; }
+.pp-badge-purple { background: #ede9fe; color: #5b21b6; }
+.pp-badge-cyan { background: #cffafe; color: #155e75; }
+
+/* ===== GROUPS ===== */
+.pp-groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px; }
+.pp-group-card { border: 1px solid #E4E7EC; border-radius: 4px; padding: 6px 8px; transition: border-color .12s; }
+.pp-group-card:hover { border-color: #2001FF; }
+.pp-group-card .gc-name { font-size: 10px; font-weight: 700; color: #2001FF; margin-bottom: 1px; }
+.pp-group-card .gc-meta { font-size: 9px; color: #808080; display: flex; flex-direction: column; gap: 1px; }
+.pp-group-card .gc-meta span { display: flex; align-items: center; gap: 3px; }
+.pp-group-card .gc-meta i { width: 10px; text-align: center; font-size: 8px; color: #2001FF; }
+.pp-group-card.grad { border-color: #bbf7d0; background: #f0fdf4; }
+.pp-group-card.grad .gc-name { color: #16a34a; }
+.pp-group-card.grad .gc-meta i { color: #16a34a; }
+
+.pp-divider { display: flex; align-items: center; gap: 5px; margin: 8px 0 4px; }
+.pp-divider::after { content: ''; flex: 1; height: 1px; background: #E4E7EC; }
+.pp-divider span { font-size: 8px; font-weight: 600; color: #808080; text-transform: uppercase; letter-spacing: .4px; }
+
+/* ===== ACTIONS ===== */
+.pp-btn { height: 26px; padding: 0 10px; border-radius: 3px; font-size: 9px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; font-family: 'Inter', sans-serif; transition: all .12s; }
+.pp-btn-primary { background: #2001FF; color: #fff; }
+.pp-btn-primary:hover { background: #1a00d4; }
+.pp-btn-secondary { background: #f5f5f5; color: #555; border: 1px solid #E4E7EC; }
+.pp-btn-secondary:hover { background: #eee; }
+
+/* ===== MODAL ===== */
+.pp-modal-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(15,23,42,.5); backdrop-filter: blur(2px); display: none; align-items: center; justify-content: center; }
+.pp-modal-box { background: #fff; border-radius: 6px; width: 400px; max-width: 92vw; box-shadow: 0 16px 48px rgba(0,0,0,.25); overflow: hidden; }
+.pp-modal-hdr { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #E4E7EC; }
+.pp-modal-hdr h3 { margin: 0; font-size: 12px; font-weight: 600; color: #222; display: flex; align-items: center; gap: 4px; }
+.pp-modal-close { width: 22px; height: 22px; border-radius: 3px; border: none; background: #f5f5f5; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #808080; font-size: 10px; }
+.pp-modal-close:hover { background: #fee2e2; color: #dc2626; }
+.pp-modal-body { padding: 12px 14px; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1100px) { .pp-form-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 700px) {
+    .pp-form-grid { grid-template-columns: 1fr; }
+    .pp-header { flex-wrap: wrap; }
+    .pp-header-right { flex-wrap: wrap; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pp-page">
+
+    <!-- ===== HEADER ===== -->
+    <div class="pp-header">
+        <div class="pp-header-left">
+            <div class="pp-avatar">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="32" cy="24" r="12" fill="#94a3b8"/>
+                    <ellipse cx="32" cy="52" rx="20" ry="14" fill="#94a3b8"/>
+                </svg>
+            </div>
+            <a href="{% url 'student_update' student.pk %}" class="pp-avatar-name">{{ student.first_name }} {{ student.last_name }}</a>
+        </div>
+
+        <div class="pp-header-center">
+            <div class="pp-balance-card">
+                <div class="bc-label">Balans amal qilish muddati</div>
+                <div class="bc-value">{% if student.frozen_until %}{{ student.frozen_until|date:"Yil Oy"|default:"-" }}{% else %}—{% endif %}</div>
+            </div>
+        </div>
+
+        <div class="pp-header-right">
+            <div class="pp-stat-badge">
+                <span class="sb-label">Qolgan darslar:</span>
+                <span class="sb-value">{{ remaining_lessons }}</span>
+            </div>
+            {% for m in monthly_debts %}{% if not m.deferred %}
+            <div class="pp-stat-badge" title="{{ m.month_start|date:'Y-m' }}">
+                <span class="sb-label">{{ m.label }}:</span>
+                <span class="sb-value" style="color:#dc2626;">{{ m.debt|floatformat:0 }} so'm</span>
+            </div>
+            {% endif %}{% endfor %}
+            <div class="pp-stat-badge" style="background:#DBEAFE;border-radius:8px;">
+                <span class="sb-label">Umumiy qarzdorlik:</span>
+                <span class="sb-value">{{ oy_oxirigacha|floatformat:0 }} so'm</span>
+            </div>
+            <div class="pp-stat-badge" style="background:#DBEAFE;border-radius:8px;border:1.5px solid #93C5FD;">
+                <span class="sb-label">Balans:</span>
+                {% with bal=student|get_balance %}
+                {% if bal %}
+                <span class="sb-value" style="color:{% if bal.balance < 0 %}#dc2626{% else %}#16a34a{% endif %};">{{ bal.balance|floatformat:0 }}</span>
+                {% else %}
+                <span class="sb-value">0</span>
+                {% endif %}
+                {% endwith %}
+            </div>
+            <div class="pp-header-icon" title="Sozlamalar"><i class="fas fa-cog"></i></div>
+            <a href="tel:{{ student.phone }}" class="pp-header-icon" title="Qo'ng'iroq"><i class="fas fa-phone"></i></a>
+        </div>
+    </div>
+
+    <!-- ===== TABS ===== -->
+    <div class="pp-tabs-wrap">
+        <div class="pp-tabs" id="ppTabs">
+            <div class="pp-tab active" data-tab="pp-tab-edit">Tahrirlash</div>
+            <div class="pp-tab" data-tab="pp-tab-password">Parol o'rnatish</div>
+            <div class="pp-tab" data-tab="pp-tab-moderator">Moderatorni tahrirlash</div>
+            <div class="pp-tab" data-tab="pp-tab-calls">Qo'ng'iroqlar tarixi</div>
+            <div class="pp-tab" data-tab="pp-tab-groups">Guruhlar</div>
+            <div class="pp-tab" data-tab="pp-tab-task">Vazifa</div>
+            <div class="pp-tab" data-tab="pp-tab-block">Blok holatini tekshirish</div>
+            <div class="pp-tab" data-tab="pp-tab-orders">Buyurtmalar</div>
+            <div class="pp-tab" data-tab="pp-tab-history">Harakatlar tarixi</div>
+            <div class="pp-tab" data-tab="pp-tab-ltv">LTV</div>
+            <div class="pp-tab" data-tab="pp-tab-sms">SMS tarixi</div>
+            <div class="pp-tab" data-tab="pp-tab-contract">Shartnoma biriktirish</div>
+            <div class="pp-tab" data-tab="pp-tab-address">Manzil</div>
+            <div class="pp-tab" data-tab="pp-tab-contracts">Shartnomalar</div>
+            <div class="pp-tab" data-tab="pp-tab-payments">To'lov tarixi</div>
+            <div class="pp-tab" data-tab="pp-tab-attendance">Davomat</div>
+            {% if deferred_payments %}<div class="pp-tab" data-tab="pp-tab-writtenoff">Kechilgan pullar</div>{% endif %}
+        </div>
+    </div>
+
+    <!-- ===== TAB: TAHRIRLASH ===== -->
+    <div class="pp-tab-content active" id="pp-tab-edit">
+        <form method="POST" id="ppEditForm">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit_profile">
+            <div class="pp-form-wrap">
+                <div class="pp-form-grid">
+                    <div class="pp-field">
+                        <label>Ism</label>
+                        <input type="text" name="first_name" value="{{ student.first_name|default:'' }}" placeholder="Ism kiriting">
+                    </div>
+                    <div class="pp-field">
+                        <label>Familiya</label>
+                        <input type="text" name="last_name" value="{{ student.last_name|default:'' }}" placeholder="Familiya kiriting">
+                    </div>
+                    <div class="pp-field">
+                        <label>Telefon raqam</label>
+                        <input type="tel" name="phone" value="{{ student.phone|default:'' }}" placeholder="+998 XX XXX XX XX">
+                    </div>
+
+                    <div class="pp-field">
+                        <label>Elektron pochta</label>
+                        <input type="email" name="email" value="{{ student.email|default:'' }}" placeholder="example@gmail.com">
+                    </div>
+                    <div class="pp-field">
+                        <label>Tug'ilgan sanasi</label>
+                        <input type="date" name="birth_date" value="{{ student.birth_date|date:'Y-m-d'|default:'' }}">
+                    </div>
+                    <div class="pp-field">
+                        <label>O'qitish tili</label>
+                        <select name="education_language">
+                            <option value="O'zbekcha" {% if student.education_language == "O'zbekcha" %}selected{% endif %}>O'zbekcha</option>
+                            <option value="Ruscha" {% if student.education_language == 'Ruscha' %}selected{% endif %}>Ruscha</option>
+                            <option value="Inglizcha" {% if student.education_language == 'Inglizcha' %}selected{% endif %}>Inglizcha</option>
+                        </select>
+                    </div>
+                    <div class="pp-field">
+                        <label>Ta'lim shakli</label>
+                        <div class="pp-val {% if not education_types %}empty{% endif %}">
+                            {% if education_types %}{{ education_types|join:", " }}{% else %}Yo'q{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="pp-field">
+                        <label>Otasining ismi</label>
+                        <input type="text" name="father_full_name" value="{{ student.father_full_name|default:'' }}" placeholder="">
+                    </div>
+                    <div class="pp-field">
+                        <label>Otasi telefon raqami</label>
+                        <input type="tel" name="father_phone" value="{{ student.father_phone|default:'' }}" placeholder="+998 XX XXX XX XX">
+                    </div>
+                    <div class="pp-field">
+                        <label>Otasining ish joyi</label>
+                        <input type="text" name="father_workplace" value="{{ student.father_workplace|default:'' }}" placeholder="">
+                    </div>
+
+                    <div class="pp-field">
+                        <label>Onasining ismi</label>
+                        <input type="text" name="mother_full_name" value="{{ student.mother_full_name|default:'' }}" placeholder="">
+                    </div>
+                    <div class="pp-field">
+                        <label>Onasi telefon raqami</label>
+                        <input type="tel" name="mother_phone" value="{{ student.mother_phone|default:'' }}" placeholder="+998 XX XXX XX XX">
+                    </div>
+                    <div class="pp-field">
+                        <label>Onasining ish joyi</label>
+                        <input type="text" name="mother_workplace" value="{{ student.mother_workplace|default:'' }}" placeholder="">
+                    </div>
+
+                    <div class="pp-field">
+                        <label>Uy adresi</label>
+                        <input type="text" name="home_address" value="{{ student.home_address|default:'' }}" placeholder="">
+                    </div>
+                    <div class="pp-field">
+                        <label>O'qish joyi</label>
+                        <input type="text" name="school" value="{{ student.school|default:'' }}" placeholder="">
+                    </div>
+                    <div class="pp-field">
+                        <label>Izoh</label>
+                        <input type="text" name="additional_info" value="{{ student.additional_info|default:'' }}" placeholder="">
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:14px;">
+                    <button type="submit" class="pp-btn-blue"><i class="fas fa-check" style="font-size:11px;"></i> Saqlash</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ===== TAB: PAROL ===== -->
+    <div class="pp-tab-content" id="pp-tab-password">
+        <div class="pp-form-wrap">
+            <div class="pp-form-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <div class="pp-field">
+                    <label>Login</label>
+                    <input type="text" value="{{ student.user.username|default:'' }}" placeholder="Login kiriting">
+                </div>
+                <div class="pp-field">
+                    <label>Yangi parol</label>
+                    <input type="password" placeholder="Yangi parol kiriting">
+                </div>
+                <div class="pp-field">
+                    <label>Parolni tasdiqlash</label>
+                    <input type="password" placeholder="Parolni qaytadan kiriting">
+                </div>
+            </div>
+            <button class="pp-btn-blue" style="margin-top:16px;"><i class="fas fa-save" style="font-size:11px;"></i> Saqlash</button>
+        </div>
+    </div>
+
+    <!-- ===== TAB: MODERATOR ===== -->
+    <div class="pp-tab-content" id="pp-tab-moderator">
+        <div class="pp-form-wrap">
+            <p style="font-size:13px;color:#808080;">Moderator ma'lumotlari bu yerda tahrirlanadi.</p>
+        </div>
+    </div>
+
+    <!-- ===== TAB: QO'NG'IROQLAR ===== -->
+    <div class="pp-tab-content" id="pp-tab-calls">
+        <div class="pp-form-wrap">
+            <p style="font-size:13px;color:#808080;">Qo'ng'iroqlar tarixi bu yerda ko'rsatiladi.</p>
+        </div>
+    </div>
+
+    <!-- ===== TAB: QARZDORLIK ===== -->
+    <div class="pp-tab-content" id="pp-tab-debt">
+        <div class="pp-form-wrap">
+            <p style="font-size:13px;color:#808080;">Qarzdorlik limiti sozlamalari.</p>
+        </div>
+    </div>
+
+    <!-- ===== TAB: GRUHLAR ===== -->
+    <div class="pp-tab-content" id="pp-tab-groups">
+        <div class="pp-form-wrap">
+            <div class="pp-divider"><span>Joriy guruhlar</span></div>
+            {% with gs=student.groups.all %}
+            {% if gs %}
+            <div class="pp-groups-grid">
+                {% for g in gs %}
+                <div class="pp-group-card">
+                    <div class="gc-name"><a href="{% url 'group_detail' g.pk %}">{{ g.name }}</a></div>
+                    <div class="gc-meta">
+                        {% if g.course %}<span><i class="fas fa-book"></i> {{ g.course.name }}</span>{% endif %}
+                        {% if g.teacher %}<span><i class="fas fa-chalkboard-teacher"></i> {{ g.teacher.first_name }} {{ g.teacher.last_name }}</span>{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="text-align:center;padding:24px;color:#A0A0A0;font-size:13px;">Hozircha guruh yo'q</p>
+            {% endif %}
+            {% endwith %}
+
+            <div class="pp-divider"><span>Bitirgan guruhlar</span></div>
+            {% with gs=student.graduated_groups.all %}
+            {% if gs %}
+            <div class="pp-groups-grid">
+                {% for g in gs %}
+                <div class="pp-group-card grad">
+                    <div class="gc-name"><a href="{% url 'group_detail' g.pk %}">{{ g.name }}</a></div>
+                    <div class="gc-meta">
+                        {% if g.course %}<span><i class="fas fa-book"></i> {{ g.course.name }}</span>{% endif %}
+                        <span><i class="fas fa-graduation-cap"></i> Bitirilgan</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="text-align:center;padding:24px;color:#A0A0A0;font-size:13px;">Hali bitirgan guruh yo'q</p>
+            {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+
+    <!-- ===== TAB: VAZIFA ===== -->
+    <div class="pp-tab-content" id="pp-tab-task">
+        <div class="pp-form-wrap">
+            <p style="font-size:13px;color:#808080;">Vazifalar bu yerda ko'rsatiladi.</p>
+        </div>
+    </div>
+
+    <!-- ===== TAB: BLOK ===== -->
+    <div class="pp-tab-content" id="pp-tab-block">
+        <div class="pp-form-wrap">
+            <p style="font-size:13px;color:#808080;">Blok holati bu yerda tekshiriladi.</p>
+        </div>
+    </div>
+
+    <!-- ===== TAB: TRANZAKSIYA ===== -->
+    <div class="pp-tab-content" id="pp-tab-transactions">
+        <div class="pp-form-wrap">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <span style="font-size:13px;font-weight:600;color:#222;">Tranzaksiya tarixi</span>
+                <a href="{% url 'student_balance_view' student.pk %}" style="font-size:12px;color:#2001FF;font-weight:600;">Barchasi →</a>
+            </div>
+            {% if transactions %}
+            <div style="overflow-x:auto;">
+                <table class="pp-table">
+                    <thead>
+                        <tr><th>Sana</th><th>Turi</th><th>Summa</th><th>Balans</th><th>Guruh</th><th>Izoh</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transactions %}
+                        <tr>
+                            <td style="white-space:nowrap;">{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                            <td>
+                                {% if t.transaction_type == 'payment' %}<span class="pp-badge pp-badge-green">To'lov</span>
+                                {% elif t.transaction_type == 'lesson' %}<span class="pp-badge pp-badge-blue">Dars</span>
+                                {% elif t.transaction_type == 'withdrawal' %}<span class="pp-badge pp-badge-red">Yechish</span>
+                                {% elif t.transaction_type == 'wrong' %}<span class="pp-badge pp-badge-yellow">Xato</span>
+                                {% elif t.transaction_type == 'correction' %}<span class="pp-badge pp-badge-purple">Tuzatish</span>
+                                {% else %}<span class="pp-badge" style="background:#f5f5f5;color:#808080;">{{ t.get_transaction_type_display }}</span>{% endif %}
+                            </td>
+                            <td style="font-weight:600;{% if t.amount > 0 %}color:#16a34a;{% else %}color:#dc2626;{% endif %}">
+                                {% if t.amount > 0 %}+{% endif %}{{ t.amount|floatformat:0 }} so'm
+                            </td>
+                            <td>{{ t.balance_after|floatformat:0 }} so'm</td>
+                            <td>{% if t.group %}<a href="{% url 'group_detail' t.group.pk %}" style="color:#2001FF;font-weight:600;">{{ t.group.name }}</a>{% else %}—{% endif %}</td>
+                            <td style="color:#808080;font-size:12px;">{{ t.description|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align:center;padding:30px;color:#A0A0A0;font-size:13px;">Tranzaksiya mavjud emas</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ===== TAB: BUYURTMALAR ===== -->
+    <div class="pp-tab-content" id="pp-tab-orders">
+        <div class="pp-form-wrap">
+            <p style="font-size:13px;color:#808080;">Buyurtmalar bu yerda ko'rsatiladi.</p>
+        </div>
+    </div>
+
+    <!-- ===== TAB: HARAKATLAR ===== -->
+    <div class="pp-tab-content" id="pp-tab-history">
+        <div class="pp-form-wrap">
+            {% if logs %}
+            <div style="overflow-x:auto;">
+                <table class="pp-table">
+                    <thead>
+                        <tr><th>Sana</th><th>Harakat</th><th>Guruh</th><th>Kim</th><th>Sabab</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td style="white-space:nowrap;">{{ log.created_at|date:"d.m.Y H:i" }}</td>
+                            <td>
+                                {% if log.action == 'joined' %}<span class="pp-badge pp-badge-green">Qo'shildi</span>
+                                {% elif log.action == 'removed' %}<span class="pp-badge pp-badge-red">Chiqarildi</span>
+                                {% elif log.action == 'transferred' %}<span class="pp-badge pp-badge-blue">Ko'chirildi</span>
+                                {% elif log.action == 'graduated' %}<span class="pp-badge pp-badge-green">Bitirdi</span>
+                                {% elif log.action == 'frozen' %}<span class="pp-badge pp-badge-cyan">Muzlatildi</span>
+                                {% elif log.action == 'unfrozen' %}<span class="pp-badge pp-badge-yellow">Muzlatish bekor</span>
+                                {% else %}<span class="pp-badge" style="background:#f5f5f5;color:#808080;">{{ log.action }}</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if log.group %}{{ log.group.name }}{% else %}—{% endif %}
+                                {% if log.target_name %}<span style="color:#808080;font-size:11px;">→ {{ log.target_name }}</span>{% endif %}
+                            </td>
+                            <td style="white-space:nowrap;font-weight:600;color:#1e293b;">{{ log.created_by|default:"—" }}</td>
+                            <td style="color:#808080;font-size:12px;">{{ log.reason|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align:center;padding:30px;color:#A0A0A0;font-size:13px;">Harakatlar tarixi mavjud emas</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ===== TAB: LTV ===== -->
+    <div class="pp-tab-content" id="pp-tab-ltv">
+        <div class="pp-form-wrap">
+            <p style="font-size:13px;color:#808080;">LTV ma'lumotlari.</p>
+        </div>
+    </div>
+
+    <!-- ===== TAB: SMS ===== -->
+    <div class="pp-tab-content" id="pp-tab-sms">
+        <div class="pp-form-wrap" style="margin-bottom:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <h4 style="font-size:12px;font-weight:600;color:#222;margin:0;">SMS yuborish</h4>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="pp-btn pp-btn-primary" onclick="openPPSMSModal('debt')"><i class="fas fa-exclamation-triangle"></i> Qarz eslatma</button>
+                <button class="pp-btn pp-btn-secondary" onclick="openPPSMSModal('absence')"><i class="fas fa-user-slash"></i> Davomat SMS</button>
+                <button class="pp-btn pp-btn-secondary" onclick="openPPSMSModal('payment')"><i class="fas fa-check-circle"></i> To'lov SMS</button>
+                <button class="pp-btn pp-btn-secondary" onclick="openPPSMSModal('custom')"><i class="fas fa-edit"></i> Maxsus SMS</button>
+            </div>
+        </div>
+        <div class="pp-form-wrap">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <h4 style="font-size:12px;font-weight:600;color:#222;margin:0;">SMS tarixi</h4>
+            </div>
+            {% if sms_history %}
+            <div style="overflow-x:auto;">
+                <table class="pp-table">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Turi</th>
+                            <th>Qabul qiluvchi</th>
+                            <th>Telefon</th>
+                            <th>Xabar</th>
+                            <th>Holat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sms in sms_history %}
+                        <tr>
+                            <td>{{ sms.created_at|date:"d.m.Y H:i" }}</td>
+                            <td>
+                                {% if sms.sms_type == 'debt' %}<span class="pp-badge pp-badge-red">Qarz eslatma</span>
+                                {% elif sms.sms_type == 'absence' %}<span class="pp-badge pp-badge-yellow">Davomat</span>
+                                {% elif sms.sms_type == 'payment' %}<span class="pp-badge pp-badge-green">To'lov</span>
+                                {% else %}<span class="pp-badge pp-badge-blue">{{ sms.sms_type }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ sms.recipient_name }}</td>
+                            <td>{{ sms.recipient_phone }}</td>
+                            <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ sms.message }}">{{ sms.message|truncatewords:15 }}</td>
+                            <td>
+                                {% if sms.status == 'yuborildi' %}<span class="pp-badge pp-badge-green">Yuborildi</span>
+                                {% elif sms.status == 'xato' %}<span class="pp-badge pp-badge-red">Xato</span>
+                                {% else %}<span class="pp-badge pp-badge-blue">{{ sms.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align:center;padding:20px;color:#A0A0A0;font-size:11px;">SMS tarixi mavjud emas</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- SMS Modal -->
+    <div class="pp-modal-overlay" id="ppSMSModal" onclick="if(event.target===this)closePPModal('ppSMSModal')">
+        <div class="pp-modal-box" style="width:440px;">
+            <div class="pp-modal-hdr">
+                <h3 id="ppSMSModalTitle"><i class="fas fa-sms" style="color:#2001FF"></i> SMS yuborish</h3>
+                <button class="pp-modal-close" onclick="closePPModal('ppSMSModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="pp-modal-body">
+                <div style="background:#f9fafb;border:1px solid #E4E7EC;border-radius:4px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#808080;">
+                    <strong style="color:#222;">O'quvchi:</strong> {{ student.first_name }} {{ student.last_name }} |
+                    <strong style="color:#222;">Tel:</strong> {{ student.phone }}
+                    {% if student.father_phone %}| <strong style="color:#222;">Ota:</strong> {{ student.father_phone }}{% endif %}
+                    {% if student.mother_phone %}| <strong style="color:#222;">Ona:</strong> {{ student.mother_phone }}{% endif %}
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="display:block;font-size:11px;font-weight:500;color:#808080;margin-bottom:3px;">Qabul qiluvchi</label>
+                    <select id="ppSMSRecipient" style="height:34px;padding:0 8px;border:1px solid #E4E7EC;border-radius:4px;width:100%;font-size:11px;font-family:'Inter',sans-serif;">
+                        <option value="{{ student.phone }}">O'quvchi - {{ student.phone }}</option>
+                        {% if student.father_phone %}<option value="{{ student.father_phone }}">Ota - {{ student.father_full_name|default:"" }} ({{ student.father_phone }})</option>{% endif %}
+                        {% if student.mother_phone %}<option value="{{ student.mother_phone }}">Ona - {{ student.mother_full_name|default:"" }} ({{ student.mother_phone }})</option>{% endif %}
+                    </select>
+                </div>
+                <div id="ppSMSRecipientLabel" style="margin-bottom:10px;">
+                    <label style="display:block;font-size:11px;font-weight:500;color:#808080;margin-bottom:3px;">Qabul qiluvchi ismi</label>
+                    <input type="text" id="ppSMSRecipientName" value="{{ student.father_full_name|default:student.first_name }}" style="height:34px;padding:0 8px;border:1px solid #E4E7EC;border-radius:4px;width:100%;font-size:11px;font-family:'Inter',sans-serif;outline:none;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="display:block;font-size:11px;font-weight:500;color:#808080;margin-bottom:3px;">Xabar matni</label>
+                    <textarea id="ppSMSMessage" rows="4" placeholder="SMS matnini kiriting..." style="padding:8px;border:1px solid #E4E7EC;border-radius:4px;width:100%;font-size:11px;font-family:'Inter',sans-serif;outline:none;box-sizing:border-box;resize:vertical;"></textarea>
+                </div>
+                <button id="ppSMSSubmit" onclick="submitPPSMS()" style="width:100%;height:34px;border:none;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:'Inter',sans-serif;background:#2001FF;color:white;">
+                    <i class="fas fa-paper-plane"></i> <span id="ppSMSBtnText">SMS yuborish</span>
+                </button>
+                <div id="ppSMSError" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:6px 10px;font-size:11px;color:#dc2626;margin-top:8px;"></div>
+                <div id="ppSMSSuccess" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:6px 10px;font-size:11px;color:#16a34a;margin-top:8px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TAB: SHARTNOMA ===== -->
+    <div class="pp-tab-content" id="pp-tab-contract">
+        <div class="pp-form-wrap">
+            <p style="font-size:13px;color:#808080;">Shartnoma biriktirish.</p>
+        </div>
+    </div>
+
+    <!-- ===== TAB: MANZIL ===== -->
+    <div class="pp-tab-content" id="pp-tab-address">
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_address">
+            <div class="pp-form-wrap">
+                <div class="pp-form-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="pp-field">
+                        <label>Davlat</label>
+                        <select name="address_country" id="ppCountrySelect" class="pp-select" onchange="toggleCountry()">
+                            <option value="" {% if not student.address_country %}selected{% endif %}>-- Tanlang --</option>
+                            <option value="O'zbekiston" {% if student.address_country == "O'zbekiston" %}selected{% endif %}>O'zbekiston</option>
+                            <option value="Qozog'iston" {% if student.address_country == "Qozog'iston" %}selected{% endif %}>Qozog'iston</option>
+                            <option value="Rossiya" {% if student.address_country == "Rossiya" %}selected{% endif %}>Rossiya</option>
+                            <option value="Tojikiston" {% if student.address_country == "Tojikiston" %}selected{% endif %}>Tojikiston</option>
+                            <option value="Turkmaniston" {% if student.address_country == "Turkmaniston" %}selected{% endif %}>Turkmaniston</option>
+                            <option value="Qirg'iziston" {% if student.address_country == "Qirg'iziston" %}selected{% endif %}>Qirg'iziston</option>
+                            <option value="Boshqa" {% if student.address_country and student.address_country not in "O'zbekiston,Qozog'iston,Rossiya,Tojikiston,Turkmaniston,Qirg'iziston" %}selected{% endif %}>Boshqa davlat</option>
+                        </select>
+                        <input type="text" name="address_country_custom" id="ppCountryCustom" class="pp-select" placeholder="Davlatni yozing..." value="{% if student.address_country and student.address_country not in "O'zbekiston,Qozog'iston,Rossiya,Tojikiston,Turkmaniston,Qirg'iziston" %}{{ student.address_country }}{% endif %}" style="display:none;">
+                    </div>
+                    <div class="pp-field">
+                        <label>Viloyat</label>
+                        <select name="address_region" id="ppRegionSelect" class="pp-select">
+                            <option value="" {% if not student.address_region %}selected{% endif %}>-- Tanlang --</option>
+                            <option value="Toshkent shahri" {% if student.address_region == "Toshkent shahri" %}selected{% endif %}>Toshkent shahri</option>
+                            <option value="Toshkent viloyati" {% if student.address_region == "Toshkent viloyati" %}selected{% endif %}>Toshkent viloyati</option>
+                            <option value="Samarqand" {% if student.address_region == "Samarqand" %}selected{% endif %}>Samarqand</option>
+                            <option value="Buxoro" {% if student.address_region == "Buxoro" %}selected{% endif %}>Buxoro</option>
+                            <option value="Farg'ona" {% if student.address_region == "Farg'ona" %}selected{% endif %}>Farg'ona</option>
+                            <option value="Namangan" {% if student.address_region == "Namangan" %}selected{% endif %}>Namangan</option>
+                            <option value="Andijon" {% if student.address_region == "Andijon" %}selected{% endif %}>Andijon</option>
+                            <option value="Qashqadaryo" {% if student.address_region == "Qashqadaryo" %}selected{% endif %}>Qashqadaryo</option>
+                            <option value="Surxondaryo" {% if student.address_region == "Surxondaryo" %}selected{% endif %}>Surxondaryo</option>
+                            <option value="Navoiy" {% if student.address_region == "Navoiy" %}selected{% endif %}>Navoiy</option>
+                            <option value="Jizzax" {% if student.address_region == "Jizzax" %}selected{% endif %}>Jizzax</option>
+                            <option value="Sirdaryo" {% if student.address_region == "Sirdaryo" %}selected{% endif %}>Sirdaryo</option>
+                            <option value="Xorazm" {% if student.address_region == "Xorazm" %}selected{% endif %}>Xorazm</option>
+                            <option value="Qoraqalpog'iston" {% if student.address_region == "Qoraqalpog'iston" %}selected{% endif %}>Qoraqalpog'iston</option>
+                        </select>
+                        <input type="text" name="address_region_custom" id="ppRegionCustom" class="pp-select" placeholder="Viloyatni yozing..." value="{% if student.address_region and student.address_region not in "Toshkent shahri,Toshkent viloyati,Samarqand,Buxoro,Farg'ona,Namangan,Andijon,Qashqadaryo,Surxondaryo,Navoiy,Jizzax,Sirdaryo,Xorazm,Qoraqalpog'iston" %}{{ student.address_region }}{% endif %}" style="display:none;">
+                    </div>
+                    <div class="pp-field">
+                        <label>Tuman / Shahar</label>
+                        <input type="text" name="address_district" value="{{ student.address_district|default:'' }}" placeholder="Tuman">
+                    </div>
+                    <div class="pp-field">
+                        <label>MFY</label>
+                        <input type="text" name="address_mfy" value="{{ student.address_mfy|default:'' }}" placeholder="MFY nomi">
+                    </div>
+                    <div class="pp-field">
+                        <label>Ko'cha</label>
+                        <input type="text" name="address_street" value="{{ student.address_street|default:'' }}" placeholder="Ko'cha nomi">
+                    </div>
+                    <div class="pp-field">
+                        <label>Uy raqam</label>
+                        <input type="text" name="address_house" value="{{ student.address_house|default:'' }}" placeholder="Uy/ xonadon">
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <button type="submit" class="pp-btn-blue"><i class="fas fa-check" style="font-size:10px;"></i> Saqlash</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    function toggleCountry() {
+        var country = document.getElementById('ppCountrySelect').value;
+        var sel = document.getElementById('ppCountrySelect');
+        var custom = document.getElementById('ppCountryCustom');
+        if (country === 'Boshqa') {
+            sel.style.display = 'none';
+            sel.value = '';
+            custom.style.display = '';
+        } else {
+            sel.style.display = '';
+            custom.style.display = 'none';
+            custom.value = '';
+        }
+        toggleRegion();
+    }
+    function toggleRegion() {
+        var country = document.getElementById('ppCountrySelect').value;
+        var select = document.getElementById('ppRegionSelect');
+        var custom = document.getElementById('ppRegionCustom');
+        if (country === "O'zbekiston") {
+            select.style.display = '';
+            custom.style.display = 'none';
+            custom.value = '';
+        } else {
+            select.style.display = 'none';
+            select.value = '';
+            custom.style.display = '';
+        }
+    }
+    toggleCountry();
+    </script>
+
+    <!-- ===== TAB: SHARTNOMALAR ===== -->
+    <div class="pp-tab-content" id="pp-tab-contracts">
+        <div class="pp-form-wrap">
+            <p style="font-size:13px;color:#808080;">Shartnomalar ro'yxati.</p>
+        </div>
+    </div>
+
+    <!-- ===== TAB: TO'LOV TARIXI ===== -->
+    <div class="pp-tab-content" id="pp-tab-payments">
+        <div class="pp-form-wrap">
+            {% if transactions %}
+            <div style="overflow-x:auto;">
+                <table class="pp-table">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Turi</th>
+                            <th>Summa</th>
+                            <th>Balans</th>
+                            <th>Guruh</th>
+                            <th>To'lov usuli</th>
+                            <th>Izoh</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transactions %}
+                        <tr>
+                            <td>{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                            <td>
+                                {% if t.transaction_type == 'payment' %}<span class="pp-badge pp-badge-green">To'lov</span>
+                                {% elif t.transaction_type == 'lesson' %}<span class="pp-badge pp-badge-red">Dars uchun yechildi</span>
+                                {% elif t.transaction_type == 'withdrawal' %}<span class="pp-badge pp-badge-yellow">Pul qaytarish</span>
+                                {% elif t.transaction_type == 'correction' %}<span class="pp-badge pp-badge-blue">Tuzatish</span>
+                                {% elif t.transaction_type == 'wrong' %}<span class="pp-badge pp-badge-purple">Xato amaliyot</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-weight:600;">
+                                {% if t.transaction_type == 'payment' %}<span style="color:#16a34a;">+{{ t.amount|floatformat:0 }}</span>
+                                {% elif t.transaction_type == 'lesson' %}<span style="color:#dc2626;">-{{ t.amount|floatformat:0 }}</span>
+                                {% elif t.transaction_type == 'withdrawal' %}<span style="color:#d97706;">-{{ t.amount|floatformat:0 }}</span>
+                                {% elif t.transaction_type == 'correction' %}<span style="color:#2001FF;">{{ t.amount|floatformat:0 }}</span>
+                                {% else %}{{ t.amount|floatformat:0 }}
+                                {% endif %} so'm
+                            </td>
+                            <td>{{ t.balance_after|floatformat:0 }} so'm</td>
+                            <td>{% if t.group %}{{ t.group.name }}{% else %}—{% endif %}</td>
+                            <td>{{ t.payment_method|default:"-" }}</td>
+                            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ t.description }}">{{ t.description|default:"-"|truncatewords:10 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align:center;padding:30px;color:#A0A0A0;font-size:11px;">To'lov tarixi mavjud emas</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ===== TAB: DAVOMAT ===== -->
+    <div class="pp-tab-content" id="pp-tab-attendance">
+        <div class="pp-form-wrap">
+            {% if attendance_history %}
+            <div style="overflow-x:auto;">
+                <table class="pp-table">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Guruh</th>
+                            <th>Holat</th>
+                            <th>To'lov</th>
+                            <th>Izoh</th>
+                            <th>Qo'shilgan vaqt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in attendance_history %}
+                        <tr>
+                            <td>{{ a.date|date:"d.m.Y" }}</td>
+                            <td><a href="{% url 'group_detail' a.group.pk %}" style="color:#2001FF;font-weight:600;">{{ a.group.name }}</a></td>
+                            <td>
+                                {% if a.status == 'present' %}<span class="pp-badge pp-badge-green">Keldi</span>
+                                {% elif a.status == 'absent' %}<span class="pp-badge pp-badge-red">Kelmadi</span>
+                                {% elif a.status == 'excused' %}<span class="pp-badge pp-badge-yellow">Sababli</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% with att_tx=a.transactions.all %}
+                                    {% if att_tx %}
+                                        {% for tx in att_tx %}
+                                            {% if tx.transaction_type == 'payment' %}
+                                                <span class="pp-badge pp-badge-green" style="font-size:9px;">+{{ tx.amount|floatformat:0 }} so'm</span>
+                                            {% elif tx.transaction_type == 'lesson' %}
+                                                <span class="pp-badge pp-badge-red" style="font-size:9px;">-{{ tx.amount|floatformat:0 }} so'm</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <span style="color:#A0A0A0;font-size:10px;">—</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td style="color:#808080;font-size:11px;">{{ a.notes|default:"-" }}</td>
+                            <td style="color:#808080;font-size:10px;white-space:nowrap;">{{ a.created_at|date:"d.m.Y H:i" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if attendance_history.has_other_pages %}
+            <div class="pp-pagination">
+                {% if attendance_history.has_previous %}
+                <a href="?attendance_page={{ attendance_history.previous_page_number }}#pp-tab-attendance" class="pp-page-link">&laquo;</a>
+                {% endif %}
+                {% for p in attendance_history.paginator.page_range %}
+                    {% if p == attendance_history.number %}
+                    <span class="pp-page-link pp-page-active">{{ p }}</span>
+                    {% elif p > attendance_history.number|add:"-4" and p < attendance_history.number|add:"4" %}
+                    <a href="?attendance_page={{ p }}#pp-tab-attendance" class="pp-page-link">{{ p }}</a>
+                    {% endif %}
+                {% endfor %}
+                {% if attendance_history.has_next %}
+                <a href="?attendance_page={{ attendance_history.next_page_number }}#pp-tab-attendance" class="pp-page-link">&raquo;</a>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% else %}
+            <p style="text-align:center;padding:30px;color:#A0A0A0;font-size:11px;">Davomat tarixi mavjud emas</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if deferred_payments %}
+    <!-- ===== TAB: KECHILGAN PULLAR ===== -->
+    <div class="pp-tab-content" id="pp-tab-writtenoff">
+        <div style="padding:16px;">
+            <h3 style="margin:0 0 16px;font-size:14px;font-weight:700;color:#222;">Kechilgan pullar</h3>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                {% for d in deferred_payments %}
+                <div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                        <div style="font-weight:600;font-size:14px;">{{ d.label }} <span style="color:#dc2626;">{{ d.debt|floatformat:0 }} so'm</span></div>
+                        <span style="font-size:10px;color:#fff;background:#dc2626;padding:2px 10px;border-radius:10px;font-weight:500;">kechilgan</span>
+                    </div>
+                    <div class="def-reason-row" style="font-size:12px;color:#6b7280;cursor:pointer;">
+                        <div class="def-reason-view" style="display:flex;align-items:center;gap:4px;" onclick="editDefReason(this)">
+                            <span style="font-weight:500;color:#6b7280;">Sabab:</span>
+                            <span style="color:#374151;">{{ d.reason|default:"—" }}</span>
+                            <i class="fas fa-pen" style="font-size:9px;color:#9ca3af;"></i>
+                        </div>
+                        <div class="def-reason-edit" style="display:none;align-items:center;gap:6px;">
+                            <span style="font-weight:500;white-space:nowrap;">Sabab:</span>
+                            <input type="text" class="def-reason-inp" data-student="{{ student.id }}" data-month="{{ d.month }}" value="{{ d.reason }}" placeholder="Sababni kiriting..." style="flex:1;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;font-family:inherit;outline:none;">
+                            <button class="def-reason-save" style="padding:6px 12px;background:#2563eb;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:500;">Saqlash</button>
+                            <button class="def-reason-cancel" style="padding:6px 8px;background:none;color:#6b7280;border:none;font-size:11px;cursor:pointer;font-family:inherit;" onclick="cancelDefReason(this)">Bekor</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Payment Modal -->
+<div class="pp-modal-overlay" id="profilePayModal" onclick="if(event.target===this)closePPModal('profilePayModal')">
+    <div class="pp-modal-box">
+        <div class="pp-modal-hdr">
+            <h3 id="profileModalTitle"><i class="fas fa-wallet" style="color:#2001FF"></i> To'lov qilish</h3>
+            <button class="pp-modal-close" onclick="closePPModal('profilePayModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="pp-modal-body">
+            <div style="background:#f9fafb;border:1px solid #E4E7EC;border-radius:4px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;">
+                <span style="color:#808080;font-size:13px;">Joriy balans:</span>
+                <span style="font-weight:700;font-size:15px;color:#222;" id="profileCurrentBalance">0 so'm</span>
+            </div>
+
+            <!-- Monthly debts -->
+            {% if monthly_debts %}
+            <div style="margin-bottom:12px;">
+                <label style="display:block;font-size:12px;font-weight:500;color:#808080;margin-bottom:4px;">O'tgan oylar qarzi:</label>
+                <div id="ppMonthlyDebts" style="display:flex;flex-wrap:wrap;gap:4px;">
+                    {% for m in monthly_debts %}
+                    <div class="pp-month-debt" data-month="{{ m.month_start|date:'Y-m' }}" style="position:relative;display:flex;align-items:center;gap:3px;padding:4px 8px;border:1px solid #fecaca;border-radius:3px;background:#fef2f2;font-size:10px;">
+                        <span style="font-weight:500;color:#dc2626;">{{ m.label }}:</span>
+                        <span style="color:#dc2626;">{{ m.debt|floatformat:0 }} so'm</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Previous months payment toggle -->
+            <div style="margin-bottom:12px;">
+                <label style="display:block;font-size:12px;font-weight:500;color:#808080;margin-bottom:3px;">O'tgan oylarni to'lash</label>
+                <div style="display:flex;gap:8px;">
+                    <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:6px;border:1px solid #E4E7EC;border-radius:3px;background:#fff;cursor:pointer;font-size:11px;font-weight:500;" id="ppPayPrevYes" onclick="togglePrevPay(true)">
+                        <input type="radio" name="pay_prev" value="ha" checked onchange="togglePrevPay(true)" style="accent-color:#2001FF;"> Ha
+                    </label>
+                    <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:6px;border:1px solid #E4E7EC;border-radius:3px;background:#fff;cursor:pointer;font-size:11px;font-weight:500;" id="ppPayPrevNo" onclick="togglePrevPay(false)">
+                        <input type="radio" name="pay_prev" value="yoq" onchange="togglePrevPay(false)" style="accent-color:#2001FF;"> Yo'q
+                    </label>
+                </div>
+            </div>
+
+            <div id="profilePayError" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:8px 12px;font-size:12px;color:#dc2626;margin-bottom:10px;">
+                <i class="fas fa-exclamation-circle"></i> <span id="profilePayErrorText"></span>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;font-size:12px;font-weight:500;color:#808080;margin-bottom:3px;" id="profileAmountLabel">To'lov summasi</label>
+                <input type="text" id="profilePayAmount" placeholder="Masalan: 50 000" oninput="formatPPAmount(this)" style="height:40px;padding:0 12px;border:1px solid #E4E7EC;border-radius:4px;width:100%;font-size:13px;font-family:'Inter',sans-serif;outline:none;box-sizing:border-box;">
+            </div>
+            <div id="profilePayMethodGroup" style="margin-bottom:12px;">
+                <label style="display:block;font-size:12px;font-weight:500;color:#808080;margin-bottom:3px;">To'lov usuli</label>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    {% for pm in payment_methods %}
+                    <label style="flex:1;min-width:70px;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border:1px solid #E4E7EC;border-radius:4px;background:#fff;cursor:pointer;font-size:12px;font-weight:500;color:#222;">
+                        <input type="radio" name="profile_method" value="{{ pm.name|lower }}" {% if forloop.first %}checked{% endif %} style="accent-color:#2001FF;"> <i class="{{ pm.icon }}"></i> {{ pm.name }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:500;color:#808080;margin-bottom:3px;">Izoh (ixtiyoriy)</label>
+                <textarea id="profilePayDesc" rows="2" placeholder="Izoh..." style="padding:10px 12px;border:1px solid #E4E7EC;border-radius:4px;width:100%;font-size:13px;font-family:'Inter',sans-serif;outline:none;box-sizing:border-box;"></textarea>
+            </div>
+            <button id="profilePaySubmit" onclick="submitPPPayment()" style="width:100%;height:40px;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:'Inter',sans-serif;background:#2001FF;color:white;">
+                <i class="fas fa-check-circle"></i> <span id="profilePayBtnText">To'lovni tasdiqlash</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt Modal -->
+<div class="pp-modal-overlay" id="profileReceiptModal" onclick="if(event.target===this)closePPModal('profileReceiptModal')">
+    <div class="pp-modal-box" style="width:480px;">
+        <div class="pp-modal-hdr">
+            <h3><i class="fas fa-receipt" style="color:#2001FF"></i> Chek</h3>
+            <button class="pp-modal-close" onclick="closePPModal('profileReceiptModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="pp-modal-body" id="profileReceiptBody" style="max-height:60vh;overflow-y:auto;"></div>
+        <div style="display:flex;gap:8px;padding:12px 18px;border-top:1px solid #E4E7EC;background:#fafafa;">
+            <button class="pp-btn pp-btn-secondary" onclick="closePPModal('profileReceiptModal')" style="flex:1;justify-content:center;"><i class="fas fa-times"></i> Yopish</button>
+      
+            <button class="pp-btn pp-btn-primary" onclick="printPPReceipt()" style="flex:1;justify-content:center;"><i class="fas fa-print"></i> Chop etish</button>
+        </div>
+    </div>
+</div>
+
+<!-- Wrong Transfer Modal -->
+<div class="pp-modal-overlay" id="profileWrongModal" onclick="if(event.target===this)closeWrongPPModal()">
+    <div class="pp-modal-box">
+        <div class="pp-modal-hdr">
+            <h3><i class="fas fa-exchange-alt" style="color:#f59e0b"></i> Xato to'lovni o'tkazish</h3>
+            <button class="pp-modal-close" onclick="closeWrongPPModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="pp-modal-body">
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#991b1b;">
+                <i class="fas fa-info-circle"></i> <strong>{{ student.first_name }} {{ student.last_name }}</strong> balansidan noto'g'ri o'quvchiga o'tkazilgan to'lovni tuzatish.
+            </div>
+            <div style="background:#f9fafb;border:1px solid #E4E7EC;border-radius:4px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;">
+                <span style="color:#808080;font-size:13px;">Joriy balans:</span>
+                <span style="font-weight:700;font-size:15px;">{% with bal=student|get_balance %}{% if bal %}{{ bal.balance|floatformat:0 }}{% else %}0{% endif %}{% endwith %} so'm</span>
+            </div>
+            <div id="profileWrongError" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:8px 12px;font-size:12px;color:#dc2626;margin-bottom:10px;">
+                <i class="fas fa-exclamation-circle"></i> <span id="profileWrongErrorText"></span>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;font-size:12px;font-weight:500;color:#808080;margin-bottom:3px;">To'g'ri o'quvchini tanlang</label>
+                <select id="profileWrongStudent" style="height:40px;padding:0 12px;border:1px solid #E4E7EC;border-radius:4px;width:100%;font-size:13px;font-family:'Inter',sans-serif;">
+                    <option value="">-- O'quvchini tanlang --</option>
+                    {% for s in all_students %}
+                    <option value="{{ s.pk }}">{{ s.first_name }} {{ s.last_name }} ({{ s.phone }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:500;color:#808080;margin-bottom:3px;">Izoh (ixtiyoriy)</label>
+                <textarea id="profileWrongDesc" rows="2" placeholder="Xato to'lov haqida izoh..." style="padding:10px;border:1px solid #E4E7EC;border-radius:4px;width:100%;font-size:13px;font-family:'Inter',sans-serif;outline:none;"></textarea>
+            </div>
+            <button id="profileWrongSubmit" onclick="submitWrongPPTransfer()" style="width:100%;height:40px;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:'Inter',sans-serif;background:#f59e0b;color:white;">
+                <i class="fas fa-exchange-alt"></i> Pulni o'tkazish
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+var ppStudentId = {{ student.pk }};
+var ppBalance = 0;
+{% with bal=student|get_balance %}
+ppBalance = {% if bal %}{{ bal.balance|floatformat:0 }}{% else %}0{% endif %};
+{% endwith %}
+var ppIsWithdraw = false;
+
+function togglePrevPay(pay) {
+    var items = document.querySelectorAll('#ppMonthlyDebts .pp-month-debt');
+    if (pay) {
+        items.forEach(function(el) {
+            var badge = el.querySelector('.pp-block-badge');
+            if (badge) badge.remove();
+            el.style.opacity = '1';
+            el.style.textDecoration = 'none';
+        });
+    } else {
+        items.forEach(function(el) {
+            if (!el.querySelector('.pp-block-badge')) {
+                var badge = document.createElement('span');
+                badge.className = 'pp-block-badge';
+                badge.innerHTML = '✕ block';
+                badge.style.cssText = 'position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;line-height:1.3;';
+                el.style.position = 'relative';
+                el.appendChild(badge);
+            }
+            el.style.opacity = '0.6';
+            el.style.textDecoration = 'line-through';
+        });
+    }
+}
+
+// ===== TABS =====
+document.querySelectorAll('.pp-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+        switchTab(tab.dataset.tab);
+    });
+});
+
+function switchTab(tabId) {
+    document.querySelectorAll('.pp-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.pp-tab-content').forEach(function(c) { c.classList.remove('active'); });
+    var tabEl = document.querySelector('.pp-tab[data-tab="' + tabId + '"]');
+    if (tabEl) tabEl.classList.add('active');
+    var target = document.getElementById(tabId);
+    if (target) target.classList.add('active');
+}
+
+// Activate tab from URL hash on load
+if (window.location.hash) {
+    var hashTab = window.location.hash.substring(1);
+    if (document.getElementById(hashTab)) {
+        switchTab(hashTab);
+    }
+}
+
+function getCookie(name) {
+    var value = '; ' + document.cookie;
+    var parts = value.split('; ' + name + '=');
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+}
+
+function openPPPayment() {
+    ppIsWithdraw = false;
+    document.getElementById('profileModalTitle').innerHTML = '<i class="fas fa-wallet" style="color:#2001FF"></i> To\'lov qilish';
+    document.getElementById('profileAmountLabel').textContent = 'To\'lov summasi';
+    document.getElementById('profilePayMethodGroup').style.display = '';
+    document.getElementById('profilePayBtnText').textContent = 'To\'lovni tasdiqlash';
+    document.getElementById('profilePaySubmit').style.background = '#2001FF';
+    document.getElementById('profileCurrentBalance').textContent = fmtNum(ppBalance) + ' so\'m';
+    document.getElementById('profilePayAmount').value = '';
+    document.getElementById('profilePayDesc').value = '';
+    document.getElementById('profilePayError').style.display = 'none';
+    document.getElementById('profilePayModal').style.display = 'flex';
+    document.querySelector('input[name="pay_prev"][value="ha"]').checked = true;
+    togglePrevPay(true);
+}
+
+function openPPWithdraw() {
+    ppIsWithdraw = true;
+    document.getElementById('profileModalTitle').innerHTML = '<i class="fas fa-money-bill-wave" style="color:#dc2626"></i> Balansdan pul yechish';
+    document.getElementById('profileAmountLabel').textContent = 'Yechiladigan summa';
+    document.getElementById('profilePayMethodGroup').style.display = 'none';
+    document.getElementById('profilePayBtnText').textContent = 'Pul yechishni tasdiqlash';
+    document.getElementById('profilePaySubmit').style.background = '#dc2626';
+    document.getElementById('profileCurrentBalance').textContent = fmtNum(ppBalance) + ' so\'m';
+    document.getElementById('profilePayAmount').value = '';
+    document.getElementById('profilePayDesc').value = '';
+    document.getElementById('profilePayError').style.display = 'none';
+    document.getElementById('profilePayModal').style.display = 'flex';
+}
+
+function closePPModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function formatPPAmount(input) {
+    var raw = input.value.replace(/\s/g, '');
+    var num = raw.replace(/\D/g, '');
+    if (num !== raw) { input.value = num; return; }
+    input.value = num.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+function fmtNum(n) { return Math.round(Number(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+
+function submitPPPayment() {
+    document.getElementById('profilePayError').style.display = 'none';
+    var amount = document.getElementById('profilePayAmount').value.replace(/\s/g, '');
+    var desc = document.getElementById('profilePayDesc').value;
+    if (!amount || parseFloat(amount) <= 0) {
+        document.getElementById('profilePayErrorText').textContent = 'Iltimos, summani kiriting!';
+        document.getElementById('profilePayError').style.display = 'flex';
+        return;
+    }
+    var btn = document.getElementById('profilePaySubmit');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Jarayonda...';
+
+    var url = ppIsWithdraw ? '{% url "balance_withdraw" %}' : '{% url "payment_create" %}';
+    var fd = new FormData();
+    fd.append('student_id', ppStudentId);
+    fd.append('amount', amount);
+    fd.append('description', desc);
+    if (!ppIsWithdraw) {
+        var m = document.querySelector('input[name="profile_method"]:checked');
+        fd.append('payment_method', m ? m.value : 'naqt');
+    }
+
+    fetch(url, { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd })
+    .then(function(r) { if (!r.ok) return r.text().then(function(t) { throw new Error(t); }); return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> ' + (ppIsWithdraw ? 'Pul yechishni tasdiqlash' : 'To\'lovni tasdiqlash');
+        if (data.success) {
+            ppBalance = data.balance;
+            closePPModal('profilePayModal');
+            showPPReceipt(data);
+            location.reload();
+        } else {
+            document.getElementById('profilePayErrorText').textContent = data.error || 'Xatolik';
+            document.getElementById('profilePayError').style.display = 'flex';
+        }
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> ' + (ppIsWithdraw ? 'Pul yechishni tasdiqlash' : 'To\'lovni tasdiqlash');
+        document.getElementById('profilePayErrorText').textContent = err.message || 'Xatolik';
+        document.getElementById('profilePayError').style.display = 'flex';
+    });
+}
+
+function showPPReceipt(data) {
+    var b = document.getElementById('profileReceiptBody');
+    b.innerHTML = data.receipt_html || '<div style="text-align:center;padding:20px;color:#808080;">Chek topilmadi</div>';
+    document.getElementById('profileReceiptModal').style.display = 'flex';
+}
+
+function printPPReceipt() {
+    var w = window.open('', '', 'width=400,height=600');
+    w.document.write('<html><head><title>Chek</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"><style>body{margin:0;padding:10px;font-family:Courier New,monospace;} *{color:#000!important;} @page{margin:0;}</style></head><body>' + document.getElementById('profileReceiptBody').innerHTML + '</body></html>');
+    w.document.close();
+    setTimeout(function() { w.print(); w.close(); }, 300);
+}
+
+function openWrongPPTransfer() {
+    document.getElementById('profileWrongStudent').value = '';
+    document.getElementById('profileWrongDesc').value = '';
+    document.getElementById('profileWrongError').style.display = 'none';
+    document.getElementById('profileWrongSubmit').disabled = false;
+    document.getElementById('profileWrongSubmit').innerHTML = '<i class="fas fa-exchange-alt"></i> Pulni o\'tkazish';
+    document.getElementById('profileWrongModal').style.display = 'flex';
+}
+
+function closeWrongPPModal() { document.getElementById('profileWrongModal').style.display = 'none'; }
+
+function submitWrongPPTransfer() {
+    var toId = document.getElementById('profileWrongStudent').value;
+    var desc = document.getElementById('profileWrongDesc').value;
+    if (!toId) {
+        document.getElementById('profileWrongErrorText').textContent = 'O\'quvchini tanlang!';
+        document.getElementById('profileWrongError').style.display = 'flex';
+        return;
+    }
+    var btn = document.getElementById('profileWrongSubmit');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Jarayonda...';
+    document.getElementById('profileWrongError').style.display = 'none';
+
+    var fd = new FormData();
+    fd.append('student_id', ppStudentId);
+    fd.append('to_student_id', toId);
+    fd.append('amount', ppBalance);
+    fd.append('description', desc);
+
+    fetch('{% url "balance_transfer" %}', {
+        method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd
+    })
+    .then(function(r) { if (!r.ok) return r.text().then(function(t) { throw new Error(t); }); return r.json(); })
+    .then(function(data) {
+        if (data.success) { closeWrongPPModal(); location.reload(); }
+        else {
+            document.getElementById('profileWrongErrorText').textContent = data.error || 'Xatolik';
+            document.getElementById('profileWrongError').style.display = 'flex';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Pulni o\'tkazish';
+        }
+    })
+    .catch(function(err) {
+        document.getElementById('profileWrongErrorText').textContent = err.message || 'Xatolik';
+        document.getElementById('profileWrongError').style.display = 'flex';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Pulni o\'tkazish';
+    });
+}
+</script>
+
+<script>
+var ppSMSData = {
+    debt: {
+        title: 'Qarz eslatma SMS',
+        msg: 'Hurmatli {recipient_name}! Sizning farzandingiz {{ student.first_name }} {{ student.last_name }} balansida qarzdorlik mavjud. Iltimos, to\'lovni amalga oshiring.',
+    },
+    absence: {
+        title: 'Davomat SMS',
+        msg: 'Hurmatli {recipient_name}! Sizning farzandingiz {{ student.first_name }} {{ student.last_name }} darsiga kelmadi.',
+    },
+    payment: {
+        title: 'To\'lov SMS',
+        msg: 'Hurmatli {recipient_name}! {{ student.first_name }} {{ student.last_name }} hisobiga to\'lov muvaffaqiyatli qabul qilindi.',
+    },
+    custom: {
+        title: 'Maxsus SMS',
+        msg: '',
+    }
+};
+
+function openPPSMSModal(type) {
+    var d = ppSMSData[type] || ppSMSData.custom;
+    document.getElementById('ppSMSModalTitle').innerHTML = '<i class="fas fa-sms" style="color:#2001FF"></i> ' + d.title;
+    var msgEl = document.getElementById('ppSMSMessage');
+    if (d.msg) {
+        var rName = document.getElementById('ppSMSRecipientName').value || '{recipient_name}';
+        msgEl.value = d.msg.replace('{recipient_name}', rName);
+    } else {
+        msgEl.value = '';
+    }
+    document.getElementById('ppSMSError').style.display = 'none';
+    document.getElementById('ppSMSSuccess').style.display = 'none';
+    document.getElementById('ppSMSModal').style.display = 'flex';
+}
+
+document.getElementById('ppSMSRecipient').addEventListener('change', function() {
+    var sel = this.options[this.selectedIndex].text;
+    var namePart = sel.split(' - ')[1] || '';
+    var nameClean = namePart.split(' (')[0].trim();
+    if (nameClean) document.getElementById('ppSMSRecipientName').value = nameClean;
+});
+
+function submitPPSMS() {
+    var btn = document.getElementById('ppSMSSubmit');
+    var phone = document.getElementById('ppSMSRecipient').value;
+    var name = document.getElementById('ppSMSRecipientName').value;
+    var msg = document.getElementById('ppSMSMessage').value.trim();
+    var errEl = document.getElementById('ppSMSError');
+    var okEl = document.getElementById('ppSMSSuccess');
+
+    errEl.style.display = 'none';
+    okEl.style.display = 'none';
+
+    if (!phone) { errEl.textContent = 'Telefon raqamni tanlang'; errEl.style.display = 'block'; return; }
+    if (!name) { errEl.textContent = 'Qabul qiluvchi ismini kiriting'; errEl.style.display = 'block'; return; }
+    if (!msg) { errEl.textContent = 'SMS matnini kiriting'; errEl.style.display = 'block'; return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yuborilmoqda...';
+
+    var fd = new FormData();
+    fd.append('student_id', ppStudentId);
+    fd.append('recipient_phone', phone);
+    fd.append('recipient_name', name);
+    fd.append('message', msg);
+
+    fetch('/api/student/sms/send/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        body: fd
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            okEl.textContent = 'SMS muvaffaqiyatli yuborildi!';
+            okEl.style.display = 'block';
+            document.getElementById('ppSMSMessage').value = '';
+            setTimeout(function() { location.reload(); }, 1200);
+        } else {
+            errEl.textContent = data.error || 'SMS yuborishda xatolik';
+            errEl.style.display = 'block';
+        }
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> SMS yuborish';
+    })
+    .catch(function(err) {
+        errEl.textContent = 'Xatolik: ' + (err.message || 'Server bilan bog\'lanishda xatolik');
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> SMS yuborish';
+    });
+}
+// Deferred reason inline edit
+function editDefReason(el) {
+  var row = el.closest('.def-reason-row');
+  row.querySelector('.def-reason-view').style.display = 'none';
+  row.querySelector('.def-reason-edit').style.display = 'flex';
+  row.querySelector('.def-reason-inp').focus();
+}
+function cancelDefReason(el) {
+  var row = el.closest('.def-reason-row');
+  row.querySelector('.def-reason-view').style.display = 'flex';
+  row.querySelector('.def-reason-edit').style.display = 'none';
+}
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('def-reason-save')) {
+    var btn = e.target;
+    var row = btn.closest('.def-reason-row');
+    var inp = row.querySelector('.def-reason-inp');
+    var studentId = inp.getAttribute('data-student');
+    var month = inp.getAttribute('data-month');
+    var reason = inp.value.trim();
+    btn.disabled = true;
+    btn.textContent = '...';
+    fetch('/api/student/deferred-reason/', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken': getCookie('csrftoken')},
+      body: JSON.stringify({student_id: studentId, month: month, reason: reason})
+    })
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if (data.success) {
+        row.querySelector('.def-reason-view span:nth-child(2)').textContent = reason || '—';
+        row.querySelector('.def-reason-view').style.display = 'flex';
+        row.querySelector('.def-reason-edit').style.display = 'none';
+      } else {
+        btn.textContent = 'Xato';
+        btn.disabled = false;
+      }
+    })
+    .catch(function(){btn.textContent = 'Xato';btn.disabled=false;});
+  }
+});
+</script>
+{% endblock %}

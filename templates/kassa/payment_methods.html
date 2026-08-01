@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}To'lov usullari | Kassa{% endblock %}
+{% block extra_css %}
+<style>
+  :root{--k-primary:#2001FF;--k-primary-hover:#1800cc;--k-text:#111827;--k-muted:#4b5563;--k-border:#e5e7eb;--k-bg:#f9fafb;--k-green:#059669;--k-green-bg:#ecfdf5;--k-red:#dc2626;--k-red-bg:#fef2f2;}
+  .k-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;}
+  .k-header h1{font-size:1.25rem;font-weight:800;color:var(--k-primary);margin:0;}
+  .k-header-actions{display:flex;gap:8px;}
+  .k-btn{padding:7px 14px;border-radius:8px;font-size:.8rem;font-weight:500;text-decoration:none;border:1px solid var(--k-border);background:#fff;color:var(--k-text);display:inline-flex;align-items:center;gap:6px;transition:all .15s;cursor:pointer;}
+  .k-btn:hover{background:var(--k-bg);}
+  .k-btn-primary{background:var(--k-primary);color:#fff;border-color:var(--k-primary);}
+  .k-btn-primary:hover{background:var(--k-primary-hover);}
+  .k-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .k-section-head h2{font-size:.88rem;font-weight:500;color:var(--k-text);margin:0;}
+  .k-section-head .k-count{font-size:.72rem;color:var(--k-muted);background:var(--k-bg);padding:3px 10px;border-radius:12px;border:1px solid var(--k-border);}
+  .k-table-wrap{background:#fff;border:1px solid var(--k-border);border-radius:12px;overflow:hidden;}
+  .k-table{width:100%;border-collapse:collapse;}
+  .k-table th{text-align:left;padding:10px 14px;font-size:.7rem;font-weight:500;color:var(--k-muted);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--k-border);background:var(--k-bg);}
+  .k-table td{padding:12px 14px;font-size:.82rem;border-bottom:1px solid var(--k-border);color:var(--k-text);font-weight:500;}
+  .k-table tr:last-child td{border-bottom:none;}
+  .k-table tr:hover td{background:var(--k-bg);}
+  .k-badge{font-size:.68rem;font-weight:500;padding:3px 10px;border-radius:6px;}
+  .k-badge-active{background:var(--k-green-bg);color:var(--k-green);}
+  .k-badge-inactive{background:var(--k-red-bg);color:var(--k-red);}
+  .k-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .k-act{padding:5px 10px;border-radius:6px;font-size:.72rem;font-weight:500;text-decoration:none;border:1px solid var(--k-border);background:#fff;color:var(--k-text);display:inline-flex;align-items:center;gap:4px;transition:all .15s;}
+  .k-act:hover{background:var(--k-bg);}
+  .k-act-green{color:var(--k-green);border-color:#d1fae5;}
+  .k-act-green:hover{background:var(--k-green-bg);}
+  .k-act-red{color:var(--k-red);border-color:#fecaca;}
+  .k-act-red:hover{background:var(--k-red-bg);}
+  .k-empty{text-align:center;padding:48px 20px;color:var(--k-muted);}
+  .k-empty p{font-size:.85rem;margin:0;}
+  .k-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;align-items:center;justify-content:center;padding:16px;}
+  .k-modal-bg{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);}
+  .k-modal-box{position:relative;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.15);width:100%;max-width:500px;max-height:90vh;overflow-y:auto;}
+  .k-modal-top{padding:16px 20px;border-bottom:1px solid var(--k-border);display:flex;align-items:center;justify-content:space-between;}
+  .k-modal-top h3{font-size:.88rem;font-weight:500;margin:0;color:var(--k-text);}
+  .k-modal-close{background:none;border:none;font-size:1.2rem;color:var(--k-muted);cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;}
+  .k-modal-close:hover{background:var(--k-bg);}
+  .k-modal-body{padding:16px 20px;}
+  .k-modal-body label{display:block;font-size:.78rem;font-weight:500;color:var(--k-text);margin-bottom:4px;}
+  .k-modal-body input[type="text"]{width:100%;padding:8px 12px;border:1px solid var(--k-border);border-radius:8px;font-size:.82rem;background:#fff;color:var(--k-text);margin-bottom:12px;box-sizing:border-box;}
+  .k-modal-body input:focus{border-color:var(--k-primary);box-shadow:0 0 0 3px rgba(32,1,255,.08);outline:none;}
+  .k-modal-foot{padding:12px 20px;border-top:1px solid var(--k-border);display:flex;gap:8px;justify-content:flex-end;}
+  .k-modal-foot button{padding:7px 16px;border-radius:8px;border:none;font-size:.8rem;font-weight:500;cursor:pointer;}
+  .k-modal-foot .k-cancel{background:#fff;border:1px solid var(--k-border);color:var(--k-muted);}
+  .k-modal-foot .k-cancel:hover{background:var(--k-bg);}
+  .k-modal-foot .k-submit{background:var(--k-primary);color:#fff;}
+  @media(max-width:768px){.k-header{flex-direction:column;align-items:flex-start;gap:10px;}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="k-page">
+
+  <div class="k-header">
+    <h1>To'lov usullari</h1>
+    <div class="k-header-actions">
+      <button onclick="document.getElementById('createModal').style.display='flex'" class="k-btn k-btn-primary"><i class="fas fa-plus"></i> Yangi qo'shish</button>
+      <a href="{% url 'kassa_dashboard' %}" class="k-btn"><i class="fas fa-arrow-left"></i> Orqaga</a>
+    </div>
+  </div>
+
+  <div class="k-section-head">
+    <h2>Barcha usullar</h2>
+    <span class="k-count">{{ methods|length }} ta</span>
+  </div>
+
+  <div class="k-table-wrap">
+    <div style="overflow-x:auto;">
+      <table class="k-table">
+        <thead>
+          <tr>
+            <th style="width:36px;">#</th>
+            <th>Nomi</th>
+            <th>Holat</th>
+            <th>Amallar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in methods %}
+          <tr>
+            <td style="color:var(--k-muted);font-size:.78rem;">{{ forloop.counter }}</td>
+            <td style="font-weight:600;">{{ m.name }}</td>
+            <td>
+              {% if m.is_active %}<span class="k-badge k-badge-active">Faol</span>
+              {% else %}<span class="k-badge k-badge-inactive">Nofaol</span>{% endif %}
+            </td>
+            <td>
+              <div class="k-actions">
+                <a href="{% url 'payment_method_edit' m.pk %}" class="k-act"><i class="fas fa-pen"></i> Tahrirlash</a>
+                <a href="{% url 'payment_method_toggle' m.pk %}" class="k-act {% if m.is_active %}k-act-red{% else %}k-act-green{% endif %}">
+                  <i class="fas fa-{% if m.is_active %}ban{% else %}check{% endif %}"></i>
+                  {% if m.is_active %}To'xtatish{% else %}Faollashtirish{% endif %}
+                </a>
+                <form method="post" action="{% url 'payment_method_delete' m.pk %}" style="display:inline;" onsubmit="return confirm('{{ m.name }} ni o\'chirmoqchimisiz?')">
+                  {% csrf_token %}
+                  <button type="submit" class="k-act k-act-red" style="border:none;cursor:pointer;"><i class="fas fa-trash"></i> O'chirish</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4"><div class="k-empty"><p>To'lov usullari topilmadi</p></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Create Modal -->
+  <div id="createModal" class="k-modal">
+    <div class="k-modal-bg" onclick="this.parentElement.style.display='none'"></div>
+    <div class="k-modal-box">
+      <div class="k-modal-top">
+        <h3>Yangi to'lov usuli</h3>
+        <button class="k-modal-close" onclick="document.getElementById('createModal').style.display='none'">&times;</button>
+      </div>
+      <form method="post" action="{% url 'payment_method_create' %}">
+        <div class="k-modal-body">
+          {% csrf_token %}
+          <label>Nomi *</label>
+          <input type="text" name="name" required placeholder="Click, Payme, Naqd...">
+        </div>
+        <div class="k-modal-foot">
+          <button type="button" onclick="document.getElementById('createModal').style.display='none'" class="k-cancel">Bekor qilish</button>
+          <button type="submit" class="k-submit">Qo'shish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Guruhni yopish | Edu Tizim{% endblock %}
+{% block page_title %}Guruhni yopish{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 0 auto;">
+    <div class="card-header">
+        <h3><i class="fas fa-folder-closed"></i> Guruhni yopish</h3>
+    </div>
+    <div class="card-body">
+        <div class="alert" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Diqqat!</strong> Guruh yopilganda barcha o'quvchilar avtomatik bitirilganlar ro'yxatiga o'tadi.
+        </div>
+        <p><strong>Guruh:</strong> {{ group.name }} ({{ group.course.name }})</p>
+        <p><strong>O'quvchilar soni:</strong> {{ group.students.count }}</p>
+        <p><strong>Holati:</strong> <span class="badge {% if group.status == 'aktiv' %}badge-green{% elif group.status == 'yopilgan' %}badge-red{% else %}badge-yellow{% endif %}">{{ group.get_status_display }}</span></p>
+        <form method="post">
+            {% csrf_token %}
+            <div style="display: flex; gap: 8px; margin-top: 20px;">
+                <button type="submit" class="btn btn-danger"><i class="fas fa-folder-closed"></i> Guruhni yopish</button>
+                <a href="{% url 'group_detail' group.pk %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Orqaga</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Muddatni uzaytirish | Edu Tizim{% endblock %}
+{% block page_title %}Muddatni uzaytirish{% endblock %}
+{% block content %}
+<div class="card form-card" style="max-width: 450px; margin: 0 auto;">
+    <div class="card-header">
+        <h3><i class="fas fa-calendar-plus"></i> "{{ group.name }}" muddatini uzaytirish</h3>
+    </div>
+    <div class="card-body" style="text-align: center;">
+        <div style="background: #f0f4ff; border-radius: 10px; padding: 16px; margin-bottom: 24px;">
+            <p style="color: #64748b; font-size: 0.9rem;">Joriy tugash sanasi</p>
+            <p style="font-size: 1.3rem; font-weight: 700; color: #1e293b;">{{ group.end_date|date:"d.m.Y" }}</p>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="days">Necha kunga uzaytiriladi?</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="number" name="days" id="days" min="1" max="365" required class="form-control" placeholder="Kunlar soni" style="text-align: center; font-size: 1.2rem; font-weight: 700;">
+                    <span style="font-weight: 600; color: #64748b; font-size: 1.1rem;">kun</span>
+                </div>
+            </div>
+            <div class="form-actions" style="justify-content: center; border: none; margin-top: 20px;">
+                <a href="{% url 'group_detail' group.pk %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Bekor qilish</a>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-calendar-plus"></i> Uzaytirish</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

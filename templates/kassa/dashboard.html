@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Kassa Dashboard | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+  :root{--k-primary:#2001FF;--k-primary-hover:#1800cc;--k-text:#111827;--k-muted:#4b5563;--k-border:#e5e7eb;--k-bg:#f9fafb;--k-green:#059669;--k-green-bg:#ecfdf5;--k-red:#dc2626;--k-red-bg:#fef2f2;--k-blue:#2563eb;--k-blue-bg:#eff6ff;}
+
+  .k-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;}
+  .k-header h1{font-size:1.25rem;font-weight:800;color:var(--k-primary);margin:0;display:flex;align-items:center;gap:10px;}
+  .k-header-actions{display:flex;gap:8px;}
+  .k-btn{padding:7px 14px;border-radius:8px;font-size:.8rem;font-weight:500;text-decoration:none;border:1px solid var(--k-border);background:#fff;color:var(--k-text);display:inline-flex;align-items:center;gap:6px;transition:all .15s;cursor:pointer;}
+  .k-btn:hover{border-color:#d1d5db;background:#f9fafb;}
+  .k-btn-primary{background:var(--k-primary);color:#fff;border-color:var(--k-primary);}
+  .k-btn-primary:hover{background:var(--k-primary-hover);}
+
+  .k-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+  .k-stat{background:#fff;border:1px solid var(--k-border);border-radius:12px;padding:16px 18px;}
+  .k-stat-label{font-size:.72rem;color:var(--k-muted);font-weight:500;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;}
+  .k-stat-value{font-size:1.2rem;font-weight:700;color:var(--k-text);font-weight:500;}
+  .k-stat-value.primary{color:var(--k-primary);font-weight:500;}
+  .k-stat-value.green{color:var(--k-green);}
+  .k-stat-value.red{color:var(--k-red);}
+
+  .k-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .k-section-head h2{font-size:.88rem;font-weight:500;color:var(--k-text);margin:0;}
+  .k-section-head .k-count{font-size:.72rem;color:var(--k-muted);background:var(--k-bg);padding:3px 10px;border-radius:12px;border:1px solid var(--k-border);}
+
+  .k-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+  .k-card{background:#fff;border:1px solid var(--k-border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s;}
+  .k-card:hover{border-color:#d1d5db;}
+  .k-card-top{display:flex;align-items:center;justify-content:space-between;}
+  .k-card-name{font-size:.92rem;font-weight:500;color:var(--k-text);display:flex;align-items:center;gap:8px;}
+  .k-card-name i{color:var(--k-muted);font-size:.82rem;}
+  .k-badge{font-size:.65rem;font-weight:500;padding:3px 10px;border-radius:6px;}
+  .k-badge-active{background:var(--k-green-bg);color:var(--k-green);}
+  .k-badge-inactive{background:var(--k-red-bg);color:var(--k-red);}
+  .k-card-meta{display:flex;align-items:center;gap:16px;font-size:.75rem;color:var(--k-muted);}
+  .k-card-meta i{font-size:.7rem;}
+  .k-card-balance{font-size:1.4rem;font-weight:500;color:var(--k-primary);line-height:1;}
+  .k-card-balance.neg{color:var(--k-red);}
+  .k-card-balance small{font-size:.7rem;color:var(--k-muted);font-weight:400;}
+
+  .k-card-actions{display:grid;grid-template-columns:repeat(4,1fr) auto;gap:6px;border-top:1px solid var(--k-border);padding-top:14px;margin-top:2px;}
+  .k-card-actions a{padding:8px 0;border-radius:8px;font-size:.72rem;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px;transition:all .15s;cursor:pointer;border:1px solid var(--k-border);background:#fff;color:var(--k-text);}
+  .k-card-actions a:hover{background:var(--k-bg);}
+  .k-card-actions a.k-ap{background:var(--k-primary);color:#fff;border-color:var(--k-primary);}
+  .k-card-actions a.k-ap:hover{background:#374151;}
+  .k-card-actions a.k-ag{color:var(--k-green);border-color:#d1fae5;}
+  .k-card-actions a.k-ag:hover{background:var(--k-green-bg);}
+  .k-card-actions a.k-ar{color:var(--k-red);border-color:#fecaca;}
+  .k-card-actions a.k-ar:hover{background:var(--k-red-bg);}
+  .k-card-actions a.k-ab{color:var(--k-blue);border-color:#bfdbfe;}
+  .k-card-actions a.k-ab:hover{background:var(--k-blue-bg);}
+
+  .k-recent{background:#fff;border:1px solid var(--k-border);border-radius:12px;overflow:hidden;margin-top:24px;}
+  .k-recent-head{padding:14px 18px;border-bottom:1px solid var(--k-border);display:flex;align-items:center;gap:8px;}
+  .k-recent-head h3{font-size:.85rem;font-weight:600;margin:0;color:var(--k-text);}
+  .k-table{width:100%;border-collapse:collapse;}
+  .k-table th{text-align:left;padding:10px 16px;font-size:.7rem;font-weight:500;color:var(--k-muted);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--k-border);background:var(--k-bg);white-space:nowrap;}
+  .k-table td{padding:10px 16px;font-size:.8rem;border-bottom:1px solid var(--k-border);color:var(--k-text);}
+  .k-table tr:last-child td{border-bottom:none;}
+  .k-table tr:hover td{background:var(--k-bg);}
+  .k-op{font-size:.68rem;font-weight:500;padding:3px 8px;border-radius:6px;white-space:nowrap;}
+  .k-op-payment{background:#f5f3ff;color:#7c3aed;}
+  .k-op-income{background:var(--k-green-bg);color:var(--k-green);}
+  .k-op-expense{background:var(--k-red-bg);color:var(--k-red);}
+  .k-op-transfer_in{background:var(--k-blue-bg);color:var(--k-blue);}
+  .k-op-transfer_out{background:#fef3c7;color:#92400e;}
+  .k-op-refund{background:#fce7f3;color:#9d174d;}
+  .k-amt-in{color:var(--k-green);font-weight:600;}
+  .k-amt-out{color:var(--k-red);font-weight:600;}
+  .k-truncate{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  .k-empty{text-align:center;padding:48px 20px;color:var(--k-muted);grid-column:1/-1;}
+  .k-empty i{font-size:36px;display:block;margin-bottom:12px;opacity:.3;}
+  .k-empty p{font-size:.85rem;margin:0 0 12px;}
+  .k-empty a{color:var(--k-primary);font-weight:500;text-decoration:none;}
+  .k-empty a:hover{text-decoration:underline;}
+
+  @media(max-width:768px){.k-stats{grid-template-columns:repeat(2,1fr);}.k-grid{grid-template-columns:1fr;}.k-header{flex-direction:column;align-items:flex-start;gap:10px;}}
+  @media(max-width:480px){.k-stats{grid-template-columns:1fr 1fr;gap:8px;}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="k-page">
+
+  <div class="k-header">
+    <h1><i class="fas fa-cash-register"></i> Kassa boshqaruvi</h1>
+    <div class="k-header-actions">
+      <a href="{% url 'kassa_dashboard_export_excel' %}" class="k-btn"><i class="fas fa-file-excel" style="color:#16a34a;"></i> Excel</a>
+      {% if is_superadmin %}
+      <a href="{% url 'kassa_create' %}" class="k-btn k-btn-primary"><i class="fas fa-plus"></i> Yangi kassa</a>
+      <a href="{% url 'income_category_list' %}" class="k-btn"><i class="fas fa-arrow-up" style="color:#059669;"></i> Kirim kat.</a>
+      {% endif %}
+      <a href="{% url 'kassa_history' %}" class="k-btn"><i class="fas fa-history"></i> Tarix</a>
+    </div>
+  </div>
+
+  <div class="k-stats">
+    <div class="k-stat">
+      <div class="k-stat-label">Umumiy balans</div>
+      <div class="k-stat-value primary">{{ total_balance|floatformat:0 }} <span>so'm</span></div>
+    </div>
+    <div class="k-stat">
+      <div class="k-stat-label">Bugungi kirim</div>
+      <div class="k-stat-value green">{{ today_income|floatformat:0 }} <span>so'm</span></div>
+    </div>
+    <div class="k-stat">
+      <div class="k-stat-label">Bugungi chiqim</div>
+      <div class="k-stat-value red">{{ today_expense|floatformat:0 }} <span>so'm</span></div>
+    </div>
+    <div class="k-stat">
+      <div class="k-stat-label">Bugungi to'lovlar</div>
+      <div class="k-stat-value">{{ today_payment_total|floatformat:0 }} <span>so'm</span></div>
+    </div>
+  </div>
+
+  <div class="k-section-head">
+    <h2>Kassalar</h2>
+    <span class="k-count">{{ kassalar|length }} ta</span>
+  </div>
+
+  <div class="k-grid">
+    {% for item in kassalar %}
+    <div class="k-card">
+      <div class="k-card-top">
+        <div class="k-card-name"><i class="fas fa-wallet"></i> {{ item.kassa.name }}</div>
+        {% if item.kassa.is_active %}
+          <span class="k-badge k-badge-active">Faol</span>
+        {% else %}
+          <span class="k-badge k-badge-inactive">Nofaol</span>
+        {% endif %}
+      </div>
+      <div class="k-card-meta">
+        <span><i class="fas fa-user"></i> {% if item.kassa.owner %}{{ item.kassa.owner.get_full_name|default:item.kassa.owner.username }}{% else %}Noma'lum{% endif %}</span>
+      </div>
+      <div class="k-card-balance {% if item.balance < 0 %}neg{% endif %}">
+        {{ item.balance|floatformat:0 }} <small>so'm</small>
+      </div>
+      <div class="k-card-actions">
+        <a href="{% url 'kassa_detail' item.kassa.pk %}" class="k-ap" style="flex:1;"><i class="fas fa-eye"></i> Batafsil</a>
+      </div>
+    </div>
+    {% empty %}
+    <div class="k-empty">
+      <i class="fas fa-cash-register"></i>
+      <p>Hali kassa yaratilmagan</p>
+      {% if is_superadmin %}
+      <a href="{% url 'kassa_create' %}">Yangi kassa yaratish</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if recent_ops %}
+  <div class="k-recent">
+    <div class="k-recent-head">
+      <h3><i class="fas fa-clock" style="color:var(--k-muted);"></i> Oxirgi operatsiyalar</h3>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="k-table">
+        <thead>
+          <tr>
+            <th>Sana</th>
+            <th>Kassa</th>
+            <th>Turi</th>
+            <th>Summa</th>
+            <th>Izoh</th>
+            <th>Bajaruvchi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for op in recent_ops %}
+          <tr>
+            <td style="white-space:nowrap;">{{ op.created_at|date:"d.m.Y H:i" }}</td>
+            <td style="font-weight:500;">{{ op.kassa.name }}</td>
+            <td>
+              {% if op.transaction_type == 'payment' %}<span class="k-op k-op-payment">To'lov</span>
+              {% elif op.transaction_type == 'income' %}<span class="k-op k-op-income">Kirim</span>
+              {% elif op.transaction_type == 'expense' %}<span class="k-op k-op-expense">Chiqim</span>
+              {% elif op.transaction_type == 'transfer_in' %}<span class="k-op k-op-transfer_in">O'tkazma (k)</span>
+              {% elif op.transaction_type == 'transfer_out' %}<span class="k-op k-op-transfer_out">O'tkazma (ch)</span>
+              {% elif op.transaction_type == 'refund' %}<span class="k-op k-op-refund">Qaytarish</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if op.transaction_type in 'payment,income,transfer_in' %}
+                <span class="k-amt-in">+{{ op.amount|floatformat:0 }}</span>
+              {% else %}
+                <span class="k-amt-out">-{{ op.amount|floatformat:0 }}</span>
+              {% endif %}
+            </td>
+            <td class="k-truncate" title="{{ op.description }}">{% if op.expense_category %}<span style="display:inline-block;background:var(--k-red-bg);color:var(--k-red);padding:1px 6px;border-radius:4px;font-size:.68rem;margin-right:4px;">{{ op.get_expense_category_display }}</span>{% endif %}{{ op.description|default:"-" }}</td>
+            <td>{{ op.created_by|default:"-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}

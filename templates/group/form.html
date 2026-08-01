@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | Edu Tizim{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="card form-card">
+    <div class="card-header">
+        <h3><i class="fas {% if 'qo\'shish' in title %}fa-plus-circle{% else %}fa-edit{% endif %}"></i> {{ title }}</h3>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;margin-bottom:20px;color:#991b1b;font-size:14px;">
+                {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+            </div>
+            {% endif %}
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <div class="field-error">{{ field.errors.0 }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% if form.instance.pk %}
+            <div class="form-group">
+                <label>Dars vaqtlari</label>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
+                    {% with lesson_times=form.instance.lesson_times.all %}
+                        {% if lesson_times %}
+                            {% for lt in lesson_times %}
+                            <div style="display:flex;justify-content:space-between;padding:4px 0;{% if not forloop.last %}border-bottom:1px solid #e2e8f0;{% endif %}font-size:14px;color:#334155;">
+                                <span>{{ lt.get_days_display }}</span>
+                                <span>{{ lt.start_time|time:"H:i" }} - {{ lt.end_time|time:"H:i" }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <span style="color:#94a3b8;font-size:13px;">Hali dars vaqtlari belgilanmagan</span>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+            {% endif %}
+            <div class="form-actions">
+                <a href="{% url 'group_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Bekor qilish</a>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Saqlash</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var courseSelect = document.getElementById('id_course');
+    var levelSelect = document.getElementById('id_level');
+    if (!courseSelect || !levelSelect) return;
+
+    function loadLevels() {
+        var courseId = courseSelect.value;
+        if (!courseId) {
+            levelSelect.innerHTML = '<option value="">--- Tanlang (ixtiyoriy) ---</option>';
+            return;
+        }
+        var current = levelSelect.getAttribute('data-current');
+        fetch('/api/course-levels/?course_id=' + courseId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var html = '<option value="">--- Tanlang (ixtiyoriy) ---</option>';
+                data.levels.forEach(function(lv) {
+                    var sel = (String(lv.id) === current) ? ' selected' : '';
+                    html += '<option value="' + lv.id + '"' + sel + '>' + lv.name + ' (' + Number(lv.daily_price).toLocaleString() + ' so\'m/kun)</option>';
+                });
+                levelSelect.innerHTML = html;
+            });
+    }
+
+    courseSelect.addEventListener('change', loadLevels);
+    if (courseSelect.value) loadLevels();
+});
+</script>
+{% endblock %}

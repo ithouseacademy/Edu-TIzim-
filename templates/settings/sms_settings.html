@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}SMS sozlamalari | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+  .ss-body { max-width: 700px; margin: 0 auto; padding: 24px; }
+  .ss-card { background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }
+  .ss-card-header { padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
+  .ss-card-header i { color: #0ea5e9; font-size: 18px; }
+  .ss-card-header h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
+  .ss-card-body { padding: 20px 24px; }
+  .ss-field { margin-bottom: 16px; }
+  .ss-field:last-child { margin-bottom: 0; }
+  .ss-field label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+  .ss-field .help { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .ss-input { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 13px; outline: none; transition: all .15s; background: #fff; color: #0f172a; }
+  .ss-input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.1); }
+  .ss-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+  .ss-btn-primary { background: #0ea5e9; color: white; }
+  .ss-btn-primary:hover { background: #0284c7; }
+  .ss-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .ss-info { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .ss-info h4 { font-size: 13px; font-weight: 700; color: #0369a1; margin: 0 0 8px; }
+  .ss-info p { font-size: 12px; color: #0c4a6e; margin: 0; line-height: 1.6; }
+  .ss-sms-types { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px; }
+  .ss-sms-type { background: white; border-radius: 10px; padding: 14px; border: 1.5px solid #e2e8f0; }
+  .ss-sms-type h5 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 6px; display: flex; align-items: center; gap: 6px; }
+  .ss-sms-type h5 i { color: #0ea5e9; }
+  .ss-sms-type p { font-size: 11px; color: #64748b; margin: 0; line-height: 1.5; }
+  .ss-preview { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-top: 12px; }
+  .ss-preview-label { font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .ss-preview-msg { font-size: 13px; color: #334155; line-height: 1.6; background: white; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ss-body">
+  {% if messages %}
+    {% for msg in messages %}
+      <div style="padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;
+        {% if msg.tags == 'success' %}background:#dcfce7;color:#166534;{% else %}background:#fef2f2;color:#dc2626;{% endif %}">
+        <i class="fas {% if msg.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="ss-info">
+    <h4><i class="fas fa-info-circle"></i> SMS tizimi haqida</h4>
+    <p>TextUP.uz orqali avtomatik SMS yuboriladi. Quyidagi turdagi SMS lar avtomatik yuboriladi:</p>
+    <div class="ss-sms-types">
+      <div class="ss-sms-type">
+        <h5><i class="fas fa-check-double"></i> Davomat SMS</h5>
+        <p>O'quvchi darsga kelganida ota-onaga xabar yuboriladi</p>
+      </div>
+      <div class="ss-sms-type">
+        <h5><i class="fas fa-money-bill-wave"></i> To'lov SMS</h5>
+        <p>O'quvchi to'lov qilganida ota-onaga tasdiqlash yuboriladi</p>
+      </div>
+      <div class="ss-sms-type">
+        <h5><i class="fas fa-exclamation-triangle"></i> Qarz eslatma SMS</h5>
+        <p>Qarzdor o'quvchilarga to'lovni eslatish uchun SMS yuboriladi</p>
+      </div>
+    </div>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="ss-card">
+      <div class="ss-card-header">
+        <i class="fas fa-sms"></i>
+        <h3>SMS imzosi</h3>
+      </div>
+      <div class="ss-card-body">
+        <div class="ss-field">
+          <label>SMS imzosi</label>
+          <input type="text" name="sms_signature" class="ss-input" value="{{ settings.sms_signature }}" placeholder="ITHouse 550552727">
+          <div class="help">Barcha SMS lar oxirida bu yozuv chiqadi. Faqat harflar va raqamlar ishlating (maxsus belgilar ishlamaydi: : ; , ! va boshqalar)</div>
+        </div>
+        <div class="ss-preview" id="signaturePreview">
+          <div class="ss-preview-label">SMS namunasi</div>
+          <div class="ss-preview-msg" id="previewText">
+            Hurmatli O'quvchi ismi! hisobingizga 100000 so'm to'lov qabul qilindi, {{ settings.sms_signature|default:"ITHouse 550552727" }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ss-actions">
+      <button type="submit" class="ss-btn ss-btn-primary"><i class="fas fa-save"></i> Saqlash</button>
+    </div>
+  </form>
+</div>
+
+<script>
+document.querySelector('input[name="sms_signature"]').addEventListener('input', function() {
+  const val = this.value || 'ITHouse 550552727';
+  document.getElementById('previewText').textContent = 'Hurmatli O\'quvchi ismi! hisobingizga 100000 so\'m to\'lov qabul qilindi, ' + val;
+});
+</script>
+{% endblock %}

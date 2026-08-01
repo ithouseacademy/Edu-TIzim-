@@ -1,0 +1,338 @@
+:root {
+    --primary: #2563eb;
+    --secondary: #1d4ed8;
+    --accent: #3b82f6;
+    --primary-fg: #fff;
+    --body-fg: #1e293b;
+    --body-bg: #f0f4ff;
+    --body-quiet-color: #64748b;
+    --body-loud-color: #0f172a;
+    --header-color: #fff;
+    --header-branding-color: #fff;
+    --header-bg: #1e40af;
+    --header-link-color: #bfdbfe;
+    --breadcrumbs-bg: #dbeafe;
+    --breadcrumbs-fg: #1e40af;
+    --breadcrumbs-link-fg: #2563eb;
+    --breadcrumbs-current-fg: #1e293b;
+    --link-fg: #2563eb;
+    --link-hover-color: #1d4ed8;
+    --link-selected-fg: #1d4ed8;
+    --hairline-color: #e2e8f0;
+    --border-color: #cbd5e1;
+    --error-fg: #dc2626;
+    --message-success-bg: #dcfce7;
+    --message-warning-bg: #fef9c3;
+    --message-error-bg: #fee2e2;
+    --darkened-bg: #eef2ff;
+    --selected-bg: #dbeafe;
+    --selected-row: #dbeafe;
+    --button-fg: #fff;
+    --button-bg: #2563eb;
+    --button-hover-bg: #1d4ed8;
+    --close-button-bg: #64748b;
+    --close-button-hover-bg: #475569;
+    --delete-button-bg: #dc2626;
+    --delete-button-hover-bg: #b91c1c;
+    --object-tools-fg: #fff;
+    --object-tools-bg: #2563eb;
+    --object-tools-hover-bg: #1d4ed8;
+    --font-family-primary: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-family-monospace: 'Cascadia Code', 'Consolas', monospace;
+}
+
+body {
+    font-family: var(--font-family-primary);
+    background: var(--body-bg);
+}
+
+#header {
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    padding: 16px 30px;
+    box-shadow: 0 4px 20px rgba(30, 64, 175, 0.2);
+}
+
+#branding h1 {
+    font-weight: 700;
+}
+
+#user-tools a {
+    color: var(--header-link-color);
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+#user-tools a:hover {
+    color: white;
+}
+
+.module h2, .module caption, .inline-group h2 {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    padding: 10px 15px;
+    border-radius: 8px 8px 0 0;
+    font-size: 0.85rem;
+    letter-spacing: 0.3px;
+}
+
+.module {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--hairline-color);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+div.breadcrumbs {
+    background: var(--breadcrumbs-bg);
+    color: var(--breadcrumbs-fg);
+    padding: 12px 30px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+div.breadcrumbs a {
+    color: var(--breadcrumbs-link-fg);
+}
+
+.button, input[type=submit], input[type=button], .submit-row input, a.button {
+    background: var(--button-bg);
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 10px 20px;
+    transition: all 0.2s;
+    border: none;
+}
+
+.button:hover, input[type=submit]:hover, input[type=button]:hover, a.button:hover {
+    background: var(--button-hover-bg);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.button.default, input[type=submit].default {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    margin-right: 10px;
+}
+
+.button.default:hover, input[type=submit].default:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+table {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+thead th {
+    background: #f8fafc;
+    color: var(--body-quiet-color);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    padding: 12px 15px;
+    border-bottom: 2px solid var(--hairline-color);
+}
+
+td, th {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--hairline-color);
+}
+
+tr.selected td {
+    background: var(--selected-row);
+}
+
+tr:hover td {
+    background: var(--darkened-bg);
+}
+
+.paginator {
+    background: white;
+    padding: 15px;
+    border-top: 1px solid var(--hairline-color);
+    margin-top: 0;
+}
+
+.paginator a, .paginator .this-page {
+    border-radius: 6px;
+    padding: 6px 12px;
+    margin: 0 2px;
+    font-size: 0.85rem;
+}
+
+.paginator a {
+    background: var(--darkened-bg);
+    color: var(--body-fg);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.paginator a:hover {
+    background: var(--selected-bg);
+    color: var(--link-fg);
+}
+
+.paginator .this-page {
+    background: var(--button-bg) !important;
+    color: white !important;
+}
+
+.inline-group {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--hairline-color);
+    background: white;
+}
+
+.selector-chosen h2 {
+    background: var(--button-bg) !important;
+}
+
+#changelist {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--hairline-color);
+}
+
+#changelist-filter {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#changelist-filter li.selected a {
+    color: var(--link-fg);
+}
+
+#changelist-filter a {
+    color: var(--body-quiet-color);
+    transition: color 0.2s;
+}
+
+#changelist-filter a:hover {
+    color: var(--link-hover-color);
+}
+
+.object-tools a {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.object-tools a:hover {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.selector h2 {
+    background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+}
+
+.calendar caption {
+    background: var(--button-bg) !important;
+}
+
+.calendar td.selected a {
+    background: var(--button-bg) !important;
+}
+
+.calendar a:hover {
+    background: var(--darkened-bg) !important;
+}
+
+.field-box {
+    margin-bottom: 10px;
+}
+
+.aligned label {
+    padding: 6px 0;
+    color: var(--body-loud-color);
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.form-row {
+    padding: 15px 0;
+    border-bottom: 1px solid var(--hairline-color);
+}
+
+form .aligned .form-row:last-child {
+    border-bottom: none;
+}
+
+.help {
+    color: var(--body-quiet-color);
+    font-size: 0.8rem;
+}
+
+input, textarea, select {
+    border: 2px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    padding: 10px 14px !important;
+    font-family: var(--font-family-primary) !important;
+    font-size: 0.9rem !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+    background: #f8fafc !important;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+    background: white !important;
+    outline: none !important;
+}
+
+.errornote {
+    background: var(--message-error-bg) !important;
+    border: 1px solid #fecaca !important;
+    border-radius: 8px !important;
+    padding: 12px 16px !important;
+    color: var(--error-fg) !important;
+}
+
+.success {
+    background: var(--message-success-bg) !important;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #16a34a;
+}
+
+.messagelist li {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+}
+
+.messagelist li.success {
+    background: var(--message-success-bg) !important;
+    border: 1px solid #bbf7d0;
+    color: #16a34a;
+}
+
+.messagelist li.error {
+    background: var(--message-error-bg) !important;
+    border: 1px solid #fecaca;
+    color: var(--error-fg);
+}
+
+.messagelist li.warning {
+    background: var(--message-warning-bg) !important;
+    border: 1px solid #fef08a;
+    color: #ca8a04;
+}
+
+@media (max-width: 1024px) {
+    #header {
+        padding: 12px 20px;
+    }
+    div.breadcrumbs {
+        padding: 10px 20px;
+    }
+}

@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Xodim qo'shish | Edu Tizim{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .form-input {
+    height: 48px;
+    padding: 0 16px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    color: #0f172a;
+    background: #fff;
+    transition: all 0.2s;
+    outline: none;
+    width: 100%;
+    font-family: inherit;
+  }
+  .form-input:hover { border-color: #cbd5e1; }
+  .form-input:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
+  .form-input::placeholder { color: #94a3b8; }
+  select.form-input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+  textarea.form-input { height: auto; padding: 12px 16px; resize: vertical; min-height: 100px; }
+  .form-label { display: block; font-size: 0.82rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  .form-label .required { color: #ef4444; }
+  .upload-zone {
+    border: 1.5px dashed #e2e8f0; border-radius: 10px; padding: 20px; text-align: center;
+    cursor: pointer; transition: all 0.2s; background: #f8fafc;
+  }
+  .upload-zone:hover { border-color: #2563eb; background: #eff6ff; }
+  .upload-zone.has-image { border-style: solid; border-color: #2563eb; background: #eff6ff; }
+  .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0; background: #e2e8f0; border-radius: 12px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .toggle-slider::before {
+    content: ''; position: absolute; width: 18px; height: 18px;
+    left: 3px; bottom: 3px; background: white; border-radius: 50%;
+    transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .toggle-switch input:checked + .toggle-slider { background: #2563eb; }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .checkbox-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border: 1.5px solid #e2e8f0;
+    border-radius: 8px; cursor: pointer; transition: all 0.15s;
+    font-size: 0.85rem; color: #374151; font-weight: 500;
+  }
+  .checkbox-item:hover { border-color: #93c5fd; background: #eff6ff; }
+  .checkbox-item.checked { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
+  .checkbox-item input[type="checkbox"] { display: none; }
+  .checkbox-item .check-icon {
+    width: 18px; height: 18px; border: 2px solid #cbd5e1;
+    border-radius: 4px; display: flex; align-items: center;
+    justify-content: center; transition: all 0.15s; flex-shrink: 0;
+  }
+  .checkbox-item.checked .check-icon { background: #2563eb; border-color: #2563eb; }
+  .checkbox-item.checked .check-icon::after { content: '✓'; color: white; font-size: 11px; font-weight: 700; }
+  .salary-same {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border: 1.5px solid #e2e8f0;
+    border-radius: 10px; cursor: pointer; transition: all 0.15s;
+    font-size: 0.85rem; color: #374151; font-weight: 500;
+  }
+  .salary-same:hover { border-color: #93c5fd; background: #f8fafc; }
+  .salary-same.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
+  .salary-same input[type="checkbox"] { display: none; }
+  .salary-same .radio-icon {
+    width: 20px; height: 20px; border: 2px solid #cbd5e1;
+    border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; transition: all 0.15s; flex-shrink: 0;
+  }
+  .salary-same.active .radio-icon { border-color: #2563eb; }
+  .salary-same.active .radio-icon::after { content: ''; width: 10px; height: 10px; background: #2563eb; border-radius: 50%; }
+  .add-field-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 24px; background: #eff6ff; color: #2563eb;
+    border: 1.5px solid #bfdbfe; border-radius: 10px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; font-family: inherit;
+  }
+  .add-field-btn:hover {
+    background: #dbeafe; border-color: #2563eb;
+    transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.15);
+  }
+  .preview-img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 2px solid #e2e8f0; }
+  .error-text { color: #dc2626; font-size: 0.78rem; font-weight: 500; margin-top: 4px; }
+</style>
+{% endblock %}
+{% block content %}
+<form method="post" enctype="multipart/form-data">
+{% csrf_token %}
+<div class="max-w-5xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-xl font-bold text-[#0f172a]">Xodim qo'shish</h2>
+      <p class="text-sm text-[#64748b] mt-0.5">Yangi xodim ma'lumotlarini kiriting</p>
+    </div>
+    <div class="flex gap-3">
+      <a href="{% url 'dashboard' %}" class="px-5 py-2.5 border border-[#e2e8f0] rounded-lg text-sm font-semibold text-[#64748b] hover:bg-[#f8fafc] hover:border-[#cbd5e1] transition-all">Bekor qilish</a>
+      <button type="submit" class="px-5 py-2.5 bg-[#2563eb] text-white rounded-lg text-sm font-semibold hover:bg-[#1d4ed8] transition-all shadow-sm hover:shadow-md flex items-center gap-2">
+        <i class="fas fa-save"></i> Saqlash
+      </button>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-6 md:p-8">
+    <div class="flex items-center gap-3 pb-5 mb-6 border-b border-[#e2e8f0]">
+      <div class="w-9 h-9 bg-[#eff6ff] rounded-lg flex items-center justify-center text-[#2563eb]">
+        <i class="fas fa-user text-sm"></i>
+      </div>
+      <div>
+        <h3 class="font-semibold text-[#0f172a]">Shaxsiy ma'lumotlar</h3>
+        <p class="text-xs text-[#64748b]">Xodimning asosiy ma'lumotlari</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div>
+        <label class="form-label" for="{{ form.first_name.id_for_label }}">Ism <span class="required">*</span></label>
+        {{ form.first_name }}
+        {% if form.first_name.errors %}<div class="error-text">{{ form.first_name.errors.0 }}</div>{% endif %}
+      </div>
+      <div>
+        <label class="form-label" for="{{ form.last_name.id_for_label }}">Familiya <span class="required">*</span></label>
+        {{ form.last_name }}
+        {% if form.last_name.errors %}<div class="error-text">{{ form.last_name.errors.0 }}</div>{% endif %}
+      </div>
+      <div>
+        <label class="form-label" for="{{ form.phone.id_for_label }}">Telefon raqam <span class="required">*</span></label>
+        <div class="flex">
+          <span class="inline-flex items-center px-4 border border-r-0 border-[#e2e8f0] rounded-l-lg bg-[#f8fafc] text-sm font-semibold text-[#0f172a] h-12">+998</span>
+          {{ form.phone }}
+        </div>
+        {% if form.phone.errors %}<div class="error-text">{{ form.phone.errors.0 }}</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
+      <div>
+        <label class="form-label" for="{{ form.email.id_for_label }}">Elektron pochta</label>
+        {{ form.email }}
+      </div>
+      <div>
+        <label class="form-label" for="{{ form.gender.id_for_label }}">Jinsi</label>
+        {{ form.gender }}
+      </div>
+      <div>
+        <label class="form-label" for="{{ form.birth_date.id_for_label }}">Tug'ilgan sanasi</label>
+        {{ form.birth_date }}
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-6 md:p-8 mt-5">
+    <div class="flex items-center gap-3 pb-5 mb-6 border-b border-[#e2e8f0]">
+      <div class="w-9 h-9 bg-[#eff6ff] rounded-lg flex items-center justify-center text-[#2563eb]">
+        <i class="fas fa-briefcase text-sm"></i>
+      </div>
+      <div>
+        <h3 class="font-semibold text-[#0f172a]">Ish ma'lumotlari</h3>
+        <p class="text-xs text-[#64748b]">Xodimning ish joyi va lavozimi</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div>
+        <label class="form-label" for="{{ form.position.id_for_label }}">O'quv markazidagi vazifasi <span class="required">*</span></label>
+        {{ form.position }}
+        {% if form.position.errors %}<div class="error-text">{{ form.position.errors.0 }}</div>{% endif %}
+      </div>
+      <div>
+        <label class="form-label">Profil rasmi yuklash</label>
+        <div class="upload-zone" onclick="document.getElementById('id_photo').click()" id="upload-zone">
+          {{ form.photo }}
+          <div id="upload-placeholder">
+            <i class="fas fa-cloud-upload-alt text-2xl text-[#94a3b8]"></i>
+            <p class="text-sm text-[#64748b] mt-2">Rasm yuklash uchun bosing</p>
+            <p class="text-xs text-[#94a3b8] mt-1">PNG, JPG (max 5MB)</p>
+          </div>
+          <div id="upload-preview" class="hidden flex items-center gap-3">
+            <img id="preview-img" class="preview-img">
+            <div class="text-left">
+              <p id="file-name" class="text-sm font-medium text-[#0f172a]"></p>
+              <p class="text-xs text-[#64748b]">Rasm yuklandi</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Ish haqi chiqarish</label>
+        <div class="flex items-center gap-3 h-12">
+          <label class="toggle-switch">
+            {{ form.salary_enabled }}
+            <span class="toggle-slider"></span>
+          </label>
+          <span id="salary-status" class="text-sm text-[#64748b]">Yopiq</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
+      <div>
+        <label class="form-label">Filiallar</label>
+        <div class="checkbox-grid mt-1">
+          {% for value, label_text in form.branches.field.choices %}
+          <div class="checkbox-item" onclick="toggleCheckbox(this)">
+            <input type="checkbox" name="branches" value="{{ value }}"
+              {% if value in form.branches.value %}checked{% endif %}>
+            <span class="check-icon"></span>{{ label_text }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div>
+        <label class="form-label" for="{{ form.role.id_for_label }}">Rollar</label>
+        {{ form.role }}
+      </div>
+      <div>
+        <label class="form-label">Ish haqi</label>
+        <label class="salary-same" onclick="toggleSalarySame(this)">
+          {{ form.salary_same }}<span class="radio-icon"></span>Hammaga bir xil
+        </label>
+        <div class="relative mt-2">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#64748b]">UZS</span>
+          {{ form.salary }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-6 md:p-8 mt-5">
+    <div class="flex items-center gap-3 pb-5 mb-6 border-b border-[#e2e8f0]">
+      <div class="w-9 h-9 bg-[#eff6ff] rounded-lg flex items-center justify-center text-[#2563eb]">
+        <i class="fas fa-comment text-sm"></i>
+      </div>
+      <div>
+        <h3 class="font-semibold text-[#0f172a]">Qo'shimcha</h3>
+        <p class="text-xs text-[#64748b]">Qo'shimcha ma'lumotlar</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div>
+        <label class="form-label" for="{{ form.password.id_for_label }}">Parol <span class="required">*</span></label>
+        {{ form.password }}
+        {% if form.password.errors %}<div class="error-text">{{ form.password.errors.0 }}</div>{% endif %}
+        {% if form.password.help_text %}<p class="text-xs text-[#94a3b8] mt-1">{{ form.password.help_text }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="form-label" for="{{ form.notes.id_for_label }}">Izoh</label>
+        {{ form.notes }}
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-6 flex items-center gap-3">
+    <button type="button" class="add-field-btn" onclick="alert('Maxsus maydon qo\'shish oynasi ochiladi')">
+      <i class="fas fa-plus-circle"></i> Maxsus maydon qo'shish
+    </button>
+  </div>
+
+  <div class="mt-8 flex items-center justify-end gap-3 pb-8">
+    <a href="{% url 'dashboard' %}" class="px-6 py-2.5 border border-[#e2e8f0] rounded-lg text-sm font-semibold text-[#64748b] hover:bg-[#f8fafc] transition-all">Bekor qilish</a>
+    <button type="submit" class="px-6 py-2.5 bg-[#2563eb] text-white rounded-lg text-sm font-semibold hover:bg-[#1d4ed8] transition-all shadow-sm hover:shadow-md flex items-center gap-2">
+      <i class="fas fa-save"></i> Saqlash
+    </button>
+  </div>
+</div>
+</form>
+
+<script>
+document.querySelector('#id_photo')?.classList.add('hidden');
+document.querySelector('#id_photo')?.setAttribute('onchange', 'previewPhoto(event)');
+
+function previewPhoto(event) {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('preview-img').src = e.target.result;
+      document.getElementById('file-name').textContent = file.name;
+      document.getElementById('upload-placeholder').classList.add('hidden');
+      document.getElementById('upload-preview').classList.remove('hidden');
+      document.getElementById('upload-zone').classList.add('has-image');
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function toggleCheckbox(el) {
+  const checkbox = el.querySelector('input[type="checkbox"]');
+  checkbox.checked = !checkbox.checked;
+  el.classList.toggle('checked');
+}
+
+function toggleSalarySame(el) {
+  const checkbox = el.querySelector('input[type="checkbox"]');
+  checkbox.checked = !checkbox.checked;
+  el.classList.toggle('active');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const salaryToggle = document.getElementById('id_salary_enabled');
+  if (salaryToggle) {
+    salaryToggle.addEventListener('change', function() {
+      const status = document.getElementById('salary-status');
+      status.textContent = this.checked ? 'Ochiq' : 'Yopiq';
+      status.style.color = this.checked ? '#16a34a' : '#64748b';
+    });
+  }
+});
+</script>
+{% endblock %}
