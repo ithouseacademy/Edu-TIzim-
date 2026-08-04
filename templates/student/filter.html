@@ -100,33 +100,41 @@
 
 @media print{
 @page{margin:0;size:{{ paper_width|default:"58mm" }} {{ paper_height|default:"210mm" }};}
+body{max-height:{{ paper_height|default:"210mm" }};overflow:hidden;}
 body *{visibility:hidden;}
 .modal-overlay#receiptModal.printing{display:block;position:absolute;top:0;left:0;width:{{ paper_width|default:"58mm" }};background:#fff;z-index:999999;}
 .modal-overlay#receiptModal.printing .modal-box{visibility:visible;position:static;max-width:none;box-shadow:none;border-radius:0;background:#fff;display:block;max-height:none;width:{{ paper_width|default:"58mm" }};padding:0;}
 .modal-overlay#receiptModal.printing .modal-box>div:last-child{display:none;}
 .modal-overlay#receiptModal.printing #receiptBody,.modal-overlay#receiptModal.printing #receiptBody *{visibility:visible;}
 .modal-overlay#receiptModal.printing #receiptBody{padding:{{ paper_padding|default:"2mm" }};width:100%;margin:0 auto;text-align:center;font-family:'Courier New',Courier,monospace;color:#000;}
-.modal-overlay#receiptModal.printing #receiptBody *{color:#000!important;border-color:#000!important;background:transparent!important;letter-spacing:0!important;font-family:'Courier New',Courier,monospace!important;font-weight:900!important;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-logo-wrap{display:none;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-academy .name{font-size:{{ font_name|default:"20px" }};text-align:center;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-academy .tagline{font-size:{{ font_tagline|default:"9px" }};text-align:center;text-transform:uppercase;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-title{font-size:{{ font_title|default:"12px" }};text-align:center;text-transform:uppercase;margin:4px 0 2px;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-receipt-no{font-size:{{ font_row|default:"9px" }};text-align:center;margin-bottom:4px;}
+.modal-overlay#receiptModal.printing #receiptBody *{color:#000!important;border-color:#000!important;background:transparent!important;letter-spacing:0!important;font-family:'Courier New',Courier,monospace!important;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-logo-wrap{text-align:center;margin-bottom:5px;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-logo-wrap img{max-height:35px;max-width:90px;object-fit:contain;filter:grayscale(1) contrast(1.2);}
+.modal-overlay#receiptModal.printing #receiptBody .rc-academy .name{font-size:{{ font_name|default:"18px" }};font-weight:700;text-align:center;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-academy .tagline{font-size:{{ font_tagline|default:"9px" }};font-weight:400;text-align:center;text-transform:uppercase;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-title{font-size:{{ font_title|default:"12px" }};font-weight:700;text-align:center;text-transform:uppercase;margin:4px 0 2px;letter-spacing:1px;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-receipt-no{font-size:{{ font_row|default:"9px" }};font-weight:400;text-align:center;margin-bottom:4px;}
 .modal-overlay#receiptModal.printing #receiptBody .rc-divider{margin:5px 0;border-top:1px dashed #000!important;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-row{display:flex;justify-content:space-between;padding:1.5px 0;font-size:{{ font_row|default:"9px" }};}
-.modal-overlay#receiptModal.printing #receiptBody .rc-row .rc-value{text-align:right;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-divider.solid{border-top:2px solid #000!important;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-row{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;padding:1.5px 0;font-size:{{ font_row|default:"9px" }};font-weight:400;line-height:1.4;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-row .rc-label{white-space:nowrap;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-row .rc-value{text-align:right;font-weight:400;word-break:break-word;}
 .modal-overlay#receiptModal.printing #receiptBody .rc-amount-box{text-align:center;padding:6px 0;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-amount-box .value{font-size:{{ font_amount|default:"22px" }};}
-.modal-overlay#receiptModal.printing #receiptBody .rc-balance{display:flex;justify-content:space-between;font-size:{{ font_balance|default:"9px" }};padding:2px 0;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-thanks{font-size:{{ font_thanks|default:"11px" }};text-align:center;margin:5px 0 2px;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-footer{font-size:{{ font_footer|default:"8px" }};text-align:center;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-contact{font-size:{{ font_contact|default:"8px" }};text-align:center;line-height:1.5;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-amount-box .label{font-size:{{ font_amount_label|default:"8px" }};font-weight:700;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-amount-box .value{font-size:{{ font_amount|default:"22px" }};font-weight:700;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-balance{display:flex;justify-content:space-between;font-size:{{ font_balance|default:"9px" }};font-weight:400;padding:2px 0;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-balance .val{font-weight:700;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-thanks{font-size:{{ font_thanks|default:"11px" }};font-weight:700;text-align:center;margin:5px 0 2px;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-footer{font-size:{{ font_footer|default:"8px" }};font-weight:400;text-align:center;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-contact{font-size:{{ font_contact|default:"8px" }};font-weight:400;text-align:center;line-height:1.5;}
 .modal-overlay#receiptModal.printing #receiptBody .rc-contact i{display:none;}
-.modal-overlay#receiptModal.printing #receiptBody .rc-notes{font-size:{{ font_notes|default:"8px" }};text-align:center;}
+.modal-overlay#receiptModal.printing #receiptBody .rc-notes{font-size:{{ font_notes|default:"8px" }};font-weight:400;text-align:center;}
 .modal-overlay#receiptModal.printing #receiptBody .rc-qr-wrap{display:none;}
 }
 
 #receiptBody{font-family:'Inter','Segoe UI',sans-serif;color:#0f172a;}
+#receiptBody .rc-logo-wrap{text-align:center;margin-bottom:10px;}
+#receiptBody .rc-logo-wrap img{max-height:60px;max-width:160px;border-radius:8px;object-fit:contain;}
 #receiptBody .rc-academy{text-align:center;margin-bottom:4px;}
 #receiptBody .rc-academy .name{font-size:20px;font-weight:900;letter-spacing:1px;color:#0f172a;}
 #receiptBody .rc-academy .tagline{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
@@ -466,12 +474,34 @@ function updateStudentBalance(id, amount) {
 }
 
 function showReceipt(d) {
+  window._lastTransactionId=d.transaction_id;
   var b=document.getElementById('receiptBody');
   if(d.receipt_html){b.innerHTML=d.receipt_html;if(d.qr_link){var e=b.querySelector('#qrcode');if(e&&typeof QRCode!=='undefined')new QRCode(e,{text:d.qr_link,width:80,height:80,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H});}}
   document.getElementById('receiptModal').classList.add('show');
 }
 function closeReceipt(){document.getElementById('receiptModal').classList.remove('show');}
-function printReceipt(){document.getElementById('receiptModal').classList.add('printing');setTimeout(function(){window.print();},100);}
+function printReceipt(){
+  var id = window._lastTransactionId;
+  if (!id) { document.getElementById('receiptModal').classList.add('printing'); setTimeout(function(){window.print();},100); return; }
+  fetch('{% url "api_receipt_html" 0 %}'.replace('/0/', '/' + id + '/'))
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data.html) return;
+      var w = window.open('', '_blank', 'width=500,height=700');
+      if (!w) return;
+      w.document.write(data.html);
+      w.document.close();
+      var timer = setInterval(function(){
+        try {
+          if (w.document.readyState === 'complete'){
+            clearInterval(timer);
+            w.focus();
+            setTimeout(function(){ w.print(); }, 400);
+          }
+        } catch(e){}
+      }, 100);
+    });
+}
 window.addEventListener('afterprint',function(){document.getElementById('receiptModal').classList.remove('printing');});
 </script>
 {% endblock %}

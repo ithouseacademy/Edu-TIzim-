@@ -52,27 +52,29 @@
       body { padding: 0; margin: 0; background: #fff; }
       .receipt-wrap { max-width: 100%; box-shadow: none; border-radius: 0; }
       .receipt-inner { padding: {{ settings.paper_padding|default:"2mm" }}; }
-      * { font-family: 'Courier New', Courier, monospace !important; color: #000 !important; font-weight: 900 !important; letter-spacing: 0 !important; }
-      .rc-logo-wrap img { max-height: 40px; max-width: 120px; }
-      .rc-academy .name { font-size: {{ settings.font_name|default:"20px" }}; text-align: center; margin-bottom: 1px; }
-      .rc-academy .tagline { font-size: {{ settings.font_tagline|default:"9px" }}; text-align: center; text-transform: uppercase; margin-bottom: 2px; }
-      .rc-title { font-size: {{ settings.font_title|default:"12px" }}; text-align: center; text-transform: uppercase; margin: 4px 0 2px; }
-      .rc-receipt-no { font-size: {{ settings.font_row|default:"9px" }}; text-align: center; margin-bottom: 4px; }
+      * { font-family: 'Courier New', Courier, monospace !important; color: #000 !important; letter-spacing: 0 !important; }
+      .rc-logo-wrap { text-align: center; margin-bottom: 6px; }
+      .rc-logo-wrap img { max-height: 35px; max-width: 90px; object-fit: contain; filter: grayscale(1) contrast(1.2); }
+      .rc-academy .name { font-size: {{ settings.font_name|default:"18px" }}; font-weight: 700; text-align: center; margin-bottom: 1px; }
+      .rc-academy .tagline { font-size: {{ settings.font_tagline|default:"9px" }}; font-weight: 400; text-align: center; text-transform: uppercase; margin-bottom: 2px; }
+      .rc-title { font-size: {{ settings.font_title|default:"12px" }}; font-weight: 700; text-align: center; text-transform: uppercase; margin: 4px 0 2px; letter-spacing: 1px; }
+      .rc-receipt-no { font-size: {{ settings.font_row|default:"9px" }}; font-weight: 400; text-align: center; margin-bottom: 4px; }
       .rc-divider { margin: 5px 0; border-top: 1px dashed #000; }
       .rc-divider.solid { border-top: 2px solid #000; }
-      .rc-section-title { font-size: 8px; text-align: left; margin-bottom: 4px; }
-      .rc-row { font-size: {{ settings.font_row|default:"9px" }}; padding: 1.5px 0; display: flex; justify-content: space-between; }
+      .rc-section-title { font-size: 8px; font-weight: 700; text-align: left; margin-bottom: 4px; }
+      .rc-row { font-size: {{ settings.font_row|default:"9px" }}; font-weight: 400; padding: 1.5px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; line-height: 1.4; }
       .rc-row .rc-label { white-space: nowrap; }
-      .rc-row .rc-value { text-align: right; }
+      .rc-row .rc-value { text-align: right; font-weight: 400; word-break: break-word; }
       .rc-amount-box { text-align: center; padding: 6px 0; }
-      .rc-amount-box .label { font-size: {{ settings.font_amount_label|default:"8px" }}; }
-      .rc-amount-box .value { font-size: {{ settings.font_amount|default:"22px" }}; margin: 2px 0; }
-      .rc-balance { font-size: {{ settings.font_balance|default:"9px" }}; padding: 2px 0; display: flex; justify-content: space-between; }
-      .rc-message .main { font-size: {{ settings.font_row|default:"9px" }}; }
-      .rc-thanks { font-size: {{ settings.font_thanks|default:"11px" }}; text-align: center; margin: 5px 0 2px; }
-      .rc-footer { font-size: {{ settings.font_footer|default:"8px" }}; text-align: center; }
-      .rc-notes { font-size: {{ settings.font_notes|default:"8px" }}; text-align: center; }
-      .rc-contact { font-size: {{ settings.font_contact|default:"8px" }}; text-align: center; line-height: 1.5; margin-top: 3px; }
+      .rc-amount-box .label { font-size: {{ settings.font_amount_label|default:"8px" }}; font-weight: 700; }
+      .rc-amount-box .value { font-size: {{ settings.font_amount|default:"22px" }}; font-weight: 700; margin: 2px 0; }
+      .rc-balance { font-size: {{ settings.font_balance|default:"9px" }}; font-weight: 400; padding: 2px 0; display: flex; justify-content: space-between; }
+      .rc-balance .val { font-weight: 700; }
+      .rc-message .main { font-size: {{ settings.font_row|default:"9px" }}; font-weight: 700; }
+      .rc-thanks { font-size: {{ settings.font_thanks|default:"11px" }}; font-weight: 700; text-align: center; margin: 5px 0 2px; }
+      .rc-footer { font-size: {{ settings.font_footer|default:"8px" }}; font-weight: 400; text-align: center; }
+      .rc-notes { font-size: {{ settings.font_notes|default:"8px" }}; font-weight: 400; text-align: center; }
+      .rc-contact { font-size: {{ settings.font_contact|default:"8px" }}; font-weight: 400; text-align: center; line-height: 1.5; margin-top: 3px; }
       .rc-contact i { display: none; }
       .rc-qr-wrap { display: none; }
       .no-print { display: none; }
