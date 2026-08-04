@@ -360,6 +360,7 @@ body *{visibility:hidden;}
 <!-- Receipt Modal -->
 <div class="modal-overlay" id="receiptModal" onclick="if(event.target===this)closeReceipt()">
   <div class="modal-box" style="max-width:500px;overflow:hidden;padding:0;">
+    <div id="paySmsNote" style="display:none;background:#e8f5e9;color:#2e7d32;padding:8px 16px;font-size:12px;border-bottom:1px solid #a5d6a7;"><i class="fas fa-info-circle"></i> <span id="paySmsNoteText"></span></div>
     <div id="receiptBody" style="padding:20px 24px;">
       <div class="rc-academy">
         <div class="name">IT HOUSE ACADEMY</div>
@@ -452,7 +453,7 @@ function submitPayment() {
     .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error(t||'Server xatolik');});return r.json();})
     .then(function(d){
       btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';
-      if(d.success){closePaymentModal();showReceipt(d);updateStudentBalance(selectedStudent.id,parseFloat(amount));}
+      if(d.success){closePaymentModal();showReceipt(d);updateStudentBalance(selectedStudent.id,parseFloat(amount));if(d.sms_note){document.getElementById('paySmsNoteText').textContent=d.sms_note;document.getElementById('paySmsNote').style.display='block';}}
       else showError(d.error||'Xatolik yuz berdi');
     })
     .catch(function(e){btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';showError(e.message||'Xatolik');});

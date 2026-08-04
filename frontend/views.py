@@ -1,4 +1,5 @@
 import json
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.http import JsonResponse, HttpResponse
@@ -15,6 +16,8 @@ from decimal import Decimal
 from .models import Course, CourseLevel, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, SavedReceipt, Kassa, KassaTransaction, PaymentMethod, SmsHistory
 from .forms import LoginForm, CourseForm, CourseLevelForm, GroupForm, StudentCreateForm, StudentEditForm, MarketingSurveyForm, FreezeForm, RemoveFromGroupForm, AddToGroupForm, LessonTimeForm, BranchForm, RoomForm, PositionForm, EmployeeForm
 from .sms_service import send_absence_sms, send_payment_received_sms, send_bulk_debt_reminders
+
+logger = logging.getLogger(__name__)
 
 
 def login_view(request):
@@ -3889,10 +3892,14 @@ def payment_create(request):
                     )
             except Exception:
                 pass
+        sms_sent = False
+        sms_note = ""
         try:
-            send_payment_received_sms(student, amount)
-        except Exception:
-            pass
+            sms_sent = send_payment_received_sms(student, amount)
+            sms_note = "SMS yuborildi" if sms_sent else "SMS yuborilmadi — o'quvchi profilidagi 'SMS tarixi' bo'limidan sababni tekshiring"
+        except Exception as e:
+            logger.exception(f"To'lov SMS xatolik: {e}")
+            sms_note = f"SMS xatolik: {e}"
         # Kassaga tolovni qoshish (user_kassa allaqacha tekshirilgan yuqorida)
         try:
             bal_before = user_kassa.balance
@@ -3974,6 +3981,8 @@ def payment_create(request):
             "payment_method": method_label,
             "qr_link": receipt_settings.qr_link or "",
             "receipt_html": receipt_html,
+            "sms_sent": sms_sent,
+            "sms_note": sms_note,
         }
         return JsonResponse(response_data)
     user_kassalar = Kassa.objects.filter(owner=request.user, is_active=True)

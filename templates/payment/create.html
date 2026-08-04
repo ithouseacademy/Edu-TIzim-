@@ -369,6 +369,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#fff;color:#111;}
         <div class="dr-card" id="studentCard"></div>
 
         <div class="dr-err" id="payError"><i class="fas fa-exclamation-circle"></i> <span id="payErrorText"></span></div>
+        <div class="dr-err" id="paySmsNote" style="display:none;background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;"><i class="fas fa-info-circle"></i> <span id="paySmsNoteText"></span></div>
 
         <div class="dr-amt-wrap">
           <label>Summa</label>
@@ -734,7 +735,7 @@ function submitPayment() {
     .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error(t||'Server xatolik');});return r.json();})
     .then(function(d){
       btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';
-      if(d.success){var sid=selectedStudent.id;showReceipt(d);setTimeout(function(){location.reload();},2000);}
+      if(d.success){var sid=selectedStudent.id;showReceipt(d);if(d.sms_note){var el=document.getElementById('paySmsNoteText');el.textContent=d.sms_note;document.getElementById('paySmsNote').style.display='block';}setTimeout(function(){location.reload();},2000);}
       else showError(d.error||'Xatolik yuz berdi');
     })
     .catch(function(e){btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';showError(e.message||'Xatolik');});

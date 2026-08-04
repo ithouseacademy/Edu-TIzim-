@@ -127,7 +127,7 @@ def _send_single_sms(message, recipient_phone, student_name, user_id, token, lab
         resp = requests.post(TEXTUP_SMS_URL, json=payload, headers=headers, timeout=10)
         if resp.status_code in (200, 201):
             logger.info(f"SMS yuborildi: {student_name} -> {recipient_phone}")
-            return True
+            return True, ""
         elif resp.status_code == 401:
             _token_cache["access_token"] = None
             _token_cache["expires_at"] = None
@@ -137,13 +137,20 @@ def _send_single_sms(message, recipient_phone, student_name, user_id, token, lab
                 resp = requests.post(TEXTUP_SMS_URL, json=payload, headers=headers, timeout=10)
                 if resp.status_code in (200, 201):
                     logger.info(f"SMS yuborildi (retry): {student_name} -> {recipient_phone}")
-                    return True
-            logger.error(f"SMS retry xatolik: {resp.status_code} - {resp.text}")
+                    return True, ""
+            msg = f"SMS retry xatolik: {resp.status_code} - {resp.text}"
+            logger.error(msg)
         else:
-            logger.error(f"SMS xatolik: {resp.status_code} - {resp.text}")
+            msg = f"SMS xatolik: {resp.status_code} - {resp.text}"
+            logger.error(msg)
+        try:
+            detail = resp.json().get("error", "")
+        except Exception:
+            detail = resp.text[:500] if resp.text else ""
+        return False, detail or msg
     except Exception as e:
         logger.error(f"SMS exception: {e}")
-    return False
+        return False, str(e)
 
 
 def send_absence_sms(student, group=None, date_str=None, created_by=""):
@@ -175,14 +182,14 @@ def send_absence_sms(student, group=None, date_str=None, created_by=""):
 
     if student.father_phone and student.father_full_name:
         message = f"Hurmatli  {student.father_full_name} ! Sizning farzandingiz {student_name}   {date_str} kuni {group_name}  darsiga kelmadi. {signature}"
-        ok = _send_single_sms(message, student.father_phone, student_name, user_id, token, f"Davomat - {student_name} (ota)")
+        ok, _ = _send_single_sms(message, student.father_phone, student_name, user_id, token, f"Davomat - {student_name} (ota)")
         if ok:
             sent = True
         _save_sms_history("absence", student.father_full_name, student.father_phone, student_name, message, "yuborildi" if ok else "xatolik", user_obj)
 
     if student.mother_phone and student.mother_full_name:
         message = f"Hurmatli  {student.mother_full_name} ! Sizning farzandingiz {student_name}   {date_str} kuni {group_name}  darsiga kelmadi. {signature}"
-        ok = _send_single_sms(message, student.mother_phone, student_name, user_id, token, f"Davomat - {student_name} (ona)")
+        ok, _ = _send_single_sms(message, student.mother_phone, student_name, user_id, token, f"Davomat - {student_name} (ona)")
         if ok:
             sent = True
         _save_sms_history("absence", student.mother_full_name, student.mother_phone, student_name, message, "yuborildi" if ok else "xatolik", user_obj)
@@ -193,38 +200,63 @@ def send_absence_sms(student, group=None, date_str=None, created_by=""):
     return sent
 
 
+def _is_valid_phone(phone):
+    import re
+    if not phone:
+        return False
+    digits = re.sub(r"\D", "", phone)
+    return len(digits) == 12 and digits.startswith("998")
+
+
 def send_payment_received_sms(student, amount):
-    _, _, user_id = _get_credentials()
+    email, password, user_id = _get_credentials()
+    student_name = f"{student.first_name} {student.last_name}"
+    signature = _get_sms_signature()
+    amount_raw = f"{amount:,.0f}".replace(",", "")
+
+    def _record(role, phone, full_name, message, status):
+        _save_sms_history("payment", full_name or role, phone or "-", student_name, message, status)
+
     if not user_id:
-        logger.error("TEXTUP_USER_ID topilmadi")
+        msg = "TEXTUP_USER_ID serverda o'rnatilmagan"
+        _record("ota-ona", getattr(student, "father_phone", None), getattr(student, "father_full_name", None), msg, "xatolik")
+        logger.error(msg)
         return False
 
     token = _get_token()
     if not token:
-        logger.error("TextUP token olinmadi, SMS yuborib bo'lmadi")
+        msg = "TextUP login xatolik (TEXTUP_EMAIL/TEXTUP_PASSWORD noto'g'ri yoki yo'q)"
+        _record("ota-ona", getattr(student, "father_phone", None), getattr(student, "father_full_name", None), msg, "xatolik")
+        logger.error(msg)
         return False
 
-    student_name = f"{student.first_name} {student.last_name}"
-    amount_str = f"{amount:,.0f}".replace(",", " ")
-    amount_raw = f"{amount:,.0f}".replace(",", "")
-    signature = _get_sms_signature()
     sent = False
 
     if student.father_phone and student.father_full_name:
-        message = f"Hurmatli {student_name} hisobingizga {amount_raw} so'm to'lov qabul qilindi, {signature}"
-        ok = _send_single_sms(message, student.father_phone, student_name, user_id, token, f"To'lov - {student_name} (ota)", PAYMENT_TEMPLATE_ID)
-        if ok:
-            sent = True
-        _save_sms_history("payment", student.father_full_name, student.father_phone, student_name, message, "yuborildi" if ok else "xatolik")
+        if not _is_valid_phone(student.father_phone):
+            _record("ota", student.father_phone, student.father_full_name,
+                    f"Telefon raqam noto'g'ri: {student.father_phone}", "xatolik")
+        else:
+            message = f"Hurmatli {student_name} hisobingizga {amount_raw} so'm to'lov qabul qilindi, {signature}"
+            ok, err = _send_single_sms(message, student.father_phone, student_name, user_id, token, f"To'lov - {student_name} (ota)", PAYMENT_TEMPLATE_ID)
+            if ok:
+                sent = True
+            _record("ota", student.father_phone, student.father_full_name, message if ok else err, "yuborildi" if ok else "xatolik")
 
     if student.mother_phone and student.mother_full_name:
-        message = f"Hurmatli {student_name} hisobingizga {amount_raw} so'm to'lov qabul qilindi, {signature}"
-        ok = _send_single_sms(message, student.mother_phone, student_name, user_id, token, f"To'lov - {student_name} (ona)", PAYMENT_TEMPLATE_ID)
-        if ok:
-            sent = True
-        _save_sms_history("payment", student.mother_full_name, student.mother_phone, student_name, message, "yuborildi" if ok else "xatolik")
+        if not _is_valid_phone(student.mother_phone):
+            _record("ona", student.mother_phone, student.mother_full_name,
+                    f"Telefon raqam noto'g'ri: {student.mother_phone}", "xatolik")
+        else:
+            message = f"Hurmatli {student_name} hisobingizga {amount_raw} so'm to'lov qabul qilindi, {signature}"
+            ok, err = _send_single_sms(message, student.mother_phone, student_name, user_id, token, f"To'lov - {student_name} (ona)", PAYMENT_TEMPLATE_ID)
+            if ok:
+                sent = True
+            _record("ona", student.mother_phone, student.mother_full_name, message if ok else err, "yuborildi" if ok else "xatolik")
 
     if not sent:
+        if not (student.father_phone and student.father_full_name) and not (student.mother_phone and student.mother_full_name):
+            _record("ota-ona", "-", "-", "Ota-ona telefon raqami va ismi kiritilmagan", "otkazildi")
         logger.warning(f"{student} uchun ota-ona nomeri yoki ismi topilmadi, to'lov SMS yuborilmadi")
 
     return sent
@@ -247,12 +279,14 @@ def send_debt_reminder_sms(student):
 
     if student.father_phone and student.father_full_name:
         message = f"Hurmatli {student_name} joriy oy to'lovi qilinishi kerak. Darsga kelishda to'lov esingizdan chiqmasin. {signature}"
-        if _send_single_sms(message, student.father_phone, student_name, user_id, token, f"Qarz - {student_name} (ota)", DEBT_TEMPLATE_ID):
+        ok, _ = _send_single_sms(message, student.father_phone, student_name, user_id, token, f"Qarz - {student_name} (ota)", DEBT_TEMPLATE_ID)
+        if ok:
             sent = True
 
     if student.mother_phone and student.mother_full_name:
         message = f"Hurmatli {student_name} joriy oy to'lovi qilinishi kerak. Darsga kelishda to'lov esingizdan chiqmasin. {signature}"
-        if _send_single_sms(message, student.mother_phone, student_name, user_id, token, f"Qarz - {student_name} (ona)", DEBT_TEMPLATE_ID):
+        ok, _ = _send_single_sms(message, student.mother_phone, student_name, user_id, token, f"Qarz - {student_name} (ona)", DEBT_TEMPLATE_ID)
+        if ok:
             sent = True
 
     if not sent:
@@ -302,7 +336,7 @@ def send_bulk_debt_reminders(user=None):
             ok = False
             try:
                 if user_id and token:
-                    ok = _send_single_sms(message, student.father_phone, student_name, user_id, token, f"Qarz - {student_name} (ota)", DEBT_TEMPLATE_ID)
+                    ok, _ = _send_single_sms(message, student.father_phone, student_name, user_id, token, f"Qarz - {student_name} (ota)", DEBT_TEMPLATE_ID)
             except Exception as e:
                 logger.error(f"SMS xatolik (ota {student.father_full_name}): {e}")
                 ok = False
@@ -324,7 +358,7 @@ def send_bulk_debt_reminders(user=None):
             ok = False
             try:
                 if user_id and token:
-                    ok = _send_single_sms(message, student.mother_phone, student_name, user_id, token, f"Qarz - {student_name} (ona)", DEBT_TEMPLATE_ID)
+                    ok, _ = _send_single_sms(message, student.mother_phone, student_name, user_id, token, f"Qarz - {student_name} (ona)", DEBT_TEMPLATE_ID)
             except Exception as e:
                 logger.error(f"SMS xatolik (ona {student.mother_full_name}): {e}")
                 ok = False
