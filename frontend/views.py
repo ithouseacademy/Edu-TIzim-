@@ -1,4 +1,6 @@
 import json
+import base64
+import mimetypes
 import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
@@ -18,6 +20,20 @@ from .forms import LoginForm, CourseForm, CourseLevelForm, GroupForm, StudentCre
 from .sms_service import send_absence_sms, send_payment_received_sms, send_bulk_debt_reminders
 
 logger = logging.getLogger(__name__)
+
+
+def _logo_data_uri(receipt_settings):
+    if not receipt_settings or not receipt_settings.logo:
+        return ""
+    try:
+        path = receipt_settings.logo.path
+        with open(path, "rb") as f:
+            data = f.read()
+        mime = mimetypes.guess_type(path)[0] or "image/png"
+        return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
+    except Exception as e:
+        logger.error(f"Logo o'qishda xatolik: {e}")
+        return ""
 
 
 def login_view(request):
@@ -3953,7 +3969,9 @@ def payment_create(request):
             "font_footer": receipt_settings.font_footer,
             "font_contact": receipt_settings.font_contact,
             "font_notes": receipt_settings.font_notes,
-            "logo_url": request.build_absolute_uri(receipt_settings.logo.url) if receipt_settings.logo else "",
+            "logo_url": _logo_data_uri(receipt_settings),
+            "logo_height": receipt_settings.logo_height,
+            "logo_width": receipt_settings.logo_width,
         }
         receipt_html = render_to_string("receipt/print.html", {
             "transaction": transaction,
@@ -4520,7 +4538,9 @@ def balance_withdraw(request):
             "font_footer": receipt_settings.font_footer,
             "font_contact": receipt_settings.font_contact,
             "font_notes": receipt_settings.font_notes,
-            "logo_url": request.build_absolute_uri(receipt_settings.logo.url) if receipt_settings.logo else "",
+            "logo_url": _logo_data_uri(receipt_settings),
+            "logo_height": receipt_settings.logo_height,
+            "logo_width": receipt_settings.logo_width,
         }
         receipt_html = render_to_string("receipt/print.html", {
             "transaction": transaction,
@@ -4693,6 +4713,8 @@ def receipt_settings(request):
         settings.instagram = request.POST.get("instagram", settings.instagram)
         settings.website = request.POST.get("website", settings.website)
         settings.address = request.POST.get("address", settings.address)
+        settings.logo_height = request.POST.get("logo_height", settings.logo_height)
+        settings.logo_width = request.POST.get("logo_width", settings.logo_width)
         settings.paper_width = request.POST.get("paper_width", settings.paper_width)
         settings.paper_height = request.POST.get("paper_height", settings.paper_height)
         settings.paper_padding = request.POST.get("paper_padding", settings.paper_padding)
@@ -4819,7 +4841,9 @@ def receipt_print_preview(request, pk, transaction_id):
         "font_footer": receipt_settings.font_footer,
         "font_contact": receipt_settings.font_contact,
         "font_notes": receipt_settings.font_notes,
-        "logo_url": receipt_settings.logo.url if receipt_settings.logo else "",
+        "logo_url": _logo_data_uri(receipt_settings),
+        "logo_height": receipt_settings.logo_height,
+        "logo_width": receipt_settings.logo_width,
     }
     return render(request, "receipt/print.html", {
         "transaction": transaction,
@@ -4863,7 +4887,9 @@ def receipt_print(request, transaction_id):
         "font_footer": receipt_settings.font_footer,
         "font_contact": receipt_settings.font_contact,
         "font_notes": receipt_settings.font_notes,
-        "logo_url": receipt_settings.logo.url if receipt_settings.logo else "",
+        "logo_url": _logo_data_uri(receipt_settings),
+        "logo_height": receipt_settings.logo_height,
+        "logo_width": receipt_settings.logo_width,
     }
     return render(request, "receipt/print.html", {
         "transaction": transaction,
@@ -4907,7 +4933,9 @@ def api_receipt_html(request, transaction_id):
         "font_footer": receipt_settings.font_footer,
         "font_contact": receipt_settings.font_contact,
         "font_notes": receipt_settings.font_notes,
-        "logo_url": request.build_absolute_uri(receipt_settings.logo.url) if receipt_settings.logo else "",
+        "logo_url": _logo_data_uri(receipt_settings),
+        "logo_height": receipt_settings.logo_height,
+        "logo_width": receipt_settings.logo_width,
     }
     html = render_to_string("receipt/print.html", {
         "transaction": transaction,

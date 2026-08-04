@@ -13,7 +13,8 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #f8fafc; display: flex; justify-content: center; padding: 24px; }
     .receipt-wrap { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 460px; width: 100%; overflow: hidden; }
-    .receipt-inner { padding: 32px; }
+    .receipt-inner { padding: 32px; font-weight: 900; }
+    .receipt-inner * { font-weight: 900 !important; }
     @media (max-width: 480px) { .receipt-inner { padding: 20px; } }
     .rc-logo-wrap { text-align: center; margin-bottom: 12px; }
     .rc-logo-wrap img { max-height: 64px; max-width: 180px; border-radius: 8px; }
@@ -52,7 +53,7 @@
       body { padding: 0; margin: 0; background: #fff; }
       .receipt-wrap { max-width: 100%; box-shadow: none; border-radius: 0; }
       .receipt-inner { padding: {{ settings.paper_padding|default:"2mm" }}; }
-      * { font-family: 'Courier New', Courier, monospace !important; color: #000 !important; letter-spacing: 0 !important; }
+      * { font-family: 'Courier New', Courier, monospace !important; color: #000 !important; letter-spacing: 0 !important; font-weight: 900 !important; }
       .rc-logo-wrap { text-align: center; margin-bottom: 6px; }
       .rc-logo-wrap img { max-height: 35px; max-width: 90px; object-fit: contain; filter: grayscale(1) contrast(1.2); }
       .rc-academy .name { font-size: {{ settings.font_name|default:"18px" }}; font-weight: 700; text-align: center; margin-bottom: 1px; }
@@ -90,7 +91,7 @@
 
     {% if settings.logo_url %}
     <div class="rc-logo-wrap">
-      <img src="{{ settings.logo_url }}" alt="Logo">
+      <img src="{{ settings.logo_url }}" alt="Logo" style="max-height:{{ settings.logo_height|default:"60px" }};max-width:{{ settings.logo_width|default:"160px" }};">
     </div>
     {% endif %}
 
@@ -105,14 +106,14 @@
     <hr class="rc-divider">
 
     <div class="rc-section-title">To'lov ma'lumotlari</div>
-    <div class="rc-row"><span class="rc-label">Sana:</span><span class="rc-value">{{ transaction.created_at|date:"d.m.Y H:i" }}</span></div>
-    <div class="rc-row"><span class="rc-label">Kassir:</span><span class="rc-value">{{ transaction.created_by|default:"Admin" }}</span></div>
-    <div class="rc-row"><span class="rc-label">O'quvchi:</span><span class="rc-value">{{ transaction.student.first_name }} {{ transaction.student.last_name }}</span></div>
-    <div class="rc-row"><span class="rc-label">Telefon:</span><span class="rc-value">{{ transaction.student.phone }}</span></div>
+    <div class="rc-row"><span>Sana: -- {{ transaction.created_at|date:"d.m.Y H:i" }}</span></div>
+    <div class="rc-row"><span>Kassir: -- {{ transaction.created_by|default:"Admin" }}</span></div>
+    <div class="rc-row"><span>O'quvchi: -- {{ transaction.student.first_name }} {{ transaction.student.last_name }}</span></div>
+    <div class="rc-row"><span>Telefon: -- {{ transaction.student.phone }}</span></div>
     {% if transaction.payment_method %}
-    <div class="rc-row"><span class="rc-label">To'lov turi:</span><span class="rc-value">{{ transaction.payment_method|title }}</span></div>
+    <div class="rc-row"><span>To'lov turi: -- {{ transaction.payment_method|title }}</span></div>
     {% endif %}
-    <div class="rc-row"><span class="rc-label">Miqdori:</span><span class="rc-value">{{ transaction.amount|spacesep }} so'm</span></div>
+    <div class="rc-row"><span>Miqdori: -- {{ transaction.amount|spacesep }} so'm</span></div>
 
     <hr class="rc-divider">
 
@@ -137,7 +138,7 @@
 
     {% if transaction.description %}
     <hr class="rc-divider">
-    <div class="rc-row"><span class="rc-label">Izoh:</span><span class="rc-value">{{ transaction.description }}</span></div>
+    <div class="rc-row"><span>Izoh: -- {{ transaction.description }}</span></div>
     {% endif %}
 
     <hr class="rc-divider solid">

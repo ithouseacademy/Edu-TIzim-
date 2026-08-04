@@ -645,6 +645,8 @@ class GlobalConfig(models.Model):
 
 class ReceiptSettings(models.Model):
     logo = models.ImageField(upload_to="receipt_logos/", blank=True, null=True, verbose_name="Logo")
+    logo_height = models.CharField(max_length=10, default="60px", verbose_name="Logo balandligi")
+    logo_width = models.CharField(max_length=10, default="160px", verbose_name="Logo kengligi")
     academy_name = models.CharField(max_length=255, default="IT HOUSE ACADEMY", verbose_name="Markaz nomi")
     tagline = models.CharField(max_length=255, default="SIFATLI TA'LIM MARKAZI", verbose_name="Tagline")
     accent_color = models.CharField(max_length=7, default="#2001FF", verbose_name="Asosiy rang")

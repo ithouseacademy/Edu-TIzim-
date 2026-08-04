@@ -240,6 +240,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#fff;color:#111;}
 
 /* ===== RECEIPT CONTENT (on-screen in modal) ===== */
 #receiptBody{font-family:'Inter','Segoe UI',sans-serif;color:#0f172a;text-align:left;}
+#receiptBody *{font-weight:900!important;}
 #receiptBody .rc-logo-wrap{text-align:center;margin-bottom:10px;}
 #receiptBody .rc-logo-wrap img{max-height:60px;max-width:160px;border-radius:8px;object-fit:contain;}
 #receiptBody .rc-academy{text-align:center;margin-bottom:4px;}
@@ -278,7 +279,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#fff;color:#111;}
   #receiptModal.printing .rc-foot{display:none!important;}
   #receiptModal.printing .rc-body,#receiptModal.printing .rc-body *{visibility:visible;}
   #receiptModal.printing .rc-body{padding:{{ paper_padding|default:"2mm" }};width:100%;margin:0 auto;text-align:center;font-family:'Courier New',Courier,monospace;color:#000;background:#fff;}
-  #receiptModal.printing .rc-body *{color:#000!important;border-color:#000!important;background:transparent!important;letter-spacing:0!important;font-family:'Courier New',Courier,monospace!important;}
+  #receiptModal.printing .rc-body *{color:#000!important;border-color:#000!important;background:transparent!important;letter-spacing:0!important;font-family:'Courier New',Courier,monospace!important;font-weight:900!important;}
   #receiptModal.printing .rc-body .rc-logo-wrap{text-align:center;margin-bottom:5px;}
   #receiptModal.printing .rc-body .rc-logo-wrap img{max-height:35px;max-width:90px;object-fit:contain;filter:grayscale(1) contrast(1.2);}
   #receiptModal.printing .rc-body .rc-academy .name{font-size:{{ font_name|default:"18px" }};font-weight:700;text-align:center;}

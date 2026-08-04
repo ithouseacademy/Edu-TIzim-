@@ -6,6 +6,7 @@
 <style>
 .content { padding: 0 !important; }
 .pp-page { padding: 4px 6px; width: 100%; max-width: 100%; overflow-x: hidden; }
+#profileReceiptBody * { font-weight: 900 !important; }
 
 /* ===== HEADER ===== */
 .pp-header { background: #fff; border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,.04); display: flex; align-items: center; padding: 8px 12px; margin-bottom: 4px; gap: 10px; flex-wrap: wrap; }
@@ -979,6 +980,7 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 var ppStudentId = {{ student.pk }};
 var ppBalance = 0;
@@ -1133,12 +1135,18 @@ function submitPPPayment() {
 function showPPReceipt(data) {
     var b = document.getElementById('profileReceiptBody');
     b.innerHTML = data.receipt_html || '<div style="text-align:center;padding:20px;color:#808080;">Chek topilmadi</div>';
+    if (data.qr_link) {
+        var e = b.querySelector('#qrcode');
+        if (e && typeof QRCode !== 'undefined') {
+            new QRCode(e, { text: data.qr_link, width: 80, height: 80, colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.H });
+        }
+    }
     document.getElementById('profileReceiptModal').style.display = 'flex';
 }
 
 function printPPReceipt() {
     var w = window.open('', '', 'width=400,height=600');
-    w.document.write('<html><head><title>Chek</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"><style>body{margin:0;padding:10px;font-family:Courier New,monospace;} *{color:#000!important;} @page{margin:0;}</style></head><body>' + document.getElementById('profileReceiptBody').innerHTML + '</body></html>');
+    w.document.write('<html><head><title>Chek</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"><style>body{margin:0;padding:10px;font-family:Courier New,monospace;} *{color:#000!important;font-weight:900!important;} @page{margin:0;}</style></head><body>' + document.getElementById('profileReceiptBody').innerHTML + '</body></html>');
     w.document.close();
     setTimeout(function() { w.print(); w.close(); }, 300);
 }

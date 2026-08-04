@@ -107,7 +107,7 @@ body *{visibility:hidden;}
 .modal-overlay#receiptModal.printing .modal-box>div:last-child{display:none;}
 .modal-overlay#receiptModal.printing #receiptBody,.modal-overlay#receiptModal.printing #receiptBody *{visibility:visible;}
 .modal-overlay#receiptModal.printing #receiptBody{padding:{{ paper_padding|default:"2mm" }};width:100%;margin:0 auto;text-align:center;font-family:'Courier New',Courier,monospace;color:#000;}
-.modal-overlay#receiptModal.printing #receiptBody *{color:#000!important;border-color:#000!important;background:transparent!important;letter-spacing:0!important;font-family:'Courier New',Courier,monospace!important;}
+.modal-overlay#receiptModal.printing #receiptBody *{color:#000!important;border-color:#000!important;background:transparent!important;letter-spacing:0!important;font-family:'Courier New',Courier,monospace!important;font-weight:900!important;}
 .modal-overlay#receiptModal.printing #receiptBody .rc-logo-wrap{text-align:center;margin-bottom:5px;}
 .modal-overlay#receiptModal.printing #receiptBody .rc-logo-wrap img{max-height:35px;max-width:90px;object-fit:contain;filter:grayscale(1) contrast(1.2);}
 .modal-overlay#receiptModal.printing #receiptBody .rc-academy .name{font-size:{{ font_name|default:"18px" }};font-weight:700;text-align:center;}
@@ -133,6 +133,7 @@ body *{visibility:hidden;}
 }
 
 #receiptBody{font-family:'Inter','Segoe UI',sans-serif;color:#0f172a;}
+#receiptBody *{font-weight:900!important;}
 #receiptBody .rc-logo-wrap{text-align:center;margin-bottom:10px;}
 #receiptBody .rc-logo-wrap img{max-height:60px;max-width:160px;border-radius:8px;object-fit:contain;}
 #receiptBody .rc-academy{text-align:center;margin-bottom:4px;}

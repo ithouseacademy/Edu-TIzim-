@@ -188,6 +188,18 @@
               </label>
             </div>
             {% endif %}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+              <div class="rs-field">
+                <label>Logo balandligi</label>
+                <input type="text" name="logo_height" class="rs-input" value="{{ settings.logo_height }}" placeholder="60px" oninput="updatePreview()">
+                <div class="help">Masalan: 35px, 60px, 80px</div>
+              </div>
+              <div class="rs-field">
+                <label>Logo kengligi</label>
+                <input type="text" name="logo_width" class="rs-input" value="{{ settings.logo_width }}" placeholder="160px" oninput="updatePreview()">
+                <div class="help">Masalan: 90px, 160px, 200px</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -364,6 +376,27 @@
             </div>
           </div>
         </div>
+
+        <div class="rs-card">
+          <div class="rs-card-header">
+            <i class="fas fa-qrcode"></i>
+            <h3>QR Code</h3>
+          </div>
+          <div class="rs-card-body">
+            <div class="rs-field">
+              <label><i class="fas fa-link" style="margin-right:4px;color:var(--rs-primary)"></i> QR Code havolasi</label>
+              <input type="url" name="qr_link" class="rs-input" value="{{ settings.qr_link }}" placeholder="https://example.com" oninput="updateQR()">
+              <div class="help">Website, Telegram, Payment link yoki boshqa havola. Shu havola chekda QR kodga aylanadi.</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-top:8px;">
+              <input type="checkbox" name="auto_generate_qr" id="auto_generate_qr" {% if settings.auto_generate_qr %}checked{% endif %} onchange="updateQR()">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--text);">Avtomatik QR generatsiya</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Havola o'zgarganda QR kod avtomatik yangilanadi</div>
+              </div>
+            </label>
+          </div>
+        </div>
       </div>
 
       <div class="rs-actions">
@@ -399,12 +432,12 @@
         <div class="rc-receipt-no" id="previewReceiptNo">{{ settings.receipt_prefix }}136</div>
         <hr class="rc-divider">
         <div class="rc-section-title">To'lov ma'lumotlari</div>
-        <div class="rc-row"><span class="rc-label">Sana:</span><span class="rc-value">01.07.2026 14:30</span></div>
-        <div class="rc-row"><span class="rc-label">Kassir:</span><span class="rc-value">Admin</span></div>
-        <div class="rc-row"><span class="rc-label">O'quvchi:</span><span class="rc-value">Ism Familiya</span></div>
-        <div class="rc-row"><span class="rc-label">Telefon:</span><span class="rc-value">+998 00 000 00 00</span></div>
-        <div class="rc-row"><span class="rc-label">To'lov turi:</span><span class="rc-value">Naqt</span></div>
-        <div class="rc-row"><span class="rc-label">Miqdori:</span><span class="rc-value">50 000 so'm</span></div>
+        <div class="rc-row"><span>Sana: -- 01.07.2026 14:30</span></div>
+        <div class="rc-row"><span>Kassir: -- Admin</span></div>
+        <div class="rc-row"><span>O'quvchi: -- Ism Familiya</span></div>
+        <div class="rc-row"><span>Telefon: -- +998 00 000 00 00</span></div>
+        <div class="rc-row"><span>To'lov turi: -- Naqt</span></div>
+        <div class="rc-row"><span>Miqdori: -- 50 000 so'm</span></div>
         <hr class="rc-divider">
         <div class="rc-amount-box">
           <div class="label" id="previewPaymentText">{{ settings.payment_text }}</div>
@@ -473,6 +506,14 @@
     var instagram = document.querySelector('input[name="instagram"]').value;
     var website = document.querySelector('input[name="website"]').value;
     var address = document.querySelector('textarea[name="address"]').value;
+
+    var logoImg = document.getElementById('previewLogoImg');
+    if (logoImg) {
+      var lh = document.querySelector('input[name="logo_height"]').value;
+      var lw = document.querySelector('input[name="logo_width"]').value;
+      logoImg.style.maxHeight = lh || '60px';
+      logoImg.style.maxWidth = lw || '160px';
+    }
 
     document.getElementById('previewAcademy').textContent = academy || 'IT HOUSE ACADEMY';
     document.getElementById('previewTagline').textContent = tagline || "SIFATLI TA'LIM MARKAZI";
@@ -613,7 +654,7 @@
       var reader = new FileReader();
       reader.onload = function(e) {
         var wrap = document.getElementById('previewLogo');
-        wrap.innerHTML = '<img src="' + e.target.result + '" alt="Logo" id="previewLogoImg" style="max-height:64px;max-width:180px;border-radius:8px;">';
+        wrap.innerHTML = '<img src="' + e.target.result + '" alt="Logo" id="previewLogoImg" style="max-height:60px;max-width:160px;border-radius:8px;">';
         updatePreview();
       };
       reader.readAsDataURL(input.files[0]);
