@@ -13,7 +13,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("BOT_TOKEN topilmadi!"))
             return
 
-        url = "https://it-house-academt-edu-tizim-production.up.railway.app/api/telegram-webhook/"
+        url = os.getenv(
+            "WEBHOOK_BASE_URL", "https://edutizim.ithouse.academy"
+        ).rstrip("/") + "/api/telegram-webhook/"
         self.stdout.write(f"Webhook sozlanmoqda: {url}\n")
         try:
             r = requests.post(
