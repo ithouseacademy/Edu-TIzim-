@@ -37,14 +37,19 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
     'https://educrm1.netlify.app',
     'https://edutizimtecher.netlify.app',
+    'https://edutizim.ithouse.academy',
+    'https://*.ithouse.academy',
 ]
 
 CORS_ALLOWED_ORIGINS = [
     'https://educrm1.netlify.app',
     'https://edutizimtecher.netlify.app',
+    'https://edutizim.ithouse.academy',
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 SESSION_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'
 SESSION_COOKIE_SECURE = not DEBUG
