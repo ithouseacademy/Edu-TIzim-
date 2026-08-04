@@ -3953,7 +3953,7 @@ def payment_create(request):
             "font_footer": receipt_settings.font_footer,
             "font_contact": receipt_settings.font_contact,
             "font_notes": receipt_settings.font_notes,
-            "logo_url": receipt_settings.logo.url if receipt_settings.logo else "",
+            "logo_url": request.build_absolute_uri(receipt_settings.logo.url) if receipt_settings.logo else "",
         }
         receipt_html = render_to_string("receipt/print.html", {
             "transaction": transaction,
@@ -4520,7 +4520,7 @@ def balance_withdraw(request):
             "font_footer": receipt_settings.font_footer,
             "font_contact": receipt_settings.font_contact,
             "font_notes": receipt_settings.font_notes,
-            "logo_url": receipt_settings.logo.url if receipt_settings.logo else "",
+            "logo_url": request.build_absolute_uri(receipt_settings.logo.url) if receipt_settings.logo else "",
         }
         receipt_html = render_to_string("receipt/print.html", {
             "transaction": transaction,
@@ -4907,7 +4907,7 @@ def api_receipt_html(request, transaction_id):
         "font_footer": receipt_settings.font_footer,
         "font_contact": receipt_settings.font_contact,
         "font_notes": receipt_settings.font_notes,
-        "logo_url": receipt_settings.logo.url if receipt_settings.logo else "",
+        "logo_url": request.build_absolute_uri(receipt_settings.logo.url) if receipt_settings.logo else "",
     }
     html = render_to_string("receipt/print.html", {
         "transaction": transaction,
