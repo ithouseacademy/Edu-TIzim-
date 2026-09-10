@@ -111,10 +111,7 @@ def _send_single_sms(message, recipient_phone, student_name, user_id, token, lab
         "name": label or f"SMS - {student_name}",
         "recipients": [recipient_phone],
     }
-    if template_id is None:
-        tpl = ABSENCE_TEMPLATE_ID
-    else:
-        tpl = template_id
+    tpl = template_id or ABSENCE_TEMPLATE_ID
     if tpl:
         payload["templateId"] = tpl
 

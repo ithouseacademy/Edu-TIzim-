@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Adminlar | Edu Tizim{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div>
+      <h2 class="text-xl font-bold text-[#0f172a]">Admin boshqaruvi</h2>
+      <p class="text-sm text-[#64748b] mt-0.5">Super Admin barcha adminlarning huquqlarini boshqaradi</p>
+    </div>
+    <div class="flex gap-3">
+      {% if 'admin.create' in permissions %}
+      <a href="{% url 'admin_create' %}" class="px-5 py-2.5 bg-[#2563eb] text-white rounded-lg text-sm font-semibold hover:bg-[#1d4ed8] transition-all shadow-sm flex items-center gap-2">
+        <i class="fas fa-plus"></i> Yangi admin
+      </a>
+      {% endif %}
+      {% if 'audit.view' in permissions %}
+      <a href="{% url 'audit_log' %}" class="px-5 py-2.5 border border-[#e2e8f0] rounded-lg text-sm font-semibold text-[#64748b] hover:bg-[#f8fafc] transition-all flex items-center gap-2">
+        <i class="fas fa-history"></i> Audit log
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-[#f8fafc] border-b border-[#e2e8f0] text-left text-xs uppercase tracking-wide text-[#64748b]">
+            <th class="px-5 py-3 font-semibold">Ism</th>
+            <th class="px-5 py-3 font-semibold">Login</th>
+            <th class="px-5 py-3 font-semibold">Roli</th>
+            <th class="px-5 py-3 font-semibold">Status</th>
+            <th class="px-5 py-3 font-semibold">Huquqlar soni</th>
+            <th class="px-5 py-3 font-semibold">Oxirgi kirish</th>
+            <th class="px-5 py-3 font-semibold text-right">Amal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for admin in admins %}
+          <tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc]">
+            <td class="px-5 py-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-[#eff6ff] flex items-center justify-center text-[#2563eb] font-bold text-sm">
+                  {{ admin.username|first|upper }}
+                </div>
+                <div>
+                  <div class="font-semibold text-[#0f172a]">{{ admin.first_name|default:admin.username }}</div>
+                  {% if admin.is_superuser %}<div class="text-[10px] text-[#7c3aed] font-semibold">SUPER ADMIN</div>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="px-5 py-3 text-[#334155]">{{ admin.username }}</td>
+            <td class="px-5 py-3">
+              {% if admin.is_superuser %}
+              <span class="badge badge-purple">Super Admin</span>
+              {% else %}
+              <span class="badge badge-blue">Admin</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3">
+              {% if admin.is_active %}
+              <span class="badge badge-green">Faol</span>
+              {% else %}
+              <span class="badge badge-red">Bloklangan</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3">
+              {% if admin.is_superuser %}
+              <span class="badge badge-purple">Barcha</span>
+              {% else %}
+              <span class="font-semibold text-[#0f172a]">{{ admin.perm_count }}</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3 text-[#64748b]">
+              {% if admin.last_login %}{{ admin.last_login|date:"d.m.Y H:i" }}{% else %}—{% endif %}
+            </td>
+            <td class="px-5 py-3">
+              <div class="flex items-center justify-end gap-2">
+                <a href="{% url 'admin_permissions' admin.pk %}" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#eff6ff] text-[#2563eb] hover:bg-[#dbeafe] transition-all">
+                  <i class="fas fa-shield-alt"></i> Huquqlar
+                </a>
+                {% if 'admin.update' in permissions %}
+                <a href="{% url 'admin_update' admin.pk %}" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#f1f5f9] text-[#334155] hover:bg-[#e2e8f0] transition-all" title="Tahrirlash">
+                  <i class="fas fa-edit"></i>
+                </a>
+                {% endif %}
+                {% if not admin.is_superuser and admin.pk != request.user.pk %}
+                  {% if admin.is_active and 'admin.update' in permissions %}
+                  <button onclick="toggleAdmin({{ admin.pk }}, false)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#fef3c7] text-[#d97706] hover:bg-[#fde68a] transition-all" title="Bloklash">
+                    <i class="fas fa-ban"></i>
+                  </button>
+                  {% elif not admin.is_active and 'admin.update' in permissions %}
+                  <button onclick="toggleAdmin({{ admin.pk }}, true)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#dcfce7] text-[#16a34a] hover:bg-[#bbf7d0] transition-all" title="Faollashtirish">
+                    <i class="fas fa-check"></i>
+                  </button>
+                  {% endif %}
+                  {% if 'admin.delete' in permissions %}
+                  <a href="{% url 'admin_delete' admin.pk %}" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#fee2e2] text-[#dc2626] hover:bg-[#fecaca] transition-all" title="O'chirish">
+                    <i class="fas fa-trash"></i>
+                  </a>
+                  {% endif %}
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="px-5 py-10 text-center text-[#94a3b8]">Adminlar topilmadi</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function toggleAdmin(pk, active) {
+  const url = active ? `/admins/${pk}/unblock/` : `/admins/${pk}/block/`;
+  const action = active ? 'Faollashtirish' : 'Bloklash';
+  if (!confirm(`Adminni ${action.toLowerCase()} kerakmi?`)) return;
+  fetch(url, { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' } })
+    .then(r => r.json())
+    .then(d => { if (d.ok) location.reload(); else alert(d.error || 'Xatolik'); })
+    .catch(() => alert('Xatolik yuz berdi'));
+}
+</script>
+{% endblock %}

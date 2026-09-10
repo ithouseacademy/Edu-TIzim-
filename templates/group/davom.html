@@ -183,6 +183,16 @@ td.reason-col{color:#94a3b8;font-size:11px;font-weight:500}
 .sheet .s-notes select,.sheet .s-notes input{flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:13px;outline:none;background:#f8fafc;min-width:100px}
 .sheet .s-notes .save-note-btn{padding:10px 16px;border-radius:10px;border:none;background:#2001ff;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
 
+/* MOBILE SHEET: SABAB STEP */
+.s-reason{margin-top:8px;padding-top:10px;border-top:1px solid #f1f5f9}
+.s-reason-title{font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px}
+.s-reason-title i{margin-right:5px}
+.s-reason select,.s-reason input{width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:13px;outline:none;background:#f8fafc;margin-bottom:8px}
+.s-reason select:focus,.s-reason input:focus{border-color:#2001ff}
+.s-reason .cp-actions{margin-top:2px}
+.s-reason .cp-save{background:#2001ff;color:#fff;box-shadow:0 2px 8px rgba(32,1,255,.25)}
+.s-reason .cp-skip:hover{background:#e2e8f0}
+
 /* HISTORY */
 .hist-box{margin-top:8px;max-height:150px;overflow-y:auto}
 .hist-box .hist-title{font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:4px}
@@ -253,7 +263,7 @@ td.reason-col{color:#94a3b8;font-size:11px;font-weight:500}
     <h1>Davomat jadvali</h1>
   </div>
   <div class="header-right">
-    <a href="?export=1" class="export-btn"><i class="fas fa-download"></i> Export</a>
+    {% if 'group.export' in permissions %}<a href="?export=1" class="export-btn"><i class="fas fa-download"></i> Export</a>{% endif %}
     <form method="GET" id="monthForm" style="display:flex;gap:8px;">
       <select name="year" class="sel" onchange="document.getElementById('monthForm').submit()">
         {% for y in years %}<option value="{{ y }}" {% if y == sel_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
@@ -299,7 +309,7 @@ td.reason-col{color:#94a3b8;font-size:11px;font-weight:500}
         <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;">Kun</td>
         <td style="padding:6px 12px 6px 0;color:#1e293b;">
           <span style="background:#fef3c7;color:#b45309;padding:2px 12px;border-radius:20px;font-size:12px;font-weight:500;">{{ group.get_day_type_display }}</span>
-          kunlar: {% for lt in group.lesson_times.all %}{{ lt.days }}{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}
+          {{ group.days_display|default:"-" }}
         </td>
         <td style="padding:6px 12px 6px 0;font-weight:600;color:#475569;">O'qituvchi</td>
         <td style="padding:6px 12px 6px 0;color:#1e293b;">{{ group.teacher.first_name|default:"" }} {{ group.teacher.last_name|default:"-" }}</td>
@@ -392,7 +402,7 @@ td.reason-col{color:#94a3b8;font-size:11px;font-weight:500}
 {% if lesson_dates %}
 <div class="save-bar">
   <button class="btn-cancel" onclick="history.back()"><i class="fas fa-times"></i> Bekor qilish</button>
-  <button class="btn-save" onclick="saveAll()"><i class="fas fa-check"></i> Saqlash</button>
+  {% if 'group.settings' in permissions %}<button class="btn-save" onclick="saveAll()"><i class="fas fa-check"></i> Saqlash</button>{% endif %}
 </div>
 {% endif %}
 </div>
@@ -466,6 +476,7 @@ td.reason-col{color:#94a3b8;font-size:11px;font-weight:500}
   <button class="popup-item green" onclick="pickStatus('present')"><span class="pi-icon"><i class="fas fa-check"></i></span> Keldi</button>
   <button class="popup-item red" onclick="pickStatus('absent')"><span class="pi-icon"><i class="fas fa-times"></i></span> Kelmadi</button>
   <button class="popup-item orange" onclick="pickStatus('excused')"><span class="pi-icon"><i class="fas fa-exclamation"></i></span> Sababli</button>
+  <button class="popup-item gray" onclick="editReason()"><span class="pi-icon"><i class="fas fa-pen"></i></span> Sabab yozish</button>
   <button class="popup-item gray" onclick="pickStatus('none')"><span class="pi-icon"><i class="fas fa-minus"></i></span> Belgilanmagan</button>
 </div>
 
@@ -542,19 +553,36 @@ function openPopup(btn,sid,ds){
   closePopup();
   var p=document.getElementById('popupMenu');
   var r=btn.getBoundingClientRect();
-  var t=r.bottom+6,l=r.left+r.width/2-70;
+  p.style.left='0px';p.style.top='0px';p.style.position='fixed';p.classList.add('show');
+  var pw=p.offsetWidth,ph=p.offsetHeight;
+  var t=r.bottom+6,l=r.left+r.width/2-pw/2;
+  if(t+ph>window.innerHeight)t=Math.max(8,r.top-ph-6);
   if(l<8)l=8;
-  if(l+140>window.innerWidth)l=window.innerWidth-148;
-  p.style.top=t+'px';p.style.left=l+'px';p.style.position='fixed';p.classList.add('show');
+  if(l+pw>window.innerWidth)l=window.innerWidth-pw-8;
+  p.style.left=l+'px';p.style.top=t+'px';
   popCtx={btn:btn,sid:sid,date:ds};
 }
 function closePopup(){document.getElementById('popupMenu').classList.remove('show');popCtx=null}
 
 // ===== PICK STATUS =====
+function editReason(){
+  if(!popCtx)return;
+  var ns=popCtx.btn,sid=popCtx.sid,ds=popCtx.date,st='absent';
+  if(ns){for(var c of ns.classList){if(['absent','excused'].indexOf(c)!==-1){st=c;break}}}
+  closePopup();
+  openCommentPopup(ns,sid,ds,st);
+}
 function pickStatus(st){
   if(!popCtx)return;
   var sid=popCtx.sid,ds=popCtx.date,btn=popCtx.btn;
+  var cur='';
+  if(btn){for(var c of btn.classList){if(['present','absent','excused','none'].indexOf(c)!==-1){cur=c;break}}}
   closePopup();
+  if(cur===st){
+    // Xuddi shu holat qayta bosildi — sabab/izohni tahrirlash uchun bevosita
+    if(st==='absent'||st==='excused'){openCommentPopup(btn,sid,ds,st)}
+    return;
+  }
   saveOne(sid,ds,st,function(){
     if(btn){btn.className='att-btn '+st;btn.innerHTML=ST_ICONS[st];btn.title=st.charAt(0).toUpperCase()+st.slice(1)}
     updateAll();
@@ -567,10 +595,13 @@ function openCommentPopup(btn,sid,ds,st){
   closeCommentPopup();
   var p=document.getElementById('commentPopup');
   var r=btn.getBoundingClientRect();
-  var t=r.bottom+6,l=r.left+r.width/2-120;
+  p.style.left='0px';p.style.top='0px';p.style.position='fixed';p.classList.add('show');
+  var pw=p.offsetWidth,ph=p.offsetHeight;
+  var t=r.bottom+6,l=r.left+r.width/2-pw/2;
+  if(t+ph>window.innerHeight)t=Math.max(8,r.top-ph-6);
   if(l<8)l=8;
-  if(l+240>window.innerWidth)l=window.innerWidth-248;
-  p.style.top=t+'px';p.style.left=l+'px';p.style.position='fixed';p.classList.add('show');
+  if(l+pw>window.innerWidth)l=window.innerWidth-pw-8;
+  p.style.left=l+'px';p.style.top=t+'px';
   document.getElementById('cpTitle').innerHTML='<i class="fas fa-'+(st==='absent'?'times':'exclamation')+'" style="color:'+(st==='absent'?'#dc2626':'#ea580c')+'"></i> '+(st==='absent'?'Kelmadi':'Sababli')+' — Izoh';
   var sel=document.getElementById('cpReason');
   sel.value='';
@@ -579,6 +610,18 @@ function openCommentPopup(btn,sid,ds,st){
     o.style.display=(t==='both'||t===st||!o.value)?'':'none';
   });
   document.getElementById('cpComment').value='';
+  var prefill=(HIST[sid]||[]).filter(function(x){return x.d===ds}).map(function(x){return x.nt&&x.nt!=='None'?x.nt:''}).filter(Boolean);
+  if(prefill.length){
+    var raw=prefill[prefill.length-1];
+    var parts=raw.split(' | ');
+    var known=[];
+    document.querySelectorAll('#cpReason option').forEach(function(o){if(o.value)known.push(o.value)});
+    if(parts[0]&&known.indexOf(parts[0])!==-1){
+      sel.value=parts[0];
+      parts.shift();
+    }
+    document.getElementById('cpComment').value=parts.join(' | ');
+  }
   commentCtx={sid:sid,date:ds,st:st,btn:btn};
 }
 function closeCommentPopup(){
@@ -609,7 +652,7 @@ async function saveOne(sid,ds,st,cb){
     var txt=await r.text();
     console.log('saveOne response:',txt);
     var d=JSON.parse(txt);
-    if(d.ok){showToast(st==='present'?'Keldi':st==='absent'?'Kelmadi':'Sababli');if(cb)cb()}
+    if(d.ok){showToast(st==='present'?'Keldi':st==='absent'?'Kelmadi':st==='excused'?'Sababli':'Olib tashlandi');if(cb)cb()}
     else showToast(d.error||'Xatolik',true)
   }catch(e){console.error('saveOne error:',e);showToast('Xatolik: '+e.message,true)}
 }
@@ -693,6 +736,8 @@ function openDrawerFromSheet(st){
   openDrawer(sheetCtx,'{{ today|date:"Y-m-d" }}',st);
   document.getElementById('sheetName').textContent=SNAMES[sheetCtx];
   document.getElementById('sheetName').setAttribute('data-sid',sheetCtx);
+  sheetNotesOpen=true;
+  document.getElementById('sheetNotes').classList.add('show');
 }
 function toggleNotes(){
   sheetNotesOpen=!sheetNotesOpen;
@@ -902,7 +947,7 @@ function saveAll(){
 document.addEventListener('click',function(e){
   if(!e.target.closest('.popup-menu')&&!e.target.closest('[data-att]'))closePopup();
   if(!e.target.closest('.date-popup')&&!e.target.closest('.lesson-col'))closeDatePopup();
-  if(!e.target.closest('.comment-popup'))closeCommentPopup()
+  if(!e.target.closest('.comment-popup')&&!e.target.closest('.popup-menu'))closeCommentPopup()
 });
 document.addEventListener('DOMContentLoaded',function(){
   console.log('Davomat page ready: can_edit='+CAN_EDIT+', is_admin='+IS_ADMIN+', group='+GROUP_ID);

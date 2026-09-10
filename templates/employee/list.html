@@ -1,90 +1,515 @@
 {% extends "base.html" %}
+{% load dict_filters %}
 {% block title %}Xodimlar | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+.em-wrap{animation:emFadeUp .25s ease;}
+@keyframes emFadeUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+.em-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.em-topbar h2{font-size:.95rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;}
+.em-topbar h2 i{color:var(--primary);font-size:.85rem;}
+.em-topbar .em-count{font-size:.7rem;color:var(--text-muted);font-weight:500;margin-top:1px;}
+.em-topbar-actions{display:flex;gap:5px;flex-wrap:wrap;}
+
+.em-table-wrap{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);}
+.em-table-header{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--border);background:#fafbfc;}
+.em-table-header h3{font-size:.8rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;}
+.em-table-header h3 i{color:var(--primary);font-size:.72rem;}
+.em-scroll{}
+
+.em-table{width:100%;border-collapse:collapse;min-width:940px;}
+.em-table thead th{padding:7px 10px;text-align:left;font-size:.6rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;background:#f8fafc;border-bottom:1.5px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:1;}
+.em-table tbody tr{transition:background .15s;border-bottom:1px solid #f8fafc;}
+.em-table tbody tr:last-child{border-bottom:none;}
+.em-table tbody tr:hover{background:#f0f5ff;}
+.em-table tbody td{padding:7px 10px;font-size:.75rem;color:var(--text);vertical-align:middle;white-space:nowrap;}
+
+.em-name{display:flex;align-items:center;gap:8px;}
+.em-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#2563eb;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.72rem;flex-shrink:0;overflow:hidden;}
+.em-avatar img{width:30px;height:30px;object-fit:cover;display:block;}
+.em-name-text{display:flex;flex-direction:column;gap:1px;}
+.em-name-main{font-weight:600;color:#0f172a;font-size:.75rem;text-decoration:none;transition:color .15s;line-height:1.2;}
+.em-name-main:hover{color:var(--primary);}
+.em-name-sub{font-size:.62rem;color:#16a34a;font-weight:500;display:inline-flex;align-items:center;gap:3px;}
+
+.em-phone{font-size:.75rem;color:var(--text);font-weight:500;font-variant-numeric:tabular-nums;}
+.em-money{font-weight:700;font-size:.75rem;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.em-money.balance{color:#2001ff;}
+.em-money.muted{color:var(--text-muted);}
+.em-money.zero{color:var(--text-muted);font-weight:500;}
+
+.em-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:5px;font-size:.62rem;font-weight:600;white-space:nowrap;}
+.em-badge.blue{background:#dbeafe;color:#1d4ed8;}
+.em-badge.purple{background:#ede9fe;color:#7c3aed;}
+.em-badge.sky{background:#e0f2fe;color:#0369a1;}
+.em-badge.amber{background:#fef3c7;color:#92400e;}
+.em-badge.indigo{background:#e0e7ff;color:#4338ca;}
+.em-badge.gray{background:#eef2f7;color:#64748b;}
+.em-empty{color:#94a3b8;}
+
+.em-menu-wrap{position:relative;display:inline-block;}
+.em-menu-btn{width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;transition:all .15s;color:var(--text-light);}
+.em-menu-btn:hover{background:#f1f5f9;color:var(--text);border-color:#cbd5e1;}
+.em-menu-btn.open{background:#eef2ff;color:var(--primary);border-color:#c7d2fe;}
+.em-menu{position:fixed;min-width:190px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.18);padding:5px;z-index:1500;opacity:0;visibility:hidden;pointer-events:none;transform:translateX(-12px);transition:transform .18s ease,opacity .18s ease,visibility .18s;}
+.em-menu.open{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(0);}
+.em-menu-item{display:flex;align-items:center;gap:9px;width:100%;padding:7px 10px;border:none;background:none;border-radius:7px;font-size:.78rem;font-weight:500;color:var(--text);font-family:var(--font);cursor:pointer;text-align:left;text-decoration:none;transition:background .12s;white-space:nowrap;}
+.em-menu-item:hover{background:#f1f5f9;}
+.em-menu-item i{width:15px;text-align:center;font-size:.8rem;}
+.em-menu-item.view{color:var(--primary);}
+.em-menu-item.edit{color:#d97706;}
+.em-menu-item.del{color:#dc2626;}
+.em-menu-item.tx{color:#4338ca;}
+.em-menu-item.pay{color:#065f46;}
+.em-menu-item.pct{color:#92400e;}
+
+.em-btn{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border-radius:7px;border:none;background:var(--primary);color:#fff;font-size:.75rem;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .2s;text-decoration:none;white-space:nowrap;}
+.em-btn:hover{background:var(--primary-dark);box-shadow:0 2px 6px rgba(37,99,235,.3);}
+.em-btn.excel{background:#2001ff;}
+.em-btn.excel:hover{background:#1800cc;}
+
+.em-col-num{width:34px;color:var(--text-muted)!important;font-size:.68rem!important;}
+.em-col-name{min-width:190px;}
+.em-col-actions{width:auto;}
+
+.em-search{position:relative;}
+.em-search i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;pointer-events:none;}
+.em-search input{height:32px;padding:0 10px 0 30px;border:1.5px solid var(--border);border-radius:8px;font-size:.75rem;font-family:var(--font);color:var(--text);outline:none;transition:all .2s;background:#fff;width:220px;}
+.em-search input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+.em-search input::placeholder{color:var(--text-muted);}
+mark{background:#fde047;color:#0f172a;border-radius:2px;padding:0 1px;}
+
+.em-filter{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.em-filter-item{display:flex;flex-direction:column;gap:4px;}
+.em-filter-item label{font-size:.66rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;}
+.em-filter-item select{height:34px;padding:0 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.78rem;font-family:var(--font);color:var(--text);background:#fff;outline:none;cursor:pointer;transition:all .2s;min-width:170px;}
+.em-filter-item select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+.em-filter-clear{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--text-light);font-size:.75rem;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .2s;text-decoration:none;white-space:nowrap;}
+.em-filter-clear:hover{border-color:var(--danger);color:var(--danger);background:#fef2f2;}
+
+.em-empty-state{text-align:center;padding:40px 24px;color:var(--text-muted);}
+.em-empty-state i{font-size:1.7rem;opacity:.4;display:block;margin-bottom:8px;}
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-backdrop.open{display:flex;}
+.modal-card{background:#fff;border-radius:16px;max-width:760px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.25);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #e2e8f0;position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;}
+.modal-head h3{margin:0;font-size:1.05rem;}
+.modal-close{background:#f1f5f9;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:0.8rem;color:#475569;}
+.tx-table{width:100%;border-collapse:collapse;font-size:0.85rem;}
+.tx-table th{text-align:left;padding:8px 10px;background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-weight:600;font-size:0.75rem;text-transform:uppercase;}
+.tx-table td{padding:8px 10px;border-bottom:1px solid #f1f5f9;white-space:nowrap;}
+.tx-pos{color:#16a34a;font-weight:700;}
+.tx-neg{color:#dc2626;font-weight:700;}
+.salary-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+.salary-stat{background:#f8fafc;border:1px solid #eef2f7;border-radius:12px;padding:14px;}
+.salary-stat .lbl{font-size:0.72rem;color:#64748b;font-weight:600;text-transform:uppercase;}
+.salary-stat .val{font-size:1.05rem;font-weight:800;color:#0f172a;margin-top:4px;font-variant-numeric:tabular-nums;}
+.salary-stat .val.pos{color:#2001ff;}
+.form-input{height:44px;padding:0 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.9rem;width:100%;outline:none;font-family:inherit;}
+.form-input:focus{border-color:#2001ff;}
+.em-pct-body{padding:28px 30px;}
+.em-pct-type{display:flex;gap:10px;}
+.em-pct-opt{flex:1;padding:14px 10px;border:1.5px solid #e2e8f0;border-radius:12px;text-align:center;cursor:pointer;font-size:.85rem;font-weight:600;color:#374151;background:#fff;transition:all .15s;user-select:none;}
+.em-pct-opt:hover{border-color:#c7d2fe;background:#fafbff;}
+.em-pct-opt.active{border-color:#2001ff;background:#eef2ff;color:#2001ff;}
+.em-pct-opt small{display:block;font-size:.68rem;font-weight:500;color:#94a3b8;margin-top:3px;}
+.em-pct-opt.active small{color:#2001ff;}
+.em-pct-field{margin-bottom:18px;}
+.em-pct-field label{font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:8px;}
+
+@media(max-width:640px){
+  .em-topbar-actions .em-btn span{display:none;}
+  .em-topbar-actions .em-btn{padding:0 10px;}
+}
+</style>
+{% endblock %}
 {% block content %}
-<div class="page-header">
-    <div class="page-header-left">
-        <h2>Xodimlar</h2>
-        <span class="page-header-count">{{ employees|length }} ta xodim</span>
+<div class="em-wrap">
+    <div class="em-topbar">
+        <div>
+            <h2><i class="fas fa-users"></i> Xodimlar</h2>
+            <div class="em-count">{{ employees|length }} ta xodim</div>
+        </div>
+        <div class="em-topbar-actions">
+            <a href="{% url 'employee_export_excel' %}" class="em-btn excel"><i class="fas fa-file-excel"></i> <span>Excel</span></a>
+            <a href="{% url 'employee_export_csv' %}" class="em-btn excel"><i class="fas fa-file-csv"></i> <span>CSV</span></a>
+            {% if 'employee.create' in permissions %}<a href="{% url 'employee_create' %}" class="em-btn"><i class="fas fa-plus"></i> Xodim qo'shish</a>{% endif %}
+        </div>
     </div>
-    <div class="page-header-right" style="display:flex;gap:6px;">
-        <a href="{% url 'employee_export_excel' %}" class="btn btn-success btn-sm" style="background:#2001ff;border-color:#2001ff;color:#fff;"><i class="fas fa-file-excel"></i> Excel</a>
-        <a href="{% url 'employee_export_csv' %}" class="btn btn-success btn-sm" style="background:#2001ff;border-color:#2001ff;color:#fff;"><i class="fas fa-file-csv"></i> CSV</a>
-        <a href="{% url 'employee_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Xodim qo'shish</a>
-    </div>
-</div>
-<div class="card">
-    <div class="card-header between">
-        <h3><i class="fas fa-users"></i> Barcha xodimlar</h3>
-    </div>
-    <div class="card-body" style="padding: 0;">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Xodim</th>
-                    <th>Telefon</th>
-                    <th>Vazifasi</th>
-                    <th>Rol</th>
-                    <th>Guruhlar</th>
-                    <th>Filiallar</th>
-                    <th>Holat</th>
-                    <th>Amallar</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for emp in employees %}
-                <tr>
-                    <td>{{ forloop.counter }}</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            {% if emp.photo %}
-                            <img src="{{ emp.photo.url }}" alt="{{ emp.first_name }}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
-                            {% else %}
-                            <div style="width: 36px; height: 36px; border-radius: 50%; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">
-                                {{ emp.first_name|first|upper }}{{ emp.last_name|first|upper }}
-                            </div>
-                            {% endif %}
-                            <div>
-                                <a href="{% url 'employee_profile' emp.pk %}" style="color: inherit; text-decoration: none;">
-                                    <strong>{{ emp.first_name }} {{ emp.last_name }}</strong>
-                                </a>
-                                {% if emp.user %}
-                                <div style="font-size: 0.75rem; color: #16a34a;"><i class="fas fa-check-circle"></i> Login mavjud</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </td>g
-                    <td>+998 {{ emp.phone }}</td>
-                    <td>{% if emp.position %}<span class="badge badge-blue">{{ emp.position.name }}</span>{% else %}<span style="color: #94a3b8;">-</span>{% endif %}</td>
-                    <td>{% if emp.role %}<span class="badge badge-purple">{{ emp.role.name }}</span>{% else %}<span style="color: #94a3b8;">-</span>{% endif %}</td>
-                    <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">{{ emp.group_count }} ta</span></td>
-                    <td>
-                        {% for b in emp.branches.all %}
-                        <span class="badge badge-green" style="margin: 1px;">{{ b.name }}</span>
-                        {% empty %}
-                        <span style="color: #94a3b8;">-</span>
-                        {% endfor %}
-                    </td>
-                    <td>
-                        {% if emp.is_active %}
-                        <span class="badge badge-green">Faol</span>
-                        {% else %}
-                        <span class="badge badge-gray">Nofaol</span>
-                        {% endif %}
-                    </td>
-                    <td class="actions">
-                        <a href="{% url 'employee_profile' emp.pk %}" class="btn btn-sm btn-info" title="Profil"><i class="fas fa-eye"></i></a>
-                        <a href="{% url 'employee_update' emp.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
-                        {% if emp.is_active %}
-                        <a href="{% url 'employee_delete' emp.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="9" class="empty">Hozircha xodimlar mavjud emas</td></tr>
+
+    <div class="em-filter">
+        <div class="em-filter-item">
+            <label>Kasb / Vazifa</label>
+            <select id="kasabFilter" onchange="applyFilter()">
+                <option value="">Barcha vazifalar</option>
+                {% for p in positions %}
+                <option value="{{ p.id }}" {% if request.GET.kasab == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
                 {% endfor %}
-            </tbody>
-        </table>
+            </select>
+        </div>
+        <div class="em-filter-item">
+            <label>Rol</label>
+            <select id="rolFilter" onchange="applyFilter()">
+                <option value="">Barcha rollar</option>
+                {% for r in roles %}
+                <option value="{{ r.id }}" {% if request.GET.rol == r.id|stringformat:"s" %}selected{% endif %}>{{ r.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if request.user.is_superuser %}
+        <div class="em-filter-item">
+            <label>Filial</label>
+            <select id="filialFilter" onchange="applyFilter()">
+                <option value="">Barcha filiallar</option>
+                {% for b in branches %}
+                <option value="{{ b.id }}" {% if request.GET.filial == b.id|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        {% if request.GET.kasab or request.GET.rol or request.GET.filial %}
+        <a href="{% url 'employee_list' %}" class="em-filter-clear"><i class="fas fa-times"></i> Tozalash</a>
+        {% endif %}
+    </div>
+
+    <div class="em-table-wrap">
+        <div class="em-table-header">
+            <h3><i class="fas fa-users"></i> Barcha xodimlar</h3>
+            <div class="em-search">
+                <i class="fas fa-search"></i>
+                <input type="text" id="emSearch" placeholder="Ism bo'yicha qidirish..." autocomplete="off">
+            </div>
+        </div>
+        <div class="em-scroll">
+            <table class="em-table">
+                <thead>
+                    <tr>
+                        <th class="em-col-num">#</th>
+                        <th class="em-col-name">Xodim</th>
+                        <th>Telefon</th>
+                        <th>Vazifasi</th>
+                        <th>Rol</th>
+                        <th>Guruhlar</th>
+                        <th>Oylik turi</th>
+                        <th>Joriy balans</th>
+                        <th>Shu oy</th>
+                        <th>To'langan</th>
+                        <th class="em-col-actions">Amallar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in employees %}
+                    {% with st=salary_stats|get_item:emp.pk %}
+                    <tr>
+                        <td class="em-col-num">{{ forloop.counter }}</td>
+                        <td>
+                            <div class="em-name">
+                                {% if emp.photo %}
+                                <div class="em-avatar"><img src="{{ emp.photo.url }}" alt="{{ emp.first_name }}" width="36" height="36" loading="lazy"></div>
+                                {% else %}
+                                <div class="em-avatar">{{ emp.first_name|first|upper }}{{ emp.last_name|first|upper }}</div>
+                                {% endif %}
+                                <div class="em-name-text">
+                                    <a href="{% url 'employee_profile' emp.pk %}" class="em-name-main">{{ emp.first_name }} {{ emp.last_name }}</a>
+                                    {% if emp.user %}
+                                    <span class="em-name-sub"><i class="fas fa-check-circle"></i> Login mavjud</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="em-phone">+998 {{ emp.phone }}</span></td>
+                        <td>{% if emp.position %}<span class="em-badge blue">{{ emp.position.name }}</span>{% else %}<span class="em-empty">-</span>{% endif %}</td>
+                        <td>{% if emp.role %}<span class="em-badge purple">{{ emp.role.name }}</span>{% else %}<span class="em-empty">-</span>{% endif %}</td>
+                        <td><span class="em-badge sky">{{ emp.group_count }} ta</span></td>
+                        <td>
+                            {% if emp.salary_type == 'percent' %}
+                            <span class="em-badge amber">Foiz: {{ emp.percent|floatformat:0 }}%</span>
+                            {% elif emp.monthly_salary %}
+                            <span class="em-badge indigo">Oylik: {{ emp.monthly_salary|floatformat:0 }} so'm</span>
+                            {% else %}
+                            <span class="em-badge gray">Oylik</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="em-money balance">{{ st.balance|default:0|spacesep }} so'm</span></td>
+                        <td><span class="em-money">{{ st.month_earned|default:0|spacesep }} so'm</span></td>
+                        <td><span class="em-money">{{ st.paid_total|default:0|spacesep }} so'm</span></td>
+                        <td>
+                            <div class="em-menu-wrap">
+                                <button type="button" class="em-menu-btn" onclick="toggleMenu(this)" title="Amallar"><i class="fas fa-ellipsis-vertical"></i></button>
+                                <div class="em-menu">
+                                    <a href="{% url 'employee_profile' emp.pk %}" class="em-menu-item view"><i class="fas fa-eye"></i> Profil</a>
+                                    {% if 'employee.update' in permissions %}<a href="{% url 'employee_update' emp.pk %}" class="em-menu-item edit"><i class="fas fa-edit"></i> Tahrirlash</a>{% endif %}
+                                    {% if emp.is_active and 'employee.delete' in permissions %}
+                                    <a href="{% url 'employee_delete' emp.pk %}" class="em-menu-item del"><i class="fas fa-trash"></i> O'chirish</a>
+                                    {% endif %}
+                                    {% if st.balance > 0 and 'employee.update' in permissions %}
+                                    <button type="button" class="em-menu-item pay" onclick="openPayModal({{ emp.pk }})"><i class="fas fa-money-bill-wave"></i> Oylik to'lash</button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="11">
+                            <div class="em-empty-state">
+                                <i class="fas fa-users"></i>
+                                Hozircha xodimlar mavjud emas
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
+<div class="modal-backdrop" id="txModal">
+    <div class="modal-card">
+        <div class="modal-head">
+            <h3><i class="fas fa-list"></i> Tranzaksiyalar tarixi</h3>
+            <button type="button" class="modal-close" onclick="closeModal('txModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="txModalBody"><div style="text-align:center;padding:30px;color:#64748b;">Yuklanmoqda...</div></div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="payModal">
+    <div class="modal-card" style="max-width:440px;">
+        <div class="modal-head">
+            <h3><i class="fas fa-money-bill-wave"></i> Oylik to'lash</h3>
+            <button type="button" class="modal-close" onclick="closeModal('payModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="salary-stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
+                <div class="salary-stat"><div class="lbl">To'lanadigan summa</div><div class="val pos" id="payAmount">0 so'm</div></div>
+                <div class="salary-stat"><div class="lbl">Balansdan keyin</div><div class="val">0 so'm</div></div>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">To'lov usuli</label>
+                <select class="form-input" id="payMethod">
+                    <option value="">Tanlang...</option>
+                    {% for pm in payment_methods %}
+                    <option value="{{ pm.name }}">{{ pm.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Izoh</label>
+                <input type="text" class="form-input" id="payComment" placeholder="Masalan: Iyul oyligi">
+            </div>
+            {% if 'employee.update' in permissions %}<button type="button" class="btn btn-primary" style="width:100%;padding:12px;font-weight:700;" onclick="submitPay()"><i class="fas fa-check"></i> Tasdiqlash</button>{% endif %}
+            <div id="payMsg" style="margin-top:10px;font-size:0.85rem;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="percentModal">
+    <div class="modal-card" style="max-width:440px;">
+        <div class="modal-head">
+            <h3><i class="fas fa-percent"></i> Foizni tahrirlash</h3>
+            <button type="button" class="modal-close" onclick="closeModal('percentModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body em-pct-body">
+            <div class="em-pct-field">
+                <label>Oylik turi</label>
+                <div class="em-pct-type">
+                    <label class="em-pct-opt" id="optMonthly">
+                        <input type="radio" name="pctType" value="monthly" style="display:none;"> Oylik
+                        <small>Belgilangan maosh</small>
+                    </label>
+                    <label class="em-pct-opt" id="optPercent">
+                        <input type="radio" name="pctType" value="percent" style="display:none;"> Foiz
+                        <small>Daromaddan ulush</small>
+                    </label>
+                </div>
+            </div>
+            <div class="em-pct-field" id="pctInputWrap">
+                <label>Foiz (%)</label>
+                <input type="number" class="form-input" id="pctValue" min="0" max="100" step="0.01" placeholder="30">
+            </div>
+            <button type="button" class="btn btn-primary" style="width:100%;padding:13px;font-weight:700;" onclick="submitPercent()"><i class="fas fa-check"></i> Saqlash</button>
+            <div id="pctMsg" style="margin-top:12px;font-size:0.85rem;text-align:center;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const SALARY_DATA = {{ salary_json|safe }};
+
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-backdrop').forEach(b=>b.addEventListener('click',e=>{if(e.target===b)b.classList.remove('open');}));
+
+function closeMenus(){
+  document.querySelectorAll('.em-menu.open').forEach(m=>m.classList.remove('open'));
+  document.querySelectorAll('.em-menu-btn.open').forEach(b=>b.classList.remove('open'));
+}
+function toggleMenu(btn){
+  const m=btn.parentElement.querySelector('.em-menu');
+  const wasOpen=m.classList.contains('open');
+  closeMenus();
+  if(!wasOpen){
+    const r=btn.getBoundingClientRect();
+    const mw=m.offsetWidth;
+    const mh=m.offsetHeight;
+    let left=r.right-mw;
+    if(left<8)left=8;
+    if(left+mw>window.innerWidth-8)left=window.innerWidth-mw-8;
+    let top=r.bottom+6;
+    if(top+mh>window.innerHeight-8)top=r.top-mh-6;
+    if(top<8)top=8;
+    m.style.position='fixed';
+    m.style.left=left+'px';
+    m.style.top=top+'px';
+    m.style.right='auto';
+    m.classList.add('open');
+    btn.classList.add('open');
+  }
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.em-menu-wrap'))closeMenus();
+});
+window.addEventListener('scroll',closeMenus,true);
+window.addEventListener('resize',closeMenus);
+
+function fmt(n){return (Number(n)||0).toLocaleString('ru-RU')+' so\'m';}
+
+function applyFilter(){
+  var params=new URLSearchParams(window.location.search);
+  var k=document.getElementById('kasabFilter').value;
+  var r=document.getElementById('rolFilter').value;
+  var f=document.getElementById('filialFilter')?document.getElementById('filialFilter').value:'';
+  if(k)params.set('kasab',k);else params.delete('kasab');
+  if(r)params.set('rol',r);else params.delete('rol');
+  if(f)params.set('filial',f);else params.delete('filial');
+  var qs=params.toString();
+  window.location.href=window.location.pathname+(qs?'?'+qs:'');
+}
+
+(function(){
+  var input=document.getElementById('emSearch');
+  if(!input)return;
+  var rows=Array.prototype.slice.call(document.querySelectorAll('.em-table tbody tr'));
+  var count=document.querySelector('.em-count');
+  input.addEventListener('input',function(){
+    var q=input.value.trim().toLowerCase();
+    var visible=0;
+    rows.forEach(function(r){
+      var name=r.cells[1]?r.cells[1].textContent.toLowerCase():'';
+      var match=!q||name.indexOf(q)!==-1;
+      r.style.display=match?'':'none';
+      if(match)visible++;
+    });
+    if(count)count.textContent=visible+' ta xodim';
+  });
+})();
+
+function openTxModal(empId){
+  closeMenus();
+  openModal('txModal');
+  const body=document.getElementById('txModalBody');
+  body.innerHTML='<div style="text-align:center;padding:30px;color:#64748b;">Yuklanmoqda...</div>';
+  fetch('/api/salary/teachers/'+empId+'/',{credentials:'include'})
+    .then(r=>r.json())
+    .then(d=>{
+      const s=d.salary||{};
+      let html='';
+      html+='<div class="salary-stat-grid">';
+      html+='<div class="salary-stat"><div class="lbl">Joriy balans</div><div class="val pos">'+fmt(s.balance)+'</div></div>';
+      html+='<div class="salary-stat"><div class="lbl">Bugungi tushum</div><div class="val">'+fmt(s.today_income)+'</div></div>';
+      html+='<div class="salary-stat"><div class="lbl">Bu oy ishlangan</div><div class="val">'+fmt(s.month_earned)+'</div></div>';
+      html+='<div class="salary-stat"><div class="lbl">Olingan summa</div><div class="val">'+fmt(s.paid_total)+'</div></div>';
+      html+='</div>';
+      const tx=(s.transactions||[]);
+      if(tx.length===0){html+='<div style="text-align:center;padding:24px;color:#94a3b8;">Tranzaksiyalar mavjud emas</div>';}
+      else{
+        html+='<div style="overflow-x:auto;"><table class="tx-table"><thead><tr><th>Sana</th><th>O\'quvchi</th><th>Summa</th><th>Tur</th><th>Izoh</th></tr></thead><tbody>';
+        tx.forEach(t=>{
+          const cls=t.amount>0?'tx-pos':'tx-neg';
+          html+='<tr><td>'+t.created_at+'</td><td>'+(t.student_name||'-')+'</td><td class="'+cls+'">'+fmt(t.amount)+'</td><td>'+t.transaction_type_display+'</td><td style="max-width:200px;white-space:normal;">'+(t.description||'')+'</td></tr>';
+        });
+        html+='</tbody></table></div>';
+      }
+      body.innerHTML=html;
+    })
+    .catch(e=>body.innerHTML='<div style="text-align:center;padding:30px;color:#dc2626;">Xatolik: '+e.message+'</div>');
+}
+
+function openPayModal(empId){
+  closeMenus();
+  const s=SALARY_DATA[empId]||{};
+  document.getElementById('payAmount').textContent=fmt(s.balance);
+  document.getElementById('payModal').dataset.empId=empId;
+  document.getElementById('payMethod').value='';
+  document.getElementById('payComment').value='';
+  document.getElementById('payMsg').innerHTML='';
+  openModal('payModal');
+}
+
+function submitPay(){
+  const empId=document.getElementById('payModal').dataset.empId;
+  const method=document.getElementById('payMethod').value;
+  const comment=document.getElementById('payComment').value;
+  const msg=document.getElementById('payMsg');
+  msg.innerHTML='<span style="color:#64748b;">Yuborilmoqda...</span>';
+  fetch('/api/salary/teachers/'+empId+'/pay/',{
+    method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({payment_method:method,description:comment})
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.success){
+      msg.innerHTML='<span style="color:#16a34a;font-weight:600;">'+d.message+'</span>';
+      setTimeout(()=>{closeModal('payModal');location.reload();},900);
+    }else{msg.innerHTML='<span style="color:#dc2626;">'+(d.error||'Xatolik')+'</span>';}
+  })
+  .catch(e=>msg.innerHTML='<span style="color:#dc2626;">Xatolik: '+e.message+'</span>');
+}
+
+function openPercentModal(empId){
+  closeMenus();
+  const s=SALARY_DATA[empId]||{};
+  const type=s.salary_type==='percent'?'percent':'monthly';
+  document.querySelector('input[name="pctType"][value="'+type+'"]').checked=true;
+  document.getElementById('pctValue').value=s.percent||0;
+  document.getElementById('percentModal').dataset.empId=empId;
+  document.getElementById('pctMsg').innerHTML='';
+  syncPctUI();
+  openModal('percentModal');
+}
+
+function syncPctUI(){
+  const t=document.querySelector('input[name="pctType"]:checked').value;
+  document.getElementById('optMonthly').classList.toggle('active',t==='monthly');
+  document.getElementById('optPercent').classList.toggle('active',t==='percent');
+  document.getElementById('pctInputWrap').style.display=t==='percent'?'block':'none';
+}
+document.querySelectorAll('input[name="pctType"]').forEach(r=>r.addEventListener('change',syncPctUI));
+
+function submitPercent(){
+  const empId=document.getElementById('percentModal').dataset.empId;
+  const type=document.querySelector('input[name="pctType"]:checked').value;
+  const percent=document.getElementById('pctValue').value;
+  const msg=document.getElementById('pctMsg');
+  fetch('/api/salary/teachers/'+empId+'/percent/',{
+    method:'PUT',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({salary_type:type,percent:percent})
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.success){
+      msg.innerHTML='<span style="color:#16a34a;font-weight:600;">Saqlangan</span>';
+      setTimeout(()=>{closeModal('percentModal');location.reload();},700);
+    }else{msg.innerHTML='<span style="color:#dc2626;">'+(d.error||'Xatolik')+'</span>';}
+  })
+  .catch(e=>msg.innerHTML='<span style="color:#dc2626;">Xatolik: '+e.message+'</span>');
+}
+</script>
 {% endblock %}

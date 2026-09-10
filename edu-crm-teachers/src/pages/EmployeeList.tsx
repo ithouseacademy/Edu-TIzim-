@@ -18,7 +18,7 @@ export default function EmployeeList({ onSelect }: { onSelect: (id: number) => v
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto animate-page-enter">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Xodimlar</h1>
@@ -26,12 +26,12 @@ export default function EmployeeList({ onSelect }: { onSelect: (id: number) => v
         </div>
         <button
           onClick={() => onSelect(0)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+          className="px-4 py-2 bg-[#2001ff] text-white rounded-xl text-sm font-medium hover:bg-[#1a00d9] transition shadow-sm"
         >
           + Xodim qo'shish
         </button>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-premium-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -47,15 +47,15 @@ export default function EmployeeList({ onSelect }: { onSelect: (id: number) => v
             </thead>
             <tbody>
               {employees.map((emp, i) => (
-                <tr key={emp.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
+                <tr key={emp.id} className="border-b border-gray-100 hover:bg-[#fafbff] transition">
                   <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[#eef0ff] text-[#2001ff] flex items-center justify-center text-xs font-bold flex-shrink-0">
                         {emp.first_name[0]}{emp.last_name[0]}
                       </div>
                       <div>
-                        <button onClick={() => onSelect(emp.id)} className="font-medium text-gray-900 hover:text-blue-600 text-left">
+                        <button onClick={() => onSelect(emp.id)} className="font-medium text-gray-900 hover:text-[#2001ff] text-left">
                           {emp.first_name} {emp.last_name}
                         </button>
                         {emp.has_login && (
@@ -69,7 +69,7 @@ export default function EmployeeList({ onSelect }: { onSelect: (id: number) => v
                   <td className="px-4 py-3 text-gray-600">+998 {emp.phone}</td>
                   <td className="px-4 py-3">
                     {emp.position ? (
-                      <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">{emp.position.name}</span>
+                      <span className="inline-block px-2 py-0.5 bg-[#eef0ff] text-[#2001ff] rounded-md text-xs font-medium">{emp.position.name}</span>
                     ) : <span className="text-gray-300">-</span>}
                   </td>
                   <td className="px-4 py-3">
@@ -81,7 +81,7 @@ export default function EmployeeList({ onSelect }: { onSelect: (id: number) => v
                     <span className="inline-block px-2 py-0.5 bg-sky-50 text-sky-700 rounded-md text-xs font-medium">{emp.group_count} ta</span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => onSelect(emp.id)} className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition">Profil</button>
+                    <button onClick={() => onSelect(emp.id)} className="px-3 py-1.5 text-xs font-semibold text-[#2001ff] hover:bg-[#eef0ff] rounded-lg transition">Profil</button>
                   </td>
                 </tr>
               ))}

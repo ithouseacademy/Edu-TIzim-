@@ -6,126 +6,178 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Inter',-apple-system,sans-serif;background:#fff;color:#111;}
+:root{--blue:#2563eb;--dark:#07577f;--bg:#f5f7f9;--border:#e4e8ed;--text:#172033;--muted:#737b87}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:12px;}
+button{font:inherit;border:0;cursor:pointer;}
 
-/* Layout */
-.pay-layout{display:flex;min-height:100vh;}
-.pay-left{flex:1;padding:28px 32px;overflow-x:hidden;transition:margin-right .25s ease;}
+.page-header{display:none !important;}
+.content{padding:0 !important;max-width:100% !important;}
 
-.drawer-backdrop{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.5);opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease;}
-.drawer-backdrop.show{opacity:1;visibility:visible;}
-.pay-right{width:470px;height:100vh;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.06);padding:28px 28px 0;position:fixed;top:0;right:0;z-index:1000;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;visibility:hidden;}
-.pay-right-scroll{flex:1;overflow-y:auto;padding-bottom:28px;margin-right:-4px;min-height:0;}
-#drawerCard{flex:1;display:flex;flex-direction:column;min-height:0;}
-#drawerCard.hidden{display:none;}
-.pay-right-scroll::-webkit-scrollbar{width:4px;}
-.pay-right-scroll::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px;}
-.pay-right.open{transform:translateX(0);visibility:visible;}
+.pay-layout{display:flex;min-height:100vh;background:var(--bg);}
 
-/* Header */
-.ph-title{font-size:20px;font-weight:700;color:#111;margin-bottom:20px;letter-spacing:-.3px;}
+/* ===== SIDEBAR ===== */
+.pay-sidebar{width:240px;background:#fff;padding:10px 10px 14px;min-height:100vh;border-right:1px solid #eef1f4;flex-shrink:0;display:flex;flex-direction:column;}
+.side-top{display:grid;grid-template-columns:1fr 32px;gap:6px;}
+.add-cash{height:34px;background:var(--blue);color:#fff;border-radius:6px;font-weight:500;box-shadow:0 2px 5px #d7e0fa;display:flex;align-items:center;justify-content:center;font-size:11px;}
+.plus{display:inline-flex;width:14px;height:14px;border:2px solid #fff;border-radius:50%;align-items:center;justify-content:center;margin-right:5px;font-size:11px;}
+.eye-btn{background:#fff;border:1px solid #dce1e7;border-radius:6px;color:#313944;font-size:14px;}
 
-/* Search */
-.search-wrap{position:relative;margin-bottom:20px;}
-.search-wrap input{width:100%;height:44px;padding:0 14px 0 40px;border:1px solid #E9EDF5;border-radius:12px;font-size:14px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;transition:border-color .15s,box-shadow .15s;}
-.search-wrap input:focus{border-color:#2001FF;box-shadow:0 0 0 3px rgba(32,1,255,.08);}
-.search-wrap .si{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:14px;pointer-events:none;}
+.select-box{height:34px;background:#fff;border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;color:#444;margin-top:8px;font-size:12px;}
 
-/* Table */
-.st-table{width:100%;border-collapse:separate;border-spacing:0;}
-.st-table th{text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;padding:0 12px 12px 12px;border-bottom:1px solid #E9EDF5;}
-.st-table td{padding:10px 12px;font-size:13px;color:#111;border-bottom:1px solid #F3F4F6;}
-.st-table tbody tr{cursor:pointer;transition:background .12s;}
-.st-table tbody tr:hover{background:#F5F7FF;}
-.st-table tbody tr:last-child td{border-bottom:none;}
+.cash-card{margin-top:10px;background:linear-gradient(135deg,#07577f,#075174);border-radius:8px;padding:12px 10px;color:#fff;display:flex;justify-content:space-between;box-shadow:0 4px 12px rgba(5,50,75,.12);flex-direction:column;}
+.cash-name{font-size:12px;font-weight:500;margin-bottom:3px;}
+.cash-balance{font-size:14px;font-weight:500;margin-bottom:5px;}
+.cash-owner{font-size:11px;opacity:.8;}
+.pm-list{margin-top:12px;display:flex;flex-direction:column;gap:6px;}
+.pm-item{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(255,255,255,.1);border-radius:6px;font-size:12px;}
+.pm-item .pm-name{font-weight:500;opacity:.85;}
+.pm-item .pm-amount{font-weight:700;}
+.cash-actions{display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-top:auto;}
+.cash-actions button{padding:4px 6px;border-radius:4px;color:#fff;font-weight:600;font-size:10px;}
+.income{background:#61dc71}.expense{background:#f04438}.transfer{background:#2196e8}
 
+/* ===== MAIN ===== */
+.pay-main{flex:1;padding:8px 12px 12px;overflow:hidden;display:flex;flex-direction:column;}
+
+.balance-row{display:flex;gap:6px;margin-bottom:8px;}
+.balance-card{width:130px;height:50px;background:linear-gradient(135deg,#07577f,#075174);color:#fff;border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 3px 8px rgba(5,50,75,.1);}
+.balance-card span{font-size:11px}.balance-card strong{font-size:11px}.balance-card small{font-size:8px;text-align:right}
+
+.filters{display:grid;grid-template-columns:1fr 1.2fr 1fr 1fr 1fr 1fr;gap:6px;margin-bottom:10px;}
+.field{height:32px;background:#fff;border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;color:#444;font-size:11px;}
+.export{height:32px;background:var(--blue);color:#fff;border-radius:6px;font-weight:500;display:flex;align-items:center;justify-content:center;font-size:11px;}
+.export span{margin-right:5px}
+.date{justify-content:flex-start;gap:12px}.date b{margin-left:auto;font-size:17px;color:#59616d}
+
+.transactions{background:#fff;border:1px solid #edf0f3;border-radius:8px;flex:1;padding:8px 10px;box-shadow:0 2px 7px rgba(0,0,0,.02);display:flex;flex-direction:column;overflow:hidden;}
+.tabs{display:flex;align-items:center;gap:4px;border-bottom:1px solid #f0f2f5;padding-bottom:8px;flex-shrink:0;}
+.tab{background:transparent;padding:6px 10px;color:#252b35;border-radius:5px;font-size:11px;font-weight:500;}.tab.active{background:var(--blue);color:#fff;}
+.stats{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.stat{border:1px solid #e9edf1;border-radius:5px;padding:4px 8px;font-weight:600;background:#fff;font-size:10px;}
+.green span{color:#18a957}.red span{color:#e94343}
+
+.total{text-align:right;margin:6px 0 8px;text-decoration:underline dotted;text-underline-offset:4px;font-size:10px;flex-shrink:0;}
+
+.table-wrap{overflow-x:auto;flex:1;min-height:0;}
+.table-wrap::-webkit-scrollbar{width:4px;height:4px;}
+.table-wrap::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px;}
+table{width:100%;border-collapse:collapse;min-width:960px;}
+th{text-align:left;color:#707783;font-size:9px;font-weight:500;padding:0 6px 8px;border-bottom:1px dashed #e1e5e9;white-space:nowrap;}
+td{padding:8px 6px;font-size:11px;border-bottom:1px solid #f3f4f6;}
+.empty{text-align:center;color:#242a34;font-size:12px;border-bottom:1px dashed #e1e5e9;padding:30px 0;}
+
+/* Student row styles */
 .scell{display:flex;align-items:center;gap:10px;}
 .sav{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
-.sav.pos{background:#2001FF;}
-.sav.neg{background:#dc2626;}
-.sav.zero{background:#2001FF;}
-.sname{font-weight:600;font-size:13px;color:#111;text-decoration:none;}
+.sav.pos{background:var(--blue);}.sav.neg{background:#dc2626;}.sav.zero{background:var(--blue);opacity:.5;}
+.sname{font-weight:600;font-size:13px;color:var(--text);}
 .sdebt{font-size:10px;color:#dc2626;margin-top:1px;}
-
-.sphone{color:#6b7280;font-size:12px;}
-.sgrp{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:500;background:#F0F2FF;color:#2001FF;margin:0 2px 2px 0;}
-
+.sphone{color:var(--muted);font-size:12px;}
+.sgrp{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:500;background:#EBF0FF;color:var(--blue);margin:0 2px 2px 0;}
 .samt{font-weight:700;font-size:13px;}
-.samt.pos{color:#2001FF;}
-.samt.neg{color:#dc2626;}
-.samt.zero{color:#9ca3af;}
-
+.samt.pos{color:var(--blue);}.samt.neg{color:#dc2626;}.samt.zero{color:var(--muted);}
 .srem{font-weight:600;font-size:12px;}
 .srem.due{color:#dc2626;}
-
-.pay-action-btn{width:32px;height:32px;border:none;background:transparent;border-radius:8px;cursor:pointer;color:#9ca3af;display:flex;align-items:center;justify-content:center;transition:all .12s;}
-.pay-action-btn:hover{background:#F0F2FF;color:#2001FF;}
-
-.st-table tbody tr:hover{background:#f8f9fb;}
-.st-table tbody tr.selected{background:#F0F2FF;}
-.st-table tbody tr.selected .pay-action-btn{background:#2001FF;color:#fff;}
-.srem.paid{color:#2001FF;}
-
-/* Empty state */
-.st-empty{text-align:center;padding:48px;color:#9ca3af;font-size:13px;}
+.srem.paid{color:var(--blue);}
+.pay-action-btn{width:32px;height:32px;border:none;background:transparent;border-radius:8px;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.pay-action-btn:hover{background:#F0F2FF;color:var(--blue);}
+tbody tr{cursor:pointer;transition:background .12s;}
+tbody tr:hover{background:#f5f7ff;}
+tbody tr.selected{background:#EBF0FF;}
+tbody tr.selected .pay-action-btn{background:var(--blue);color:#fff;}
 
 /* ===== DRAWER ===== */
-.dr-title{font-size:18px;font-weight:700;color:#111;letter-spacing:-.3px;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
-.dr-close-btn{width:28px;height:28px;border:none;background:#F3F4F6;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:12px;flex-shrink:0;transition:background .12s,color .12s;}
-.dr-close-btn:hover{background:#2001FF;color:#fff;}
+.drawer-backdrop{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.5);opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease;}
+.drawer-backdrop.show{opacity:1;visibility:visible;}
+.pay-right{width:420px;height:100vh;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.06);padding:28px 28px 0;position:fixed;top:0;right:0;z-index:1000;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;visibility:hidden;}
+.pay-right.open{transform:translateX(0);visibility:visible;}
+.pay-right-scroll{flex:1;overflow-y:auto;padding-bottom:28px;}
+.pay-right-scroll::-webkit-scrollbar{width:4px;}
+.pay-right-scroll::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px;}
 
-/* Student card in drawer */
+.dr-title{font-size:18px;font-weight:700;color:#111;letter-spacing:-.3px;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
+
+/* ===== Chiqim drawer (tur tanlash flow) ===== */
+.exp-lbl{font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:6px;}
+.exp-type{display:flex;gap:11px;align-items:center;padding:12px 13px;border:1px solid #E9EDF5;border-radius:11px;cursor:pointer;margin-bottom:9px;transition:border-color .15s,background .15s;}
+.exp-type:hover{border-color:#c7d2fe;background:#f5f7ff;}
+.exp-type.on{border-color:#4f46e5;background:#eef2ff;}
+.exp-type>i{width:36px;height:36px;border-radius:10px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.exp-type span{font-size:13px;font-weight:600;color:#111;display:block;line-height:1.3;}
+.exp-type small{font-size:11px;color:#9ca3af;display:block;margin-top:1px;}
+.exp-sec{display:none;}
+.exp-field{margin-bottom:14px;}
+.exp-field input,.exp-field select,.exp-field textarea{width:100%;padding:10px 12px;border:1px solid #E9EDF5;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;resize:none;}
+.exp-field input:focus,.exp-field select:focus,.exp-field textarea:focus{border-color:var(--blue);}
+.exp-hint{font-size:11px;color:#9ca3af;margin-top:5px;display:block;line-height:1.45;}
+.exp-balbox{background:#F8F9FC;border:1px solid #E9EDF5;border-radius:10px;padding:10px 13px;margin-bottom:14px;}
+.exp-balrow{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0;}
+.exp-balrow .l{color:#6b7280;}
+.exp-balrow .v{font-weight:700;color:#111;text-align:right;}
+.exp-balrow .v.amber{color:#d97706;}
+.exp-balrow .v.green{color:#16a34a;}
+.exp-balrow .v.red{color:#dc2626;}
+.exp-warnbox{display:none;align-items:flex-start;gap:8px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;color:#dc2626;font-size:12px;margin-bottom:14px;line-height:1.45;}
+.exp-warnbox.show{display:flex;}
+.exp-deduct{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border:1px solid #E9EDF5;border-radius:10px;cursor:pointer;margin-bottom:14px;}
+.exp-deduct input{display:none;}
+.exp-deduct .bx{width:18px;height:18px;border-radius:5px;border:1.5px solid #cbd5e1;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;margin-top:1px;}
+.exp-deduct input:checked~.bx{background:#4f46e5;border-color:#4f46e5;}
+.exp-deduct b{font-size:12px;color:#111;display:block;}
+.exp-deduct small{font-size:11px;color:#9ca3af;display:block;margin-top:1px;}
+.exp-btnrow{display:flex;gap:8px;margin-top:16px;}
+.exp-btn-back{flex:1;padding:11px;background:#F3F4F6;color:#374151;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+.exp-btn-ok{flex:2;padding:11px;background:#dc2626;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+.exp-btn-ok.blue{background:#2563eb;}
+.exp-btn-ok:disabled{opacity:.5;cursor:not-allowed;}
+.exp-cfm-box{border:1px solid #E9EDF5;border-radius:12px;padding:6px 14px;margin-bottom:14px;}
+.exp-cfm-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:7px 0;border-bottom:1px dashed #EEF0F4;}
+.exp-cfm-row:last-child{border-bottom:none;}
+.exp-cfm-row .l{color:#6b7280;}
+.exp-cfm-row .v{font-weight:700;color:#111;text-align:right;}
+.dr-close-btn{width:28px;height:28px;border:none;background:#F3F4F6;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:12px;flex-shrink:0;transition:background .12s,color .12s;}
+.dr-close-btn:hover{background:var(--blue);color:#fff;}
+
 .dr-card{background:#F8F9FC;border-radius:14px;padding:16px;margin-bottom:16px;}
 .dr-card-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;}
 .dr-card-row+.dr-card-row{border-top:1px solid #E9EDF5;margin-top:4px;padding-top:8px;}
 .dr-lbl{font-size:12px;color:#6b7280;font-weight:500;}
 .dr-val{font-size:13px;font-weight:600;color:#111;}
-.dr-val.pos{color:#2001FF;}
-.dr-val.neg{color:#dc2626;}
-
+.dr-val.pos{color:var(--blue);}.dr-val.neg{color:#dc2626;}
 .dr-avatar{display:flex;align-items:center;gap:10px;}
 .dr-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;}
-.dr-av.pos{background:#2001FF;}
-.dr-av.neg{background:#dc2626;}
+.dr-av.pos{background:var(--blue);}.dr-av.neg{background:#dc2626;}
 .dr-un{font-weight:600;font-size:14px;color:#111;}
 .dr-grps{display:flex;flex-wrap:wrap;gap:3px;}
 
-/* Amount input */
 .dr-amt-wrap{position:relative;margin-bottom:16px;}
 .dr-amt-wrap label{display:block;font-size:11px;font-weight:600;color:#6b7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px;}
 .dr-amt-wrap input{width:100%;height:56px;padding:0 60px 0 14px;border:1px solid #E9EDF5;border-radius:12px;font-size:18px;font-weight:700;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;transition:border-color .15s,box-shadow .15s;}
-.dr-amt-wrap input:focus{border-color:#2001FF;box-shadow:0 0 0 3px rgba(32,1,255,.08);}
+.dr-amt-wrap input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.08);}
 .dr-amt-cur{position:absolute;right:14px;top:50%;transform:translateY(-25%);font-size:15px;font-weight:600;color:#9ca3af;pointer-events:none;}
 
-/* Accordion */
 .dr-acc{border:1px solid #E9EDF5;border-radius:12px;overflow:hidden;margin-bottom:16px;}
 .dr-acc-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;user-select:none;transition:background .1s;}
 .dr-acc-hd:hover{background:#F8F9FC;}
 .dr-acc-hd span{font-size:13px;font-weight:600;color:#111;}
 .dr-acc-hd i{font-size:12px;color:#9ca3af;}
-.dr-acc.open .dr-acc-bd{display:block;}
 
-/* Select */
 .dr-sel-wrap{margin-bottom:16px;}
 .dr-sel-wrap label{display:block;font-size:11px;font-weight:600;color:#6b7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px;}
 .dr-sel{width:100%;height:44px;padding:0 36px 0 14px;border:1px solid #E9EDF5;border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;transition:border-color .15s;}
-.dr-sel:focus{border-color:#2001FF;}
-.dr-sel-wrap + .dr-sel-wrap{margin-top:-8px;}
+.dr-sel:focus{border-color:var(--blue);}
 
-/* Comment textarea */
 .dr-comment-wrap{margin-bottom:16px;}
 .dr-comment-wrap label{display:block;font-size:11px;font-weight:600;color:#6b7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px;}
 .dr-comment-wrap textarea{width:100%;height:100px;padding:10px 14px;border:1px solid #E9EDF5;border-radius:12px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;resize:none;transition:border-color .15s;}
-.dr-comment-wrap textarea:focus{border-color:#2001FF;}
+.dr-comment-wrap textarea:focus{border-color:var(--blue);}
 .dr-char-count{text-align:right;font-size:11px;color:#9ca3af;margin-top:4px;}
 
-/* Submit button */
-.dr-submit{width:100%;height:56px;border:none;border-radius:14px;background:#2001FF;color:#fff;font-size:15px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:opacity .15s,transform .1s;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:auto;}
+.dr-submit{width:100%;height:56px;border:none;border-radius:14px;background:var(--blue);color:#fff;font-size:15px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:opacity .15s,transform .1s;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:auto;}
 .dr-submit:hover{opacity:.92;transform:translateY(-1px);}
 .dr-submit:active{transform:translateY(0);}
 .dr-submit:disabled{opacity:.5;cursor:default;}
 
-/* Error */
 .dr-err{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:8px 12px;font-size:12px;color:#dc2626;margin-bottom:12px;display:none;align-items:center;gap:6px;}
 .dr-err.show{display:flex;}
 
@@ -137,89 +189,65 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#fff;color:#111;}
 .tv-head-l{display:flex;align-items:center;gap:12px;}
 .tv-head-l h3{margin:0;font-size:16px;font-weight:700;color:#111;letter-spacing:-.2px;}
 .tv-head-r{display:flex;align-items:center;gap:8px;}
-.tv-bal-badge{height:28px;padding:0 12px;border-radius:14px;background:#F0F2FF;color:#2001FF;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;}
+.tv-bal-badge{height:28px;padding:0 12px;border-radius:14px;background:#EBF0FF;color:var(--blue);font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;}
 .tv-close{width:28px;height:28px;border-radius:8px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:14px;transition:background .1s;}
 .tv-close:hover{background:#F3F4F6;}
-
 .tv-body{flex:1;overflow-y:auto;padding:24px 30px;display:flex;gap:24px;}
 .tv-left{width:280px;flex-shrink:0;}
 .tv-right{flex:1;min-width:0;}
-
-/* Left info card */
 .tv-info-card{background:#F8F9FC;border-radius:14px;padding:16px;}
 .tv-info-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;}
 .tv-info-row+.tv-info-row{border-top:1px solid #E9EDF5;margin-top:4px;padding-top:10px;}
 .tv-il{color:#6b7280;font-weight:500;}
 .tv-ir{font-weight:600;color:#111;}
-.tv-ir.pos{color:#2001FF;}
-.tv-ir.neg{color:#dc2626;}
-
+.tv-ir.pos{color:var(--blue);}.tv-ir.neg{color:#dc2626;}
 .tv-avatar{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
 .tv-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;}
-.tv-av.pos{background:#2001FF;}
-.tv-av.neg{background:#dc2626;}
+.tv-av.pos{background:var(--blue);}.tv-av.neg{background:#dc2626;}
 .tv-un{font-weight:700;font-size:15px;color:#111;}
 .tv-grps{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px;}
-
-/* Right table card */
 .tv-table-card{border:1px solid #E9EDF5;border-radius:14px;overflow:hidden;}
 .tv-tbl-title{padding:14px 16px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid #E9EDF5;background:#F8F9FC;}
 .tv-tbl-row{display:flex;justify-content:space-between;align-items:center;height:48px;padding:0 16px;font-size:13px;}
 .tv-tbl-row+.tv-tbl-row{border-top:1px solid #F3F4F6;}
 .tv-tbl-row:nth-child(even):not(.tv-tbl-hl){background:#FAFBFC;}
-.tv-tbl-row.tv-tbl-hl{background:#F0F2FF;font-weight:700;}
+.tv-tbl-row.tv-tbl-hl{background:#EBF0FF;font-weight:700;}
 .tv-tbl-l{color:#6b7280;}
 .tv-tbl-r{font-weight:600;text-align:right;white-space:nowrap;}
-.tv-tbl-r.neg{color:#dc2626;}
-.tv-tbl-r.pos{color:#2001FF;}
-.tv-tbl-r.hl{color:#2001FF;}
+.tv-tbl-r.neg{color:#dc2626;}.tv-tbl-r.pos{color:var(--blue);}.tv-tbl-r.hl{color:var(--blue);}
 .tv-tbl-row.tv-tbl-umumiy{background:#DBEAFE;font-weight:700;}
 .tv-tbl-row.tv-tbl-balans{background:#DBEAFE;font-weight:700;border:1.5px solid #93C5FD;}
-
-/* Deferred section in modal */
 .tv-def{margin-top:12px;}
 .tv-def-title{font-size:11px;font-weight:600;color:#dc2626;margin-bottom:4px;}
 .tv-def-item{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:#6b7280;}
-
-/* Per-month selection */
 .pm-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F3F4F6;gap:8px;}
 .pm-row:last-child{border-bottom:none;}
 .pm-label{font-size:13px;font-weight:600;color:#111;min-width:50px;}
 .pm-debt{font-size:12px;font-weight:600;color:#dc2626;min-width:70px;text-align:right;}
 .pm-actions{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end;}
 .pm-btn{padding:4px 12px;border-radius:6px;border:1px solid #E9EDF5;background:#fff;font-size:11px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;color:#6b7280;}
-.pm-btn:hover{background:#F5F7FF;}
-.pm-btn.active-pay{background:#2001FF;color:#fff;border-color:#2001FF;}
+.pm-btn:hover{background:#f5f7ff;}
+.pm-btn.active-pay{background:var(--blue);color:#fff;border-color:var(--blue);}
 .pm-btn.active-def{background:#dc2626;color:#fff;border-color:#dc2626;}
 .pm-sabab{display:none;margin-left:auto;width:160px;}
 .pm-sabab input{width:100%;padding:5px 8px;border:1px solid #E9EDF5;border-radius:6px;font-size:11px;font-family:'Inter',sans-serif;outline:none;}
 .pm-sabab input:focus{border-color:#dc2626;}
-
-/* Bottom: payment status */
 .tv-foot{display:flex;align-items:center;justify-content:space-between;padding:16px 30px 20px;border-top:1px solid #E9EDF5;flex-shrink:0;gap:12px;}
-.tv-foot-label{font-size:13px;font-weight:700;color:#111;}
-.tv-foot-info{font-size:12px;color:#6b7280;}
 .tv-foot-label{font-size:12px;font-weight:600;color:#6b7280;}
-.tv-foot-sel{width:220px;height:44px;padding:0 36px 0 14px;border:1px solid #E9EDF5;border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;transition:border-color .15s;}
-.tv-foot-sel:focus{border-color:#2001FF;}
-
-/* Sabab in modal */
-.tv-sabab{margin-top:12px;width:100%;}
-.tv-sabab input{width:100%;padding:8px 12px;border:1px solid #E9EDF5;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;outline:none;transition:border-color .15s;}
-.tv-sabab input:focus{border-color:#2001FF;}
+.tv-foot-info{font-size:12px;color:#6b7280;}
 
 /* ===== RECEIPT MODAL ===== */
-.rc-overlay{display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.4);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);align-items:center;justify-content:center;}
+.rc-overlay{display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);align-items:center;justify-content:center;}
 .rc-overlay.show{display:flex;}
-.rc-modal{width:380px;background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.12);overflow:hidden;}
-.rc-body{padding:20px;text-align:center;}
+.rc-modal{width:480px;max-width:94vw;height:min(90vh,860px);display:flex;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.25);overflow:hidden;}
+.rc-body{padding:10px;text-align:center;flex:1;min-height:0;overflow:hidden;display:flex;}
 .rc-foot{display:flex;gap:8px;padding:12px 20px;border-top:1px solid #E9EDF5;background:#F8F9FC;}
 .rc-btn{flex:1;height:40px;border-radius:10px;border:none;font-size:12px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:opacity .1s;}
 .rc-btn:hover{opacity:.9;}
 .rc-btn.sec{background:#fff;border:1px solid #E9EDF5;color:#6b7280;}
-.rc-btn.pri{background:#2001FF;color:#fff;}
+.rc-btn.pri{background:var(--blue);color:#fff;}
 
-/* Quick search modal (reuse tv-overlay) */
+/* ===== QUICK SEARCH ===== */
 .qs-overlay{display:none;position:fixed;inset:0;z-index:1500;background:rgba(0,0,0,.4);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);align-items:center;justify-content:center;}
 .qs-overlay.show{display:flex;}
 .qs-modal{width:400px;max-height:70vh;background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.12);display:flex;flex-direction:column;overflow:hidden;}
@@ -229,211 +257,585 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#fff;color:#111;}
 .qs-close:hover{background:#F3F4F6;}
 .qs-body{padding:12px 20px 16px;overflow-y:auto;}
 .qs-search{width:100%;height:40px;padding:0 14px;border:1px solid #E9EDF5;border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;outline:none;margin-bottom:8px;}
-.qs-search:focus{border-color:#2001FF;}
+.qs-search:focus{border-color:var(--blue);}
 .qs-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:background .1s;}
-.qs-item:hover{background:#F5F7FF;}
+.qs-item:hover{background:#f5f7ff;}
 .qs-empty{text-align:center;padding:24px;color:#9ca3af;font-size:12px;}
 
-/* Overwrite base styles for this page */
-.page-header{display:none !important;}
-.content-wrapper{padding:0 !important;max-width:100% !important;}
-
-/* ===== RECEIPT CONTENT (on-screen in modal) ===== */
-#receiptBody{font-family:'Inter','Segoe UI',sans-serif;color:#0f172a;text-align:left;}
+#receiptBody{width:100%;font-family:'Inter','Segoe UI',sans-serif;color:#0f172a;text-align:left;}
 #receiptBody *{font-weight:900!important;}
-#receiptBody .rc-logo-wrap{text-align:center;margin-bottom:10px;}
-#receiptBody .rc-logo-wrap img{max-height:60px;max-width:160px;border-radius:8px;object-fit:contain;}
 #receiptBody .rc-academy{text-align:center;margin-bottom:4px;}
 #receiptBody .rc-academy .name{font-size:18px;font-weight:900;letter-spacing:1px;color:#0f172a;}
 #receiptBody .rc-academy .tagline{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
 #receiptBody .rc-title{text-align:center;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
 #receiptBody .rc-receipt-no{text-align:center;font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;}
 #receiptBody .rc-divider{border:none;border-top:1.5px dashed #e2e8f0;margin:10px 0;}
-#receiptBody .rc-divider.solid{border-top-style:solid;border-width:2px;}
-#receiptBody .rc-section-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
 #receiptBody .rc-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:3px 0;font-size:12px;}
 #receiptBody .rc-row .rc-label{color:#64748b;font-weight:500;white-space:nowrap;}
 #receiptBody .rc-row .rc-value{font-weight:600;color:#0f172a;text-align:right;word-break:break-word;}
-#receiptBody .rc-amount-box{text-align:center;padding:10px 0;}
-#receiptBody .rc-amount-box .label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;}
-#receiptBody .rc-amount-box .value{font-size:26px;font-weight:900;letter-spacing:0.5px;margin-top:4px;}
-#receiptBody .rc-balance{display:flex;justify-content:space-between;font-size:13px;font-weight:600;padding:4px 0;}
-#receiptBody .rc-balance .lbl{color:#64748b;}
-#receiptBody .rc-balance .val{color:#0f172a;font-weight:700;}
-#receiptBody .rc-message{text-align:center;padding:8px 0;}
-#receiptBody .rc-message .main{font-weight:800;font-size:12px;color:#0f172a;}
-#receiptBody .rc-footer{text-align:center;font-size:11px;font-weight:500;color:#94a3b8;margin-top:8px;}
-#receiptBody .rc-thanks{text-align:center;font-size:13px;font-weight:700;margin:8px 0;}
-#receiptBody .rc-notes{text-align:center;font-size:10px;color:#94a3b8;margin-top:4px;}
-#receiptBody .rc-contact{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;font-size:10px;color:#64748b;margin-top:8px;}
-#receiptBody .rc-contact span{white-space:nowrap;}
-#receiptBody .rc-contact i{margin-right:3px;}
 
-/* ===== RECEIPT PRINT (thermal printer) ===== */
 @media print{
   @page{margin:0;size:{{ paper_width|default:"58mm" }} {{ paper_height|default:"210mm" }};}
   body{max-height:{{ paper_height|default:"210mm" }};overflow:hidden;}
   body *{visibility:hidden;}
-  #receiptModal.printing{display:flex!important;position:absolute;top:0;left:0;width:{{ paper_width|default:"58mm" }};align-items:flex-start;justify-content:flex-start;background:#fff;z-index:999999;-webkit-backdrop-filter:none;backdrop-filter:none;}
+  #receiptModal.printing{display:flex!important;position:absolute;top:0;left:0;width:{{ paper_width|default:"58mm" }};align-items:flex-start;justify-content:flex-start;background:#fff;z-index:999999;}
   #receiptModal.printing .rc-modal{visibility:visible;position:static;width:100%;max-width:none;box-shadow:none;border-radius:0;background:#fff;max-height:none;overflow:visible;}
   #receiptModal.printing .rc-foot{display:none!important;}
   #receiptModal.printing .rc-body,#receiptModal.printing .rc-body *{visibility:visible;}
   #receiptModal.printing .rc-body{padding:{{ paper_padding|default:"2mm" }};width:100%;margin:0 auto;text-align:center;font-family:'Courier New',Courier,monospace;color:#000;background:#fff;}
   #receiptModal.printing .rc-body *{color:#000!important;border-color:#000!important;background:transparent!important;letter-spacing:0!important;font-family:'Courier New',Courier,monospace!important;font-weight:900!important;}
-  #receiptModal.printing .rc-body .rc-logo-wrap{text-align:center;margin-bottom:5px;}
-  #receiptModal.printing .rc-body .rc-logo-wrap img{max-height:35px;max-width:90px;object-fit:contain;filter:grayscale(1) contrast(1.2);}
-  #receiptModal.printing .rc-body .rc-academy .name{font-size:{{ font_name|default:"18px" }};font-weight:700;text-align:center;}
-  #receiptModal.printing .rc-body .rc-academy .tagline{font-size:{{ font_tagline|default:"9px" }};font-weight:400;text-align:center;text-transform:uppercase;}
-  #receiptModal.printing .rc-body .rc-title{font-size:{{ font_title|default:"12px" }};font-weight:700;text-align:center;text-transform:uppercase;margin:4px 0 2px;letter-spacing:1px;}
-  #receiptModal.printing .rc-body .rc-receipt-no{font-size:{{ font_row|default:"9px" }};font-weight:400;text-align:center;margin-bottom:4px;}
-  #receiptModal.printing .rc-body .rc-divider{margin:5px 0;border-top:1px dashed #000!important;}
-  #receiptModal.printing .rc-body .rc-divider.solid{border-top:2px solid #000!important;}
-  #receiptModal.printing .rc-body .rc-section-title{font-size:8px;font-weight:700;text-align:left;margin-bottom:3px;}
-  #receiptModal.printing .rc-body .rc-row{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;padding:1.5px 0;font-size:{{ font_row|default:"9px" }};font-weight:400;line-height:1.4;}
-  #receiptModal.printing .rc-body .rc-row .rc-label{white-space:nowrap;}
-  #receiptModal.printing .rc-body .rc-row .rc-value{text-align:right;font-weight:400;word-break:break-word;}
-  #receiptModal.printing .rc-body .rc-amount-box{text-align:center;padding:5px 0;}
-  #receiptModal.printing .rc-body .rc-amount-box .label{font-size:{{ font_amount_label|default:"8px" }};font-weight:700;}
-  #receiptModal.printing .rc-body .rc-amount-box .value{font-size:{{ font_amount|default:"22px" }};font-weight:700;margin:2px 0;}
-  #receiptModal.printing .rc-body .rc-balance{display:flex;justify-content:space-between;font-size:{{ font_balance|default:"9px" }};font-weight:400;padding:2px 0;}
-  #receiptModal.printing .rc-body .rc-balance .val{font-weight:700;}
-  #receiptModal.printing .rc-body .rc-message .main{font-size:{{ font_row|default:"9px" }};font-weight:700;}
-  #receiptModal.printing .rc-body .rc-thanks{font-size:{{ font_thanks|default:"11px" }};font-weight:700;text-align:center;margin:5px 0 2px;}
-  #receiptModal.printing .rc-body .rc-footer{font-size:{{ font_footer|default:"8px" }};font-weight:400;text-align:center;}
-  #receiptModal.printing .rc-body .rc-notes{font-size:{{ font_notes|default:"8px" }};font-weight:400;text-align:center;}
-  #receiptModal.printing .rc-body .rc-contact{font-size:{{ font_contact|default:"8px" }};font-weight:400;text-align:center;line-height:1.5;margin-top:3px;}
-  #receiptModal.printing .rc-body .rc-contact i{display:none;}
-  #receiptModal.printing .rc-body .rc-qr-wrap{display:none;}
 }
+
+@media(max-width:900px){.pay-layout{flex-direction:column;}.pay-sidebar{width:100%;min-height:auto;border-right:0;border-bottom:1px solid #e6e9ed;}.pay-main{padding:16px;}.filters{grid-template-columns:1fr 1fr;}.export{grid-column:1/-1;}.balance-row{flex-wrap:wrap;}.pay-right{width:100%;}}
+@media(max-width:560px){.filters{grid-template-columns:1fr;}.export{grid-column:auto;}.balance-card{width:100%;}.stats{display:none;}.transactions{padding:10px;}.pay-sidebar{padding:14px;}.cash-card{min-height:160px;}}
+
+.hidden-balance{filter:blur(6px);user-select:none}
+
+/* ===== KASSA SELECTOR ===== */
+/* ===== KASSA LIST ===== */
+.kl-section{margin-top:10px;display:flex;flex-direction:column;gap:4px;}
+.kl-header{display:flex;align-items:center;justify-content:space-between;padding:0 4px;margin-bottom:2px;}
+.kl-header .kl-title{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.3px;}
+.kl-header .kl-count{font-size:10px;font-weight:600;color:var(--blue);background:#EBF0FF;padding:1px 7px;border-radius:10px;}
+.kl-list{display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto;}
+.kl-list::-webkit-scrollbar{width:3px;}
+.kl-list::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px;}
+.kl-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;transition:all .12s;border:1.5px solid transparent;background:#fff;}
+.kl-item:hover{border-color:#d1d5db;box-shadow:0 1px 4px rgba(0,0,0,.04);}
+.kl-item.active{border-color:var(--blue);background:#EBF0FF;}
+.kl-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;font-weight:700;color:#fff;}
+.kl-icon.active-icon{background:var(--blue);}
+.kl-icon.inactive-icon{background:#94a3b8;}
+.kl-info{flex:1;min-width:0;}
+.kl-name{font-size:12px;font-weight:600;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.kl-owner{font-size:10px;color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.kl-bal{font-size:11px;font-weight:700;text-align:right;flex-shrink:0;}
+.kl-bal.pos{color:var(--blue);}
+.kl-bal.neg{color:#dc2626;}
+.kl-bal.zero{color:#9ca3af;}
+.kl-empty{text-align:center;padding:14px 8px;font-size:11px;color:#9ca3af;}
 </style>
 {% endblock %}
 {% block content %}
 
 <div class="pay-layout">
-
-  <!-- ===== LEFT: STUDENT LIST ===== -->
-  <div class="pay-left">
-    <div class="ph-title">To'lov qilish</div>
-    <div class="search-wrap">
-      <i class="fas fa-search si"></i>
-      <input type="text" id="searchInput" placeholder="Ism, familya yoki telefon..." oninput="searchStudents(this.value)" autofocus>
+  <aside class="pay-sidebar">
+    <div class="side-top">
+      <button class="add-cash" onclick="window.location.href='{% url 'kassa_create' %}'"><span class="plus">+</span> Yangi kassa qo'shish</button>
+      <button class="eye-btn" title="Ko'rinish" onclick="toggleBalanceVisibility()">◉</button>
     </div>
-    <div style="overflow-x:auto;">
-      <table class="st-table">
-        <colgroup>
-          <col><col style="width:110px"><col><col style="width:90px"><col style="width:90px"><col style="width:40px">
-        </colgroup>
-        <thead>
-          <tr><th>O'quvchi</th><th>Telefon</th><th>Guruh</th><th>Balans</th><th>Qoldiq</th><th></th></tr>
-        </thead>
-        <tbody id="payTableBody">
-        {% for s in student_data %}
-        <tr class="pay-row" data-id="{{ s.id }}" data-balance="{{ s.balance }}" data-remaining="{{ s.remaining_month_payment }}" data-name="{{ s.first_name|lower }} {{ s.last_name|lower }}" data-phone-search="{{ s.phone }}" onclick="window.location.href='{% url 'student_profile' s.id %}'" style="cursor:pointer;">
-          <td>
-            <div class="scell">
-              <div class="sav {% if s.balance < 0 %}neg{% elif s.balance > 0 %}pos{% else %}zero{% endif %}">{{ s.first_name|first|upper }}{{ s.last_name|first|upper }}</div>
-              <div>
-                <div class="sname">{{ s.first_name }} {{ s.last_name }}</div>
-                {% if s.previous_debt > 0 %}<div class="sdebt">Qarz: {{ s.previous_debt|floatformat:"0"|intcomma }} so'm</div>{% endif %}
-              </div>
-            </div>
-          </td>
-          <td><span class="sphone">+998 {{ s.phone|cut:"+998"|cut:" " }}</span></td>
-          <td>{% for g in s.groups %}<span class="sgrp">{{ g.name }}</span>{% endfor %}</td>
-          <td><span class="samt {% if s.balance > 0 %}pos{% elif s.balance < 0 %}neg{% else %}zero{% endif %}">{% if s.balance > 0 %}+{% endif %}{{ s.balance|floatformat:"0"|intcomma }}</span></td>
-          <td>
-            {% if s.remaining_month_payment > 0 %}
-            <span class="srem due">{{ s.remaining_month_payment|floatformat:"0"|intcomma }}</span>
-            {% else %}
-            <span class="srem paid">To'liq</span>
-            {% endif %}
-          </td>
-          <td><button class="pay-action-btn" onclick="event.stopPropagation();selectStudent({{ s.id }})" title="To'lov qilish"><i class="fas fa-chevron-right"></i></button></td>
-        </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div class="st-empty" id="payEmpty" style="display:none;"><i class="fas fa-search" style="opacity:.2;font-size:1.5rem;display:block;margin-bottom:8px;"></i>O'quvchi topilmadi</div>
-  </div>
 
-  <!-- ===== DRAWER BACKDROP ===== -->
-  <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
 
-  <!-- ===== RIGHT: PAYMENT DRAWER ===== -->
-  <div class="pay-right" id="paymentDrawer">
-    <div class="dr-title"><button class="dr-close-btn" onclick="closeDrawer()"><i class="fas fa-times"></i></button> To'lov qilish</div>
-
-    <!-- Student card (hidden until student selected) -->
-    <div id="drawerCard" class="hidden">
-      <div class="pay-right-scroll">
-        <div class="dr-card" id="studentCard"></div>
-
-        <div class="dr-err" id="payError"><i class="fas fa-exclamation-circle"></i> <span id="payErrorText"></span></div>
-        <div class="dr-err" id="paySmsNote" style="display:none;background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;"><i class="fas fa-info-circle"></i> <span id="paySmsNoteText"></span></div>
-
-        <div class="dr-amt-wrap">
-          <label>Summa</label>
-          <input type="text" id="payAmount" placeholder="0" inputmode="numeric" oninput="formatPayAmount(this)">
-          <span class="dr-amt-cur">so'm</span>
+    <div class="cash-card">
+      <div class="cash-info">
+        <div class="cash-name">{{ main_kassa.name|default:"Kassa" }}</div>
+        <div class="cash-balance" id="kassaBalance">
+          {{ main_kassa.balance|floatformat:"0"|intcomma }} UZS
         </div>
+        <div class="cash-owner">{{ user.get_full_name|default:user.username }}</div>
+      </div>
+      <div class="cash-actions">
+        {% if user_kassalar %}{% if 'cashbox.create' in permissions %}        <button class="income" onclick="openIncomeModal()">+ kirim</button>{% endif %}
+        {% if 'cashbox.create' in permissions and 'expense.regular' in permissions or 'expense.salary' in permissions or 'expense.advance' in permissions or 'expense.advance_close' in permissions or 'expense.refund' in permissions %}<button class="expense" onclick="openExpenseDrawer()">- chiqim</button>{% endif %}
+        {% if 'payment.transfer' in permissions %}<button class="transfer" onclick="openTransferDrawer()">ko'chirish</button>{% endif %}{% endif %}
+      </div>
+    </div>
 
-        <div class="dr-acc" id="tavsilotAcc" onclick="if(selectedStudent)openTavsilotModal()">
-          <div class="dr-acc-hd">
-            <span>Summa haqidagi ma'lumotlar</span>
-            <i class="fas fa-chevron-right"></i>
+    <div class="kl-section">
+      <div class="kl-header">
+        <span class="kl-title">Kassalar</span>
+        <span class="kl-count">{{ user_kassalar|length }}</span>
+      </div>
+      <div class="kl-list" id="kassaList">
+        {% for k in user_kassalar %}
+        <div class="kl-item{% if k.pk == main_kassa.pk %} active{% endif %}" data-kassa-id="{{ k.pk }}" onclick="switchKassa({{ k.pk }})">
+          <div class="kl-icon {% if k.pk == main_kassa.pk %}active-icon{% else %}inactive-icon{% endif %}">K{{ forloop.counter }}</div>
+          <div class="kl-info">
+            <div class="kl-name">{{ k.name }}</div>
+            <div class="kl-owner">{{ k.owner.get_full_name|default:k.owner.username }}</div>
           </div>
+          <div class="kl-bal {% if k.balance > 0 %}pos{% elif k.balance < 0 %}neg{% else %}zero{% endif %}">{{ k.balance|floatformat:"0"|intcomma }}</div>
         </div>
+        {% empty %}
+        <div class="kl-empty">Kassa topilmadi</div>
+        {% endfor %}
+      </div>
+    </div>
+  </aside>
 
-        <div class="dr-sel-wrap">
-          <label>To'lov usuli</label>
-          <select id="payMethod" class="dr-sel">
-            {% for pm in payment_methods %}
-            <option value="{{ pm.name|lower }}" {% if forloop.first %}selected{% endif %}>{{ pm.name }}</option>
-            {% endfor %}
-          </select>
+  <main class="pay-main">
+    <section class="balance-row">
+      {% for name, amount in pm_breakdown.items %}
+      <div class="balance-card" style="cursor:pointer;" onclick="filterByMethod('{{ name }}')" id="pmCard_{{ forloop.counter }}">
+        <span>{{ name }}</span>
+        <strong class="balance-value">{{ amount|floatformat:"0"|intcomma }} UZS</strong>
+        <small>Jami</small>
+      </div>
+      {% empty %}
+      <div class="balance-card">
+        <span>To'lov turi yo'q</span>
+        <strong class="balance-value">0 UZS</strong>
+      </div>
+      {% endfor %}
+    </section>
+
+    <section class="filters">
+      <button class="export" onclick="window.print()"><span>⊕</span> Export</button>
+      <div class="field date" style="cursor:pointer;gap:8px;">
+        <span>▣</span>
+        <input type="date" id="datePicker" value="{{ filter_date|default:'' }}" onchange="applyFilters()" style="border:none;outline:none;font-family:Inter,sans-serif;font-size:13px;color:#444;background:transparent;flex:1;cursor:pointer;">
+        {% if filter_date %}<b style="cursor:pointer;color:#59616d;font-size:17px;" onclick="event.stopPropagation();document.getElementById('datePicker').value='';applyFilters()">×</b>{% endif %}
+      </div>
+      <select class="field" id="filterTxType" onchange="applyFilters()" style="cursor:pointer;appearance:auto;">
+        <option value="">Tranzaksiya</option>
+        <option value="payment" {% if filter_tx_type == 'payment' %}selected{% endif %}>To'lov (kirim)</option>
+        <option value="lesson" {% if filter_tx_type == 'lesson' %}selected{% endif %}>Dars uchun yechildi</option>
+        <option value="correction" {% if filter_tx_type == 'correction' %}selected{% endif %}>Tuzatish</option>
+      </select>
+      <select class="field" id="filterPayMethod" onchange="applyFilters()" style="cursor:pointer;appearance:auto;">
+        <option value="">To'lov turi</option>
+        {% for pm in payment_methods %}
+        <option value="{{ pm.name }}" {% if filter_payment_method == pm.name %}selected{% endif %}>{{ pm.name }}</option>
+        {% endfor %}
+      </select>
+      <select class="field" id="filterTeacher" onchange="applyFilters()" style="cursor:pointer;appearance:auto;">
+        <option value="">O'qituvchi</option>
+        {% for t in teachers_list %}
+        <option value="{{ t.pk }}" {% if filter_teacher == t.pk|stringformat:"d" %}selected{% endif %}>{{ t.first_name }} {{ t.last_name }}</option>
+        {% endfor %}
+      </select>
+    </section>
+
+    <section class="transactions">
+      <div class="tabs">
+        <button class="tab active">Tranzaksiya</button>
+        <div class="search-wrap" style="margin-left:auto;position:relative;width:280px;">
+          <input type="text" id="searchInput" placeholder="O'quvchi qidirish..." oninput="searchStudents(this.value)" autofocus style="width:100%;height:36px;padding:0 12px 0 34px;border:1px solid #E9EDF5;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;">
+          <i class="fas fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:12px;pointer-events:none;"></i>
         </div>
-        {% if user_kassalar|length > 1 %}
-        <div class="dr-sel-wrap">
-          <label>Kassa</label>
-          <select id="payKassa" class="dr-sel">
-            {% for k in user_kassalar %}
-            <option value="{{ k.pk }}" {% if forloop.first %}selected{% endif %}>{{ k.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% elif user_kassalar|length == 1 %}
-        <input type="hidden" name="kassa_id" value="{{ user_kassalar.0.pk }}">
-        {% endif %}
-        <div class="dr-comment-wrap">
-          <label>Izoh</label>
-          <textarea id="payDescription" placeholder="To'lov haqida izoh qoldiring..." oninput="charCount(this)"></textarea>
-          <div class="dr-char-count"><span id="charCount">0</span>/200</div>
+        <div class="stats">
+          <div class="stat green"><span>↗</span> <span id="kirimStat">{{ kirim_total|floatformat:"0"|intcomma }}</span> UZS</div>
+          <div class="stat red"><span>↘</span> <span id="chiqimStat">{{ chiqim_total|floatformat:"0"|intcomma }}</span> UZS</div>
         </div>
       </div>
 
-      <button class="dr-submit" id="paySubmit" onclick="submitPayment()" style="flex-shrink:0;margin-top:12px;">
-        <i class="fas fa-check-circle"></i> To'lovni tasdiqlash
-      </button>
+      <div class="total">Umumiy soni: <span id="studentCount">{{ student_data|length }}</span></div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>O'quvchi</th>
+              <th>Telefon</th>
+              <th>To'lov</th>
+              <th>To'lov turi</th>
+              <th>Sana</th>
+              {% if is_boss_admin %}<th>Kim qo'shdi</th>{% endif %}
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="payTableBody">
+          {% for s in student_data %}
+          {% if s.day_payments %}
+          {% for dp in s.day_payments %}
+          <tr class="pay-row" data-id="{{ s.id }}" data-balance="{{ s.balance }}" data-remaining="{{ s.remaining_month_payment }}" data-name="{{ s.first_name|lower }} {{ s.last_name|lower }}" data-phone-search="{{ s.phone }}" data-pm="{{ dp.payment_method }}" style="cursor:pointer;">
+            <td onclick="window.location.href='{% url 'student_profile' s.id %}'">
+              <div class="scell">
+                <div class="sav {% if s.balance < 0 %}neg{% elif s.balance > 0 %}pos{% else %}zero{% endif %}">{{ s.first_name|first|upper }}{{ s.last_name|first|upper }}</div>
+                <div>
+                  <div class="sname">{{ s.first_name }} {{ s.last_name }}</div>
+                  {% if s.previous_debt > 0 %}<div class="sdebt">Qarz: {{ s.previous_debt|floatformat:"0"|intcomma }} so'm</div>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td onclick="window.location.href='{% url 'student_profile' s.id %}'"><span class="sphone">+998 {{ s.phone|cut:"+998"|cut:" " }}</span></td>
+            <td onclick="window.location.href='{% url 'student_profile' s.id %}'">
+              <span class="samt pos" style="font-size:11px;">{{ dp.amount|floatformat:"0"|intcomma }}</span>
+            </td>
+            <td>
+              {% if dp.payment_method == 'naqd' or dp.payment_method == 'Naqd' %}
+              <span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;background:#dcfce7;color:#16a34a;">Naqd</span>
+              {% elif dp.payment_method == 'karta' or dp.payment_method == 'Karta' %}
+              <span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;background:#dbeafe;color:#2563eb;">Karta</span>
+              {% elif dp.payment_method %}
+              <span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;background:#f3f4f6;color:#6b7280;">{{ dp.payment_method }}</span>
+              {% else %}
+              <span style="color:#9ca3af;font-size:10px;">—</span>
+              {% endif %}
+            </td>
+            <td onclick="window.location.href='{% url 'student_profile' s.id %}'">
+              <span style="font-size:10px;color:#6b7280;">{{ dp.date }}</span>
+            </td>
+            {% if is_boss_admin %}
+            <td>
+              {% if dp.created_by %}
+              <span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;background:#f3f4f6;color:#374151;">{{ dp.created_by }}</span>
+              {% else %}
+              <span style="color:#9ca3af;font-size:10px;">—</span>
+              {% endif %}
+            </td>
+            {% endif %}
+            <td>
+              <button class="pay-action-btn" onclick="event.stopPropagation();viewReceipt({{ dp.id }})" title="Chek ko'rish"><i class="fas fa-receipt"></i></button>
+            </td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr class="pay-row" data-id="{{ s.id }}" data-balance="{{ s.balance }}" data-remaining="{{ s.remaining_month_payment }}" data-name="{{ s.first_name|lower }} {{ s.last_name|lower }}" data-phone-search="{{ s.phone }}" data-pm="" style="cursor:pointer;">
+            <td onclick="window.location.href='{% url 'student_profile' s.id %}'">
+              <div class="scell">
+                <div class="sav {% if s.balance < 0 %}neg{% elif s.balance > 0 %}pos{% else %}zero{% endif %}">{{ s.first_name|first|upper }}{{ s.last_name|first|upper }}</div>
+                <div>
+                  <div class="sname">{{ s.first_name }} {{ s.last_name }}</div>
+                  {% if s.previous_debt > 0 %}<div class="sdebt">Qarz: {{ s.previous_debt|floatformat:"0"|intcomma }} so'm</div>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td onclick="window.location.href='{% url 'student_profile' s.id %}'"><span class="sphone">+998 {{ s.phone|cut:"+998"|cut:" " }}</span></td>
+            <td onclick="window.location.href='{% url 'student_profile' s.id %}'">
+              <span style="color:#9ca3af;font-size:10px;">—</span>
+            </td>
+            <td></td>
+            <td></td>
+            {% if is_boss_admin %}<td></td>{% endif %}
+            <td>
+              <button class="pay-action-btn" onclick="event.stopPropagation();selectStudent({{ s.id }})" title="To'lov qilish"><i class="fas fa-chevron-right"></i></button>
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div id="payEmpty" style="display:none;text-align:center;padding:40px;color:#9ca3af;font-size:13px;"><i class="fas fa-search" style="opacity:.2;font-size:1.5rem;display:block;margin-bottom:8px;"></i>O'quvchi topilmadi</div>
+    </section>
+  </main>
+</div>
+
+<!-- ===== DRAWER BACKDROP ===== -->
+<div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
+
+<!-- ===== RIGHT: PAYMENT DRAWER ===== -->
+<div class="pay-right" id="paymentDrawer">
+  <div class="dr-title"><button class="dr-close-btn" onclick="closeDrawer()"><i class="fas fa-times"></i></button> To'lov qilish</div>
+
+  <div id="drawerCard" style="display:none;flex-direction:column;flex:1;min-height:0;">
+    <div class="pay-right-scroll">
+      <div class="dr-card" id="studentCard"></div>
+
+      <div class="dr-err" id="payError"><i class="fas fa-exclamation-circle"></i> <span id="payErrorText"></span></div>
+      <div class="dr-err" id="paySmsNote" style="display:none;background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;"><i class="fas fa-info-circle"></i> <span id="paySmsNoteText"></span></div>
+
+      <div class="dr-amt-wrap">
+        <label>Summa</label>
+        <input type="text" id="payAmount" placeholder="0" inputmode="numeric" oninput="formatPayAmount(this)">
+        <span class="dr-amt-cur">so'm</span>
+      </div>
+
+      <div class="dr-acc" id="tavsilotAcc" onclick="if(selectedStudent)openTavsilotModal()">
+        <div class="dr-acc-hd">
+          <span>Summa haqidagi ma'lumotlar</span>
+          <i class="fas fa-chevron-right"></i>
+        </div>
+      </div>
+
+      <div class="dr-sel-wrap">
+        <label>To'lov usuli</label>
+        <select id="payMethod" class="dr-sel">
+          {% for pm in payment_methods %}
+          <option value="{{ pm.name|lower }}" {% if forloop.first %}selected{% endif %}>{{ pm.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if user_kassalar|length > 1 %}
+      <div class="dr-sel-wrap">
+        <label>Kassa</label>
+        <select id="payKassa" class="dr-sel">
+          {% for k in user_kassalar %}
+          <option value="{{ k.pk }}" {% if k.pk == main_kassa.pk %}selected{% endif %}>{{ k.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% elif user_kassalar|length == 1 %}
+      <input type="hidden" name="kassa_id" value="{{ user_kassalar.0.pk }}">
+      {% endif %}
+      <div class="dr-comment-wrap">
+        <label>Izoh</label>
+        <textarea id="payDescription" placeholder="To'lov haqida izoh qoldiring..." oninput="charCount(this)"></textarea>
+        <div class="dr-char-count"><span id="charCount">0</span>/200</div>
+      </div>
     </div>
 
-    <!-- Empty state when no student selected -->
-    <div id="drawerEmpty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:#9ca3af;text-align:center;">
-      <i class="fas fa-user-plus" style="font-size:1.8rem;color:#d1d5db;margin-bottom:12px;"></i>
-      <div style="font-size:14px;font-weight:500;color:#6b7280;margin-bottom:4px;">O'quvchini tanlang</div>
-      <div style="font-size:12px;">Ro'yxatdan o'quvchini tanlab, to'lovni amalga oshiring</div>
-    </div>
+    {% if 'payment.create' in permissions %}
+    <button class="dr-submit" id="paySubmit" onclick="submitPayment()" style="flex-shrink:0;margin-top:12px;">
+      <i class="fas fa-check-circle"></i> To'lovni tasdiqlash
+    </button>
+    {% endif %}
   </div>
 
+  <div id="drawerEmpty" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;flex:1;color:#9ca3af;text-align:center;padding-top:20px;">
+    <i class="fas fa-search" style="font-size:1.8rem;color:#d1d5db;margin-bottom:12px;"></i>
+    <div style="font-size:14px;font-weight:500;color:#6b7280;margin-bottom:4px;">O'quvchini tanlang</div>
+    <div style="font-size:12px;margin-bottom:12px;">Ism, familya yoki telefon raqamini kiriting</div>
+    <div style="width:100%;max-width:320px;position:relative;">
+      <input type="text" id="drawerStudentSearch" placeholder="Qidirish..." oninput="drawerSearchStudents(this.value)" style="width:100%;height:40px;padding:0 12px 0 34px;border:1px solid #E9EDF5;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;">
+      <i class="fas fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:12px;pointer-events:none;"></i>
+    </div>
+    <div id="drawerSearchResults" style="width:100%;max-width:320px;max-height:300px;overflow-y:auto;margin-top:8px;"></div>
+  </div>
+</div>
+
+<!-- ===== TRANSFER DRAWER ===== -->
+<div class="pay-right" id="transferDrawer">
+  <div class="dr-title"><button class="dr-close-btn" onclick="closeTransferDrawer()"><i class="fas fa-times"></i></button> Kassa o'tkazmasi</div>
+  <div style="flex:1;overflow-y:auto;padding-bottom:28px;">
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:6px;">Qaysi kassadan</label>
+      <div style="padding:10px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;font-size:13px;font-weight:600;color:#111;">
+        {% if main_kassa %}{{ main_kassa.name }} ({{ main_kassa.balance|floatformat:"0"|intcomma }} so'm){% endif %}
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:6px;">Qabul qiluvchi kassa</label>
+      <select id="transferToKassa" onchange="document.getElementById('transferToPMWrap').style.display=this.value?'block':'none'" style="width:100%;height:40px;padding:0 12px;border:1px solid #E9EDF5;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;">
+        <option value="">Tanlang</option>
+        {% for k in all_kassalar %}
+        <option value="{{ k.pk }}">{{ k.name }} — {{ k.owner.get_full_name|default:k.owner.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div id="transferToPMWrap" style="display:none;margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:6px;">Qabul qiluvchi to'lov usuli</label>
+      <select id="transferToPM" style="width:100%;height:40px;padding:0 12px;border:1px solid #E9EDF5;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;">
+        <option value="">Umumiy balans</option>
+        {% for pm in payment_methods %}
+        <option value="{{ pm.name }}">{{ pm.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:6px;">Qaysi to'lov turidan</label>
+      <select id="transferFromPM" style="width:100%;height:40px;padding:0 12px;border:1px solid #E9EDF5;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;">
+        <option value="">Umumiy balans</option>
+        {% for name, amount in pm_breakdown.items %}
+        <option value="{{ name }}">{{ name }} ({{ amount|floatformat:"0"|intcomma }} so'm)</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:6px;">Summa (so'm)</label>
+      <input type="text" id="transferAmount" placeholder="0" inputmode="numeric" oninput="formatPayAmount(this)" style="width:100%;height:40px;padding:0 12px;border:1px solid #E9EDF5;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:6px;">Izoh</label>
+      <textarea id="transferDescription" placeholder="Izoh (ixtiyoriy)" rows="2" style="width:100%;padding:10px 12px;border:1px solid #E9EDF5;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;resize:none;"></textarea>
+    </div>
+    <div id="transferError" style="display:none;padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#dc2626;font-size:12px;margin-bottom:12px;"></div>
+    {% if 'payment.transfer' in permissions %}
+    <button onclick="submitTransfer()" style="width:100%;padding:12px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">
+      <i class="fas fa-check-circle"></i> O'tkazish
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===== EXPENSE DRAWER ===== -->
+<div class="pay-right" id="expenseDrawer">
+  <div class="dr-title"><button class="dr-close-btn" onclick="closeExpenseDrawer()"><i class="fas fa-times"></i></button> <span id="expDrawerTitle">Chiqim qilish</span></div>
+  <div style="flex:1;overflow-y:auto;padding-bottom:28px;">
+
+    <!-- STEP 1: tur tanlash -->
+    <div id="expStepType">
+      <label class="exp-lbl">Chiqim turini tanlang</label>
+      {% if 'expense.regular' in permissions %}<div class="exp-type" onclick="expSelectType('oddiy')"><i class="fas fa-receipt"></i><div><span>Oddiy chiqim</span><small>Kantselyariya, arenda va boshqa</small></div></div>{% endif %}
+      {% if 'expense.refund' in permissions %}<div class="exp-type" onclick="expSelectType('refund')"><i class="fas fa-undo-alt"></i><div><span>O'quvchiga pul qaytarish</span><small>O'quvchi balansidan pul qaytarish</small></div></div>{% endif %}
+      {% if 'expense.salary' in permissions %}<div class="exp-type" onclick="expSelectType('salary')"><i class="fas fa-money-bill-wave"></i><div><span>Xodimga oylik</span><small>Oylik balansidan ayriladi</small></div></div>{% endif %}
+      {% if 'expense.advance' in permissions %}<div class="exp-type" onclick="expSelectType('advance')"><i class="fas fa-hand-holding-usd"></i><div><span>Xodimga avans</span><small>Avans qarzi hisobga o'sadi</small></div></div>{% endif %}
+      {% if 'expense.advance_close' in permissions %}<div class="exp-type" onclick="expSelectType('close')"><i class="fas fa-check-double"></i><div><span>Avans yopish</span><small>Oylik balansidan qarz yopiladi</small></div></div>{% endif %}
+    </div>
+
+    <!-- STEP 2A: Oddiy chiqim -->
+    <div id="expSectionOddiy" class="exp-sec">
+      <div class="exp-field">
+        <label class="exp-lbl">Summa (so'm)</label>
+        <input type="text" id="expenseAmount" placeholder="0" inputmode="numeric" oninput="formatPayAmount(this)">
+      </div>
+      <div class="exp-field">
+        <label class="exp-lbl">To'lov usuli</label>
+        <select id="expensePayMethod">
+          <option value="">Umumiy balans</option>
+          {% for pm in payment_methods %}
+          <option value="{{ pm.name }}">{{ pm.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="exp-field">
+        <label class="exp-lbl">Chiqim turi</label>
+        <select id="expenseCategory" onchange="document.getElementById('customCategoryWrap').style.display=this.value==='boshqa'?'block':'none'">
+          <option value="">Tanlang</option>
+          {% for cat in expense_categories %}
+          <option value="{{ cat.name }}">{{ cat.name }}</option>
+          {% endfor %}
+          <option value="boshqa">Boshqa...</option>
+        </select>
+      </div>
+      <div class="exp-field" id="customCategoryWrap" style="display:none;">
+        <label class="exp-lbl">Kategoriya nomi</label>
+        <input type="text" id="customCategory" placeholder="Kategoriya kiriting">
+      </div>
+      <div class="exp-field">
+        <label class="exp-lbl">Sabab / izoh</label>
+        <textarea id="expenseDescription" placeholder="Chiqim sababini kiriting" rows="2"></textarea>
+      </div>
+      <div id="expenseError" class="exp-warnbox"><i class="fas fa-exclamation-triangle" style="margin-top:1px;"></i> <span id="expenseErrorText"></span></div>
+      <div class="exp-btnrow">
+        <button class="exp-btn-back" onclick="expBackToType()"><i class="fas fa-arrow-left"></i> Orqaga</button>
+        {% if 'expense.regular' in permissions %}
+        <button class="exp-btn-ok" onclick="submitExpense()"><i class="fas fa-check"></i> Chiqim</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- STEP 2B: Xodimga oylik / avans / avans yopish -->
+    <div id="expSectionXodim" class="exp-sec">
+      <div class="exp-field">
+        <label class="exp-lbl">Xodimni tanlang</label>
+        <select id="expEmployeeSelect" onchange="expEmployeeChanged()">
+          <option value="">Xodimni tanlang...</option>
+        </select>
+      </div>
+      <div class="exp-warnbox" id="expEmpWarn"><i class="fas fa-exclamation-triangle" style="margin-top:1px;"></i> <span id="expEmpWarnText"></span></div>
+
+      <div class="exp-balbox" id="expBalBox" style="display:none;">
+        <div class="exp-balrow" id="expRowMonthly" style="display:none;"><span class="l">Belgilangan oylik</span><span class="v" id="expEmpMonthly">0 so'm</span></div>
+        <div class="exp-balrow" id="expRowBalance"><span class="l">Oylik balansi</span><span class="v" id="expEmpBalance">0 so'm</span></div>
+        <div class="exp-balrow" id="expRowAvans"><span class="l">Avans qarzi</span><span class="v amber" id="expEmpAvans">0 so'm</span></div>
+        <div class="exp-balrow" id="expRowGiven"><span class="l" id="expLblGiven">Berilmoqda</span><span class="v" id="expGiven">0 so'm</span></div>
+        <div class="exp-balrow" id="expRowDeducted" style="display:none;"><span class="l">Avansdan yopiladi</span><span class="v green" id="expDeducted">0 so'm</span></div>
+        <div class="exp-balrow" id="expRowRemain"><span class="l" id="expLblRemain">Qoladigan oylik balansi</span><span class="v green" id="expRemain">0 so'm</span></div>
+        <div class="exp-balrow" id="expRowAvansAfter"><span class="l" id="expLblAvansAfter">Yangi avans qarzi</span><span class="v amber" id="expAvansAfter">0 so'm</span></div>
+      </div>
+
+      <div class="exp-deduct" id="expDeductWrap" style="display:none;">
+        <input type="checkbox" id="expDeductAvans" checked onchange="expAmountInput()">
+        <span class="bx"><i class="fas fa-check"></i></span>
+        <span><strong>Avansni oylikdan ushlab qolish</strong><small>Avans qarzi oylikdan ayirilib yopiladi</small></span>
+      </div>
+
+      <div class="exp-field">
+        <label class="exp-lbl" id="expAmountLbl">Beriladigan summa (so'm)</label>
+        <input type="text" id="expAmount" placeholder="Masalan: 1 000 000" inputmode="numeric" oninput="formatPayAmount(this);expAmountInput();">
+        <small class="exp-hint" id="expAmountHint">Xodim oylik balansidan shu summa ayriladi va kassa chiqimi yaratiladi.</small>
+      </div>
+
+      <div class="exp-warnbox" id="expInsufficient"><i class="fas fa-exclamation-triangle" style="margin-top:1px;"></i> <span id="expInsufficientText"></span></div>
+
+      <div class="exp-field" id="expPmWrap">
+        <label class="exp-lbl">To'lov usuli</label>
+        <select id="expXodimPM">
+          <option value="">Tanlang</option>
+          {% for pm in payment_methods %}
+          <option value="{{ pm.name }}">{{ pm.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="exp-field">
+        <label class="exp-lbl">Izoh</label>
+        <input type="text" id="expXodimDesc" placeholder="Masalan: Iyul oyligi / Avans">
+      </div>
+      <div class="exp-btnrow">
+        <button class="exp-btn-back" onclick="expBackToType()"><i class="fas fa-arrow-left"></i> Orqaga</button>
+        {% if 'expense.salary' in permissions or 'expense.advance' in permissions or 'expense.advance_close' in permissions %}
+        <button class="exp-btn-ok blue" id="expXodimConfirmBtn" onclick="expShowConfirm()" disabled><i class="fas fa-check"></i> Oylik berish</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- STEP 3: Tasdiqlash -->
+    <div id="expConfirm" class="exp-sec">
+      <div class="exp-cfm-box">
+        <div class="exp-cfm-row"><span class="l">Xodim</span><span class="v" id="expCEmployee">—</span></div>
+        <div class="exp-cfm-row"><span class="l">Turi</span><span class="v" id="expCType">—</span></div>
+        <div class="exp-cfm-row"><span class="l">Summa</span><span class="v" id="expCAmount">—</span></div>
+        <div class="exp-cfm-row" id="expCRow1"><span class="l" id="expCLbl1">Oylik balansi</span><span class="v" id="expCVal1">—</span></div>
+        <div class="exp-cfm-row" id="expCRow2"><span class="l" id="expCLbl2">Qoladigan balans</span><span class="v" id="expCVal2">—</span></div>
+        <div class="exp-cfm-row" id="expCRow3" style="display:none;"><span class="l" id="expCLbl3">Qolgan oylik balansi</span><span class="v" id="expCVal3">—</span></div>
+        <div class="exp-cfm-row" id="expCRow4" style="display:none;"><span class="l" id="expCLbl4">Qolgan avans qarzi</span><span class="v" id="expCVal4">—</span></div>
+      </div>
+      <div class="exp-warnbox" id="expCInsufficient"><i class="fas fa-exclamation-triangle" style="margin-top:1px;"></i> <span id="expCInsufficientText"></span></div>
+      <div class="exp-btnrow">
+        <button class="exp-btn-back" onclick="expBackToForm()"><i class="fas fa-arrow-left"></i> Orqaga</button>
+        {% if 'expense.salary' in permissions or 'expense.advance' in permissions or 'expense.advance_close' in permissions %}
+        <button class="exp-btn-ok blue" id="expXodimSubmitBtn" onclick="expSubmitXodim()"><i class="fas fa-check"></i> Tasdiqlash</button>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== STUDENT REFUND DRAWER ===== -->
+<div class="pay-right" id="refundDrawer">
+  <div class="dr-title"><button class="dr-close-btn" onclick="closeRefundDrawer()"><i class="fas fa-times"></i></button> <span>O'quvchiga pul qaytarish</span></div>
+  <div style="flex:1;overflow-y:auto;padding-bottom:28px;">
+
+    <div id="refundStepSearch">
+      <div class="exp-field">
+        <label class="exp-lbl">O'quvchini qidirish</label>
+        <input type="text" id="refundSearchInput" placeholder="Ism, familya yoki telefon..." oninput="refundSearchStudents(this.value)">
+      </div>
+      <div id="refundSearchResults" style="max-height:40vh;overflow-y:auto;"></div>
+    </div>
+
+    <div id="refundStepForm" style="display:none;">
+      <div class="dr-card" id="refundStudentCard"></div>
+      <div class="exp-balbox" id="refundBalBox">
+        <div class="exp-balrow"><span class="l">Joriy balans</span><span class="v green" id="refundStudentBalance">0 so'm</span></div>
+        <div class="exp-balrow"><span class="l">Qaytariladigan summa</span><span class="v" id="refundAmountDisplay">0 so'm</span></div>
+        <div class="exp-balrow"><span class="l">Qoladigan balans</span><span class="v" id="refundRemainingBalance">0 so'm</span></div>
+      </div>
+      <div class="exp-field">
+        <label class="exp-lbl">Summa (so'm)</label>
+        <input type="text" id="refundAmount" placeholder="0" inputmode="numeric" oninput="formatPayAmount(this);refundAmountInput();">
+      </div>
+      <div class="exp-field">
+        <label class="exp-lbl">Kassa</label>
+        <select id="refundKassa">
+          {% for k in user_kassalar %}
+          <option value="{{ k.pk }}" {% if k.pk == main_kassa.pk %}selected{% endif %}>{{ k.name }} ({{ k.balance|floatformat:"0"|intcomma }} so'm)</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="exp-field">
+        <label class="exp-lbl">To'lov usuli</label>
+        <select id="refundPayMethod">
+          <option value="">Tanlang</option>
+          {% for pm in payment_methods %}
+          <option value="{{ pm.name }}">{{ pm.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="exp-field">
+        <label class="exp-lbl">Izoh</label>
+        <input type="text" id="refundDescription" placeholder="Masalan: ortiqcha to'lov qaytarildi">
+      </div>
+      <div class="exp-warnbox" id="refundError"><i class="fas fa-exclamation-triangle" style="margin-top:1px;"></i> <span id="refundErrorText"></span></div>
+      <div class="exp-btnrow">
+        <button class="exp-btn-back" onclick="refundBackToSearch()"><i class="fas fa-arrow-left"></i> Orqaga</button>
+        {% if 'expense.refund' in permissions %}
+        <button class="exp-btn-ok blue" id="refundSubmitBtn" onclick="submitRefund()"><i class="fas fa-check"></i> Pul qaytarish</button>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <!-- ===== TAVSILOT MODAL ===== -->
 <div class="tv-overlay" id="tavsilotModal" onclick="if(event.target===this)closeTavsilotModal()">
   <div class="tv-modal">
     <div class="tv-head">
-      <div class="tv-head-l">
-        <h3 id="tavsilotModalTitle">Tavsilot</h3>
-      </div>
+      <div class="tv-head-l"><h3 id="tavsilotModalTitle">Tavsilot</h3></div>
       <div class="tv-head-r">
         <div class="tv-bal-badge"><i class="fas fa-wallet" style="font-size:10px;"></i> Balans</div>
         <button class="tv-close" onclick="closeTavsilotModal()"><i class="fas fa-times"></i></button>
@@ -479,7 +881,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#fff;color:#111;}
 <div class="qs-overlay" id="quickSearchModal" onclick="if(event.target===this)closeQuickSearch()">
   <div class="qs-modal">
     <div class="qs-head">
-      <h3><i class="fas fa-search" style="color:#2001FF;font-size:13px;margin-right:6px;"></i> O'quvchini topish</h3>
+      <h3><i class="fas fa-search" style="color:var(--blue);font-size:13px;margin-right:6px;"></i> O'quvchini topish</h3>
       <button class="qs-close" onclick="closeQuickSearch()"><i class="fas fa-times"></i></button>
     </div>
     <div class="qs-body">
@@ -491,11 +893,36 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#fff;color:#111;}
 
 <script>
 var students = {{ students_json|safe }};
+var allStudents = {{ all_students_json|safe }};
 var selectedStudent = null;
 
 function formatNum(n) { return Math.round(Number(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
 function cleanPhone(p) { return (p||'').replace(/^\+998\s*/,'').replace(/\s/g,''); }
 function getCookie(n){var v='; '+document.cookie,p=v.split('; '+n+'=');return p.length===2?p.pop().split(';').shift():'';}
+
+function filterByDate(val) {
+  var url = new URL(window.location.href);
+  if (val) { url.searchParams.set('date', val); } else { url.searchParams.delete('date'); }
+  window.location.href = url.toString();
+}
+
+function applyFilters() {
+  var url = new URL(window.location.href);
+  var d = document.getElementById('datePicker').value;
+  var tx = document.getElementById('filterTxType').value;
+  var pm = document.getElementById('filterPayMethod').value;
+  var th = document.getElementById('filterTeacher').value;
+  if (d) url.searchParams.set('date', d); else url.searchParams.delete('date');
+  if (tx) url.searchParams.set('tx_type', tx); else url.searchParams.delete('tx_type');
+  if (pm) url.searchParams.set('payment_method', pm); else url.searchParams.delete('payment_method');
+  if (th) url.searchParams.set('teacher', th); else url.searchParams.delete('teacher');
+  window.location.href = url.toString();
+}
+
+function toggleBalanceVisibility() {
+  var els = document.querySelectorAll('.balance-value, .cash-balance');
+  els.forEach(function(el) { el.classList.toggle('hidden-balance'); });
+}
 
 function searchStudents(q) {
   q = q.toLowerCase().trim();
@@ -510,6 +937,13 @@ function searchStudents(q) {
     if (match) count++;
   }
   document.getElementById('payEmpty').style.display = count > 0 ? 'none' : 'block';
+  document.getElementById('studentCount').textContent = count;
+}
+
+function filterByMethod(m) {
+  var pmSelect = document.getElementById('filterPayMethod');
+  if (pmSelect.value === m) { pmSelect.value = ''; } else { pmSelect.value = m; }
+  applyFilters();
 }
 
 function formatPayAmount(i) {
@@ -522,7 +956,6 @@ function charCount(el) {
   document.getElementById('charCount').textContent = el.value.length;
 }
 
-// Build monthly debts with per-month To'layman/To'lamayman
 function buildMonthsSelection() {
   if (!selectedStudent || !selectedStudent.monthly_debts) return '';
   var count = 0;
@@ -577,13 +1010,8 @@ function updateFootTotal() {
   var total = 0, defTotal = 0, payCount = 0, defCount = 0;
   document.querySelectorAll('.pm-row').forEach(function(row){
     var debt = parseFloat(row.getAttribute('data-debt')) || 0;
-    if (row.querySelector('.pm-btn.active-def')) {
-      defCount++;
-      defTotal += debt;
-    } else {
-      total += debt;
-      payCount++;
-    }
+    if (row.querySelector('.pm-btn.active-def')) { defCount++; defTotal += debt; }
+    else { total += debt; payCount++; }
   });
   document.getElementById('tvFootTotal').textContent = 'Jami: ' + formatNum(total) + ' so\'m';
   if (payCount === 0 && defCount === 0) {
@@ -591,10 +1019,7 @@ function updateFootTotal() {
   } else {
     document.getElementById('tvFootInfo').textContent = payCount + ' oy to\'lanadi' + (defCount ? ', ' + defCount + ' oy kechiladi' : '');
   }
-  // Auto-fill amount with total of "To'layman" months
   document.getElementById('payAmount').value = total > 0 ? formatNum(total) : '';
-
-  // Update summary rows dynamically
   var base = selectedStudent.oy_oxirigacha !== undefined ? selectedStudent.oy_oxirigacha : 0;
   var uq = Math.max(0, base - defTotal);
   var bal = (selectedStudent.balance || 0) + defTotal;
@@ -605,12 +1030,11 @@ function updateFootTotal() {
   var tblHtml = '';
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
-    tblHtml += '<div class="tv-tbl-row' + (r.hl ? ' tv-tbl-hl' : '') + (r.customCls ? ' ' + r.customCls : '') + '"><span class="tv-tbl-l">' + r.label + '</span><span class="tv-tbl-r ' + r.cls + (r.hl ? ' hl' : '') + '">' + r.val + ' so\'m</span></div>';
+    tblHtml += '<div class="tv-tbl-row' + (r.customCls ? ' ' + r.customCls : '') + '"><span class="tv-tbl-l">' + r.label + '</span><span class="tv-tbl-r ' + r.cls + '">' + r.val + ' so\'m</span></div>';
   }
   document.getElementById('tvTableRows').innerHTML = tblHtml;
 }
 
-// Build tavsilot modal content
 function buildTavsilotHTML() {
   if (!selectedStudent) return '';
   var uq = selectedStudent.oy_oxirigacha !== undefined ? selectedStudent.oy_oxirigacha : 0;
@@ -650,8 +1074,664 @@ function closeDrawer() {
   document.body.style.overflow = '';
 }
 
+function openTransferDrawer() {
+  document.getElementById('transferDrawer').classList.add('open');
+  document.getElementById('drawerBackdrop').classList.add('show');
+  document.getElementById('drawerBackdrop').onclick = closeTransferDrawer;
+  document.body.style.overflow = 'hidden';
+}
+function closeTransferDrawer() {
+  document.getElementById('transferDrawer').classList.remove('open');
+  document.getElementById('drawerBackdrop').classList.remove('show');
+  document.getElementById('drawerBackdrop').onclick = closeDrawer;
+  document.body.style.overflow = '';
+  document.getElementById('transferToKassa').value = '';
+  document.getElementById('transferToPMWrap').style.display = 'none';
+  document.getElementById('transferToPM').value = '';
+  document.getElementById('transferFromPM').value = '';
+  document.getElementById('transferAmount').value = '';
+  document.getElementById('transferDescription').value = '';
+  document.getElementById('transferError').style.display = 'none';
+}
+function submitTransfer() {
+  var toKassa = document.getElementById('transferToKassa').value;
+  var amount = document.getElementById('transferAmount').value.replace(/\s/g, '');
+  var fromPM = document.getElementById('transferFromPM').value;
+  var toPM = document.getElementById('transferToPM').value;
+  var desc = document.getElementById('transferDescription').value;
+  var errEl = document.getElementById('transferError');
+  if (!toKassa) { errEl.textContent = 'Qabul qiluvchi kassani tanlang!'; errEl.style.display = 'block'; return; }
+  if (!amount || Number(amount) <= 0) { errEl.textContent = 'Summani kiriting!'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  var fd = new FormData();
+  fd.append('from_kassa', '{{ main_kassa.pk }}');
+  fd.append('to_kassa', toKassa);
+  fd.append('amount', amount);
+  fd.append('payment_method', fromPM);
+  fd.append('to_payment_method', toPM);
+  fd.append('description', desc);
+  fd.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+  fetch('{% url "payment_transfer_ajax" %}', {
+    method: 'POST', body: fd
+  }).then(function(r){return r.json();}).then(function(d){
+    if (d.success) { closeTransferDrawer(); window.location.reload(); }
+    else { errEl.textContent = d.error || 'Xatolik!'; errEl.style.display = 'block'; }
+  }).catch(function(){ errEl.textContent = 'Xatolik yuz berdi!'; errEl.style.display = 'block'; });
+}
+
+function openExpenseDrawer() {
+  document.getElementById('expenseDrawer').classList.add('open');
+  document.getElementById('drawerBackdrop').classList.add('show');
+  document.getElementById('drawerBackdrop').onclick = closeExpenseDrawer;
+  document.body.style.overflow = 'hidden';
+  expReset();
+}
+function closeExpenseDrawer() {
+  document.getElementById('expenseDrawer').classList.remove('open');
+  document.getElementById('drawerBackdrop').classList.remove('show');
+  document.getElementById('drawerBackdrop').onclick = null;
+  document.body.style.overflow = '';
+  expReset();
+}
+function expReset() {
+  EXP_SALARY_TYPE = 'salary';
+  var st = document.getElementById('expStepType');
+  if (!st) return;
+  st.style.display = '';
+  ['expSectionOddiy','expSectionXodim','expConfirm'].forEach(function(s){
+    var el = document.getElementById(s); if(el) el.style.display = 'none';
+  });
+  document.getElementById('expDrawerTitle').textContent = 'Chiqim qilish';
+  document.getElementById('expenseAmount').value = '';
+  document.getElementById('expenseCategory').value = '';
+  document.getElementById('customCategory').value = '';
+  document.getElementById('customCategoryWrap').style.display = 'none';
+  document.getElementById('expensePayMethod').value = '';
+  document.getElementById('expenseDescription').value = '';
+  var ee = document.getElementById('expenseError'); if(ee) ee.classList.remove('show');
+  var sel = document.getElementById('expEmployeeSelect');
+  sel.innerHTML = '<option value="">Xodimni tanlang...</option>';
+  document.getElementById('expBalBox').style.display = 'none';
+  var ins = document.getElementById('expInsufficient'); if(ins) ins.classList.remove('show');
+  var ew = document.getElementById('expEmpWarn'); if(ew) ew.classList.remove('show');
+  var amt = document.getElementById('expAmount');
+  amt.value = ''; amt.readOnly = false;
+  document.getElementById('expDeductWrap').style.display = 'none';
+  document.getElementById('expRowDeducted').style.display = 'none';
+  document.getElementById('expRowMonthly').style.display = 'none';
+  document.getElementById('expPmWrap').style.display = '';
+  document.getElementById('expCRow3').style.display = 'none';
+  document.getElementById('expCRow4').style.display = 'none';
+  document.getElementById('expXodimDesc').value = '';
+  document.getElementById('expXodimPM').value = '';
+  refundSelectedStudent = null;
+}
+
+// ===== Chiqim flow (Oddiy / Xodimga oylik / Xodimga avans / Avans yopish) =====
+var EXP_SALARY_TYPE = 'salary';
+var EXP_EMPLOYEES = {{ employees_json|safe }};
+function expIsMonthly(e){
+  return e && e.salary_type === 'monthly' && (Number(e.monthly_salary) || 0) > 0;
+}
+function expBuildEmployees(){
+  var sel = document.getElementById('expEmployeeSelect');
+  sel.innerHTML = '<option value="">Xodimni tanlang...</option>';
+  EXP_EMPLOYEES.forEach(function(e){
+    var o = document.createElement('option');
+    o.value = e.id;
+    var info;
+    if(e.salary_type === 'monthly'){
+      info = (Number(e.monthly_salary) > 0) ? "Maosh: " + formatNum(e.monthly_salary) + " so'm" : "Oylik (avans cheksiz)";
+    }else{
+      info = "Balans: " + formatNum(e.balance) + " so'm";
+    }
+    if(e.avans_balance > 0){ info += " / Qarz: " + formatNum(e.avans_balance) + " so'm"; }
+    o.textContent = e.name + ' (' + info + ')';
+    sel.appendChild(o);
+  });
+}
+function expApplyTypeLabels(){
+  var type = EXP_SALARY_TYPE;
+  var rowRemain = document.getElementById('expRowRemain');
+  var rowAvansAfter = document.getElementById('expRowAvansAfter');
+  var lblGiven = document.getElementById('expLblGiven');
+  var lblRemain = document.getElementById('expLblRemain');
+  var lblAvansAfter = document.getElementById('expLblAvansAfter');
+  var amountLbl = document.getElementById('expAmountLbl');
+  var hint = document.getElementById('expAmountHint');
+  var pm = document.getElementById('expPmWrap');
+  var warnText = document.getElementById('expEmpWarnText');
+  var deductWrap = document.getElementById('expDeductWrap');
+  deductWrap.style.display = 'none';
+  document.getElementById('expRowMonthly').style.display = 'none';
+  document.getElementById('expRowDeducted').style.display = 'none';
+  document.getElementById('expRowBalance').style.display = '';
+  document.getElementById('expRowAvans').style.display = '';
+  document.getElementById('expRowGiven').style.display = '';
+  if(type === 'advance'){
+    rowRemain.style.display = 'none'; rowAvansAfter.style.display = '';
+    lblGiven.textContent = 'Berilmoqda';
+    lblAvansAfter.textContent = 'Yangi avans qarzi';
+    amountLbl.textContent = "Beriladigan avans (so'm)";
+    hint.textContent = "Avans oylik balansiga ta'sir qilmaydi, avans qarzi hisobga o'sadi. Kassa chiqimi yaratiladi.";
+    pm.style.display = '';
+    warnText.textContent = "Avans berilishi uchun xodimda oylik yoki foiz belgilangan bo'lishi kerak.";
+  }else if(type === 'close'){
+    rowRemain.style.display = ''; rowAvansAfter.style.display = '';
+    lblGiven.textContent = 'Yopilmoqda';
+    lblRemain.textContent = 'Qolgan oylik balansi';
+    lblAvansAfter.textContent = 'Qolgan avans qarzi';
+    amountLbl.textContent = "Yopiladigan summa (so'm)";
+    hint.textContent = "Avans qarzi oylik balansidan ayirilib yopiladi. Kassa chiqimi yaratilmaydi.";
+    pm.style.display = 'none';
+    warnText.textContent = "Avans qarzi oylik balansidan yopiladi.";
+  }else{
+    rowRemain.style.display = ''; rowAvansAfter.style.display = 'none';
+    lblGiven.textContent = 'Berilmoqda';
+    lblRemain.textContent = 'Qoladigan oylik balansi';
+    amountLbl.textContent = "Beriladigan summa (so'm)";
+    hint.textContent = "Xodim oylik balansidan shu summa ayriladi va kassa chiqimi yaratiladi.";
+    pm.style.display = '';
+    warnText.textContent = "Xodim oylik balansi yetarli bo'lishi kerak.";
+  }
+  var label = type === 'salary' ? 'Oylik berish' : type === 'advance' ? 'Avans berish' : 'Avans yopish';
+  document.getElementById('expXodimConfirmBtn').innerHTML = '<i class="fas fa-check"></i> ' + label;
+}
+function expSelectType(type){
+  var typeLabels = { oddiy:'Oddiy chiqim', refund:'O\'quvchiga pul qaytarish', salary:'Xodimga oylik', advance:'Xodimga avans', close:'Avans yopish' };
+  document.getElementById('expStepType').style.display = 'none';
+  document.getElementById('expSectionOddiy').style.display = 'none';
+  document.getElementById('expSectionXodim').style.display = 'none';
+  document.getElementById('expConfirm').style.display = 'none';
+  if(type === 'oddiy'){
+    document.getElementById('expSectionOddiy').style.display = 'block';
+  }else if(type === 'refund'){
+    openRefundDrawer();
+    return;
+  }else{
+    EXP_SALARY_TYPE = type;
+    document.getElementById('expSectionXodim').style.display = 'block';
+    expApplyTypeLabels();
+    expBuildEmployees();
+    expEmployeeChanged();
+  }
+  document.getElementById('expDrawerTitle').textContent = typeLabels[type];
+}
+function expBackToType(){
+  expReset();
+}
+function expEmployeeChanged(){
+  var id = document.getElementById('expEmployeeSelect').value;
+  var balBox = document.getElementById('expBalBox');
+  var warn = document.getElementById('expEmpWarn');
+  var amount = document.getElementById('expAmount');
+  if(!id){
+    balBox.style.display = 'none';
+    warn.classList.remove('show');
+    document.getElementById('expRowMonthly').style.display = 'none';
+    document.getElementById('expRowDeducted').style.display = 'none';
+    document.getElementById('expDeductWrap').style.display = 'none';
+    amount.value = '';
+    amount.readOnly = false;
+    expAmountInput();
+    return;
+  }
+  var e = EXP_EMPLOYEES.find(function(x){ return String(x.id) === String(id); });
+  if(!e){ return; }
+  var isMonthly = expIsMonthly(e);
+  document.getElementById('expEmpMonthly').textContent = formatNum(e.monthly_salary) + " so'm";
+  document.getElementById('expEmpBalance').textContent = formatNum(e.balance) + " so'm";
+  document.getElementById('expEmpAvans').textContent = formatNum(e.avans_balance || 0) + " so'm";
+  document.getElementById('expRowMonthly').style.display = isMonthly ? '' : 'none';
+  balBox.style.display = 'block';
+  if(EXP_SALARY_TYPE === 'advance'){
+    warn.classList.toggle('show', !e.has_income);
+    document.getElementById('expEmpWarnText').textContent = "Xodimga oylik yoki foiz belgilanmagan. Avans berish mumkin emas.";
+    amount.readOnly = false;
+  }else if(EXP_SALARY_TYPE === 'close'){
+    warn.classList.toggle('show', isMonthly);
+    document.getElementById('expEmpWarnText').textContent = "Avans faqat oylik berish vaqtida (Avansni oylikdan ushlab qolish) yopiladi.";
+    amount.readOnly = false;
+  }else{
+    warn.classList.remove('show');
+    if(isMonthly){
+      document.getElementById('expDeductWrap').style.display = 'flex';
+      amount.readOnly = true;
+    }else{
+      document.getElementById('expDeductWrap').style.display = 'none';
+      amount.readOnly = false;
+    }
+  }
+  amount.value = '';
+  expAmountInput();
+}
+function expParseAmount(){
+  var raw = document.getElementById('expAmount').value;
+  var num = parseFloat(raw.replace(/[\s' ]/g, '').replace(/,/g, ''));
+  return isNaN(num) ? 0 : num;
+}
+function expAmountInput(){
+  var id = document.getElementById('expEmployeeSelect').value;
+  var amount = expParseAmount();
+  var e = null;
+  for(var k=0;k<EXP_EMPLOYEES.length;k++){ if(String(EXP_EMPLOYEES[k].id)===String(id)){ e = EXP_EMPLOYEES[k]; break; } }
+  if(!e && !id){ e = { balance: 0, avans_balance: 0, salary_type: 'percent', monthly_salary: 0, has_income: true }; }
+  var isMonthly = e ? expIsMonthly(e) : false;
+  var balance = e ? e.balance : 0;
+  var avans = e ? (e.avans_balance || 0) : 0;
+  var type = EXP_SALARY_TYPE;
+  var given = document.getElementById('expGiven');
+  var remainEl = document.getElementById('expRemain');
+  var avansEl = document.getElementById('expAvansAfter');
+  var deductedEl = document.getElementById('expDeducted');
+  var warn = document.getElementById('expInsufficient');
+  var amountInput = document.getElementById('expAmount');
+  var hint = document.getElementById('expAmountHint');
+  var insufficient = false;
+  var msg = '';
+
+  given.classList.remove('red','green');
+  remainEl.classList.remove('red','green');
+  avansEl.classList.remove('red','green','amber');
+  deductedEl.classList.remove('red','green');
+
+  if(type === 'advance' && e){
+    var newAvans = avans + amount;
+    var limit = (e.advance_limit === undefined || e.advance_limit === null) ? null : Number(e.advance_limit);
+    var remaining = (limit === null) ? null : limit - avans;
+    document.getElementById('expRowDeducted').style.display = 'none';
+    given.textContent = formatNum(amount) + " so'm";
+    avansEl.textContent = formatNum(newAvans) + " so'm";
+    avansEl.classList.toggle('amber', newAvans > 0);
+    insufficient = !e.has_income;
+    if(insufficient){
+      msg = "Xodimga oylik yoki foiz belgilanmagan. Avans berish mumkin emas.";
+    }else if(limit !== null && remaining < 0){
+      insufficient = true;
+      msg = "Avans qarzi limitdan oshgan (qarz: " + formatNum(avans) + " so'm, limit: " + formatNum(limit) + " so'm).";
+    }else if(limit !== null && amount > remaining){
+      insufficient = true;
+      msg = "Avans limiti oshib ketdi. Berish mumkin: " + formatNum(remaining) + " so'm (umumiy limit: " + formatNum(limit) + " so'm, qarz: " + formatNum(avans) + " so'm).";
+    }
+    if(limit === null){
+      hint.textContent = "Avans oylik balansiga ta'sir qilmaydi, cheksiz berish mumkin. Kassa chiqimi yaratiladi.";
+    }else{
+      hint.textContent = "Avans limiti: " + formatNum(limit) + " so'm (qarz: " + formatNum(avans) + " so'm, qolgan: " + formatNum(Math.max(remaining, 0)) + " so'm). Kassa chiqimi yaratiladi.";
+    }
+  }else if(type === 'close' && e){
+    var remainC = balance - amount;
+    var newAvansC = avans - amount;
+    document.getElementById('expRowDeducted').style.display = 'none';
+    given.textContent = formatNum(amount) + " so'm";
+    remainEl.textContent = formatNum(remainC) + " so'm";
+    remainEl.classList.toggle('red', remainC < 0);
+    remainEl.classList.toggle('green', remainC >= 0);
+    avansEl.textContent = formatNum(newAvansC) + " so'm";
+    avansEl.classList.toggle('amber', newAvansC > 0);
+    avansEl.classList.toggle('green', newAvansC <= 0);
+    if(isMonthly){
+      insufficient = true;
+      msg = "Avans faqat oylik berish vaqtida (Avansni oylikdan ushlab qolish) yopiladi.";
+    }else{
+      insufficient = amount > 0 && (amount > avans || amount > balance);
+      if(insufficient){
+        if(amount > avans){
+          msg = 'Avans qarzdan ortiq summa yopish mumkin emas. Mavjud qarz: ' + formatNum(avans) + " so'm.";
+        }else{
+          msg = 'Oylik balansi yetarli emas. Mavjud oylik balansi: ' + formatNum(balance) + " so'm.";
+        }
+      }
+    }
+  }else if(e){
+    if(isMonthly){
+      var monthly = Number(e.monthly_salary) || 0;
+      var deduct = document.getElementById('expDeductAvans').checked;
+      var deduction = (deduct && avans > 0) ? Math.min(avans, monthly) : 0;
+      var payable = monthly - deduction;
+      amountInput.value = payable > 0 ? formatNum(payable).replace(/\s/g,'') : '';
+      amount = payable;
+      document.getElementById('expRowDeducted').style.display = (deduct && deduction > 0) ? '' : 'none';
+      deductedEl.textContent = formatNum(deduction) + " so'm";
+      given.textContent = formatNum(payable) + " so'm";
+      remainEl.textContent = formatNum(deduction) + " so'm";
+      remainEl.classList.toggle('green', deduction >= 0);
+      avansEl.textContent = formatNum(avans - deduction) + " so'm";
+      avansEl.classList.toggle('green', (avans - deduction) <= 0);
+      avansEl.classList.toggle('amber', (avans - deduction) > 0);
+      hint.textContent = "Oylik: " + formatNum(monthly) + " so'm, avans: " + formatNum(avans) + " so'm. Avans ushlansa: " + formatNum(monthly - deduction) + " so'm beriladi.";
+      insufficient = payable <= 0;
+      if(insufficient){
+        msg = "Beriladigan oylik 0 so'm. Avans qarzi oylikdan katta yoki teng. Qolgan qarz keyingi davrga o'tadi.";
+      }
+    }else{
+      var remainS = balance - amount;
+      document.getElementById('expRowDeducted').style.display = 'none';
+      given.textContent = formatNum(amount) + " so'm";
+      remainEl.textContent = formatNum(remainS) + " so'm";
+      remainEl.classList.toggle('red', remainS < 0);
+      remainEl.classList.toggle('green', remainS >= 0);
+      insufficient = amount > 0 && amount > balance;
+      if(insufficient){
+        msg = 'Oylik balansi yetarli emas. Mavjud oylik balansi: ' + formatNum(balance) + " so'm.";
+      }
+    }
+  }
+
+  if(insufficient && msg){
+    warn.classList.add('show');
+    document.getElementById('expInsufficientText').textContent = msg;
+  }else{
+    warn.classList.remove('show');
+  }
+  document.getElementById('expXodimConfirmBtn').disabled = insufficient || amount <= 0 || !id;
+}
+function expShowConfirm(){
+  var id = document.getElementById('expEmployeeSelect').value;
+  if(!id){ return; }
+  var e = null;
+  for(var k=0;k<EXP_EMPLOYEES.length;k++){ if(String(EXP_EMPLOYEES[k].id)===String(id)){ e = EXP_EMPLOYEES[k]; break; } }
+  if(!e){ return; }
+  var amount = expParseAmount();
+  var type = EXP_SALARY_TYPE;
+  var avans = e.avans_balance || 0;
+  var isMonthly = expIsMonthly(e);
+  var monthly = Number(e.monthly_salary) || 0;
+  var deduct = document.getElementById('expDeductAvans').checked;
+  var deduction = 0;
+
+  if(type === 'advance'){
+    if(amount <= 0 || !e.has_income){ return; }
+    var aLimit = (e.advance_limit === undefined || e.advance_limit === null) ? null : Number(e.advance_limit);
+    if(aLimit !== null && amount > aLimit - avans){ return; }
+  }else if(type === 'close'){
+    if(amount <= 0 || amount > avans || amount > e.balance || isMonthly){ return; }
+  }else{
+    if(isMonthly){
+      deduction = (deduct && avans > 0) ? Math.min(avans, monthly) : 0;
+      amount = monthly - deduction;
+      if(amount <= 0){ return; }
+    }else{
+      if(amount <= 0 || amount > e.balance){ return; }
+    }
+  }
+
+  var typeLabel = type === 'salary' ? 'Xodimga oylik' : type === 'advance' ? 'Xodimga avans' : 'Avans yopish';
+  document.getElementById('expCEmployee').textContent = e.name;
+  document.getElementById('expCType').textContent = typeLabel;
+  document.getElementById('expCAmount').textContent = formatNum(amount) + " so'm";
+
+  var row1 = document.getElementById('expCRow1');
+  var row2 = document.getElementById('expCRow2');
+  var row3 = document.getElementById('expCRow3');
+  var row4 = document.getElementById('expCRow4');
+  var lbl1 = document.getElementById('expCLbl1');
+  var lbl2 = document.getElementById('expCLbl2');
+  var lbl3 = document.getElementById('expCLbl3');
+  var lbl4 = document.getElementById('expCLbl4');
+  row1.style.display = '';
+  row2.style.display = '';
+  row3.style.display = 'none';
+  row4.style.display = 'none';
+
+  if(type === 'advance'){
+    lbl1.textContent = 'Avans qarzi (hozir)';
+    document.getElementById('expCVal1').textContent = formatNum(avans) + " so'm";
+    lbl2.textContent = 'Yangi avans qarzi';
+    document.getElementById('expCVal2').textContent = formatNum(avans + amount) + " so'm";
+  }else if(type === 'close'){
+    row3.style.display = '';
+    lbl1.textContent = 'Avans qarzi (hozir)';
+    document.getElementById('expCVal1').textContent = formatNum(avans) + " so'm";
+    lbl2.textContent = 'Qolgan avans qarzi';
+    document.getElementById('expCVal2').textContent = formatNum(avans - amount) + " so'm";
+    lbl3.textContent = 'Qolgan oylik balansi';
+    document.getElementById('expCVal3').textContent = formatNum(e.balance - amount) + " so'm";
+  }else{
+    if(isMonthly){
+      row3.style.display = '';
+      row4.style.display = '';
+      lbl1.textContent = 'Belgilangan oylik';
+      document.getElementById('expCVal1').textContent = formatNum(monthly) + " so'm";
+      lbl2.textContent = 'Avans qarzi (hozir)';
+      document.getElementById('expCVal2').textContent = formatNum(avans) + " so'm";
+      lbl3.textContent = 'Avansdan yopiladi';
+      document.getElementById('expCVal3').textContent = formatNum(deduction) + " so'm";
+      lbl4.textContent = 'Qolgan avans qarzi';
+      document.getElementById('expCVal4').textContent = formatNum(avans - deduction) + " so'm";
+    }else{
+      lbl1.textContent = 'Oylik balansi';
+      document.getElementById('expCVal1').textContent = formatNum(e.balance) + " so'm";
+      lbl2.textContent = 'Qoladigan oylik balansi';
+      document.getElementById('expCVal2').textContent = formatNum(e.balance - amount) + " so'm";
+    }
+  }
+
+  document.getElementById('expCInsufficient').classList.remove('show');
+  document.getElementById('expSectionXodim').style.display = 'none';
+  document.getElementById('expConfirm').style.display = 'block';
+}
+function expBackToForm(){
+  document.getElementById('expConfirm').style.display = 'none';
+  document.getElementById('expSectionXodim').style.display = 'block';
+  expEmployeeChanged();
+}
+function expSubmitXodim(){
+  var id = document.getElementById('expEmployeeSelect').value;
+  if(!id){ return; }
+  var type = EXP_SALARY_TYPE;
+  var btn = document.getElementById('expXodimSubmitBtn');
+  var errBox = document.getElementById('expCInsufficient');
+  var errTxt = document.getElementById('expCInsufficientText');
+  var url = (type === 'close')
+    ? '{% url "kassa_advance_close" main_kassa.pk %}'
+    : '{% url "kassa_add_employee_payout" main_kassa.pk %}';
+  var fd = new FormData();
+  fd.append('employee_id', id);
+  fd.append('amount', String(expParseAmount()));
+  fd.append('description', document.getElementById('expXodimDesc').value);
+  if(type !== 'close'){
+    fd.append('salary_type', type);
+    fd.append('payment_method', document.getElementById('expXodimPM').value);
+    if(type === 'salary' && document.getElementById('expDeductAvans').checked){
+      fd.append('deduct_avans', 'on');
+    }
+  }
+  fd.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Jarayonda...';
+  fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check"></i> Tasdiqlash';
+      if (d.success) { closeExpenseDrawer(); window.location.reload(); }
+      else {
+        errBox.classList.add('show');
+        errTxt.textContent = d.error || 'Xatolik!';
+      }
+    })
+    .catch(function(){
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check"></i> Tasdiqlash';
+      errBox.classList.add('show');
+      errTxt.textContent = 'Xatolik yuz berdi!';
+    });
+}
+function submitExpense() {
+  var amount = document.getElementById('expenseAmount').value.replace(/\s/g, '');
+  var category = document.getElementById('expenseCategory').value;
+  var customCat = document.getElementById('customCategory').value;
+  var payMethod = document.getElementById('expensePayMethod').value;
+  var desc = document.getElementById('expenseDescription').value;
+  var errEl = document.getElementById('expenseError');
+  var errTxt = document.getElementById('expenseErrorText');
+  if (!amount || Number(amount) <= 0) { errTxt.textContent = 'Summani kiriting!'; errEl.classList.add('show'); return; }
+  if (!category) { errTxt.textContent = 'Chiqim turini tanlang!'; errEl.classList.add('show'); return; }
+  errEl.classList.remove('show');
+  var fd = new FormData();
+  fd.append('amount', amount);
+  fd.append('expense_category', category);
+  fd.append('custom_category', customCat);
+  fd.append('payment_method', payMethod);
+  fd.append('description', desc);
+  fd.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+  fetch('{% url "kassa_add_expense" main_kassa.pk %}', {
+    method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd
+  }).then(function(r){return r.json();}).then(function(d){
+    if (d.success) { closeExpenseDrawer(); window.location.reload(); }
+    else { errTxt.textContent = d.error || 'Xatolik!'; errEl.classList.add('show'); }
+  }).catch(function(){ errTxt.textContent = 'Xatolik yuz berdi!'; errEl.classList.add('show'); });
+}
+
+// ===== O'quvchiga pul qaytarish (refund) =====
+var refundSelectedStudent = null;
+function openRefundDrawer(){
+  closeExpenseDrawer();
+  setTimeout(function(){
+    document.getElementById('refundDrawer').classList.add('open');
+    document.getElementById('drawerBackdrop').classList.add('show');
+    document.getElementById('drawerBackdrop').onclick = closeRefundDrawer;
+    document.body.style.overflow = 'hidden';
+    refundReset();
+    setTimeout(function(){ document.getElementById('refundSearchInput').focus(); }, 200);
+  }, 250);
+}
+function closeRefundDrawer(){
+  document.getElementById('refundDrawer').classList.remove('open');
+  document.getElementById('drawerBackdrop').classList.remove('show');
+  document.getElementById('drawerBackdrop').onclick = null;
+  document.body.style.overflow = '';
+  refundReset();
+}
+function refundReset(){
+  refundSelectedStudent = null;
+  document.getElementById('refundStepSearch').style.display = '';
+  document.getElementById('refundStepForm').style.display = 'none';
+  document.getElementById('refundSearchInput').value = '';
+  document.getElementById('refundSearchResults').innerHTML = '';
+  document.getElementById('refundAmount').value = '';
+  document.getElementById('refundDescription').value = '';
+  document.getElementById('refundPayMethod').value = '';
+  document.getElementById('refundError').classList.remove('show');
+}
+function refundSearchStudents(q){
+  q = q.toLowerCase().trim();
+  var list = allStudents.length > 0 ? allStudents : students;
+  var html = '';
+  var count = 0;
+  if (!q) { document.getElementById('refundSearchResults').innerHTML = ''; return; }
+  for (var i = 0; i < list.length; i++) {
+    var s = list[i];
+    if (!s.balance || s.balance <= 0) continue;
+    var full = (s.first_name + ' ' + s.last_name).toLowerCase();
+    var phone = s.phone || '';
+    if (full.indexOf(q) === -1 && phone.indexOf(q) === -1) continue;
+    count++;
+    var gs = [];
+    if (s.groups && s.groups.length) {
+      for (var j = 0; j < s.groups.length; j++) gs.push('<span class="sgrp">' + s.groups[j].name + '</span>');
+    }
+    html += '<div class="qs-item" onclick="refundSelectStudent(' + s.id + ')">' +
+      '<div class="sav pos" style="width:36px;height:36px;font-size:11px;">' + (s.first_name||'').charAt(0).toUpperCase() + (s.last_name||'').charAt(0).toUpperCase() + '</div>' +
+      '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;color:#111;">' + s.first_name + ' ' + s.last_name + '</div>' +
+      '<div style="font-size:11px;color:#9ca3af;">+998 ' + cleanPhone(s.phone) + '</div>' +
+      (gs.length ? '<div style="margin-top:2px;">' + gs.join('') + '</div>' : '') + '</div>' +
+      '<div style="font-weight:700;font-size:13px;color:var(--blue);">+' + formatNum(s.balance) + '</div></div>';
+  }
+  if (!count) html = '<div class="qs-empty">Balansi ijobiy o\'quvchi topilmadi</div>';
+  document.getElementById('refundSearchResults').innerHTML = html;
+}
+function refundSelectStudent(id){
+  var list = allStudents.length > 0 ? allStudents : students;
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].id === id) { refundSelectedStudent = list[i]; break; }
+  }
+  if (!refundSelectedStudent) return;
+  var s = refundSelectedStudent;
+  var gs = [];
+  if (s.groups && s.groups.length) {
+    for (var j = 0; j < s.groups.length; j++) gs.push('<span class="sgrp">' + s.groups[j].name + '</span>');
+  }
+  document.getElementById('refundStudentCard').innerHTML =
+    '<div class="dr-avatar"><div class="dr-av pos">' + (s.first_name||'').charAt(0).toUpperCase() + (s.last_name||'').charAt(0).toUpperCase() + '</div><div><div class="dr-un">' + s.first_name + ' ' + s.last_name + '</div><div class="dr-grps">' + (gs.length ? gs.join('') : '<span style="font-size:11px;color:#9ca3af;">Guruh yo\'q</span>') + '</div></div></div>' +
+    '<div class="dr-card-row"><span class="dr-lbl">Telefon</span><span class="dr-val">+998 ' + cleanPhone(s.phone) + '</span></div>' +
+    '<div class="dr-card-row"><span class="dr-lbl">Balans</span><span class="dr-val pos">+' + formatNum(s.balance) + ' so\'m</span></div>';
+  document.getElementById('refundStudentBalance').textContent = '+' + formatNum(s.balance) + ' so\'m';
+  document.getElementById('refundAmountDisplay').textContent = '0 so\'m';
+  document.getElementById('refundRemainingBalance').textContent = '+' + formatNum(s.balance) + ' so\'m';
+  document.getElementById('refundStepSearch').style.display = 'none';
+  document.getElementById('refundStepForm').style.display = '';
+  document.getElementById('refundError').classList.remove('show');
+}
+function refundBackToSearch(){
+  document.getElementById('refundStepSearch').style.display = '';
+  document.getElementById('refundStepForm').style.display = 'none';
+  refundSelectedStudent = null;
+}
+function refundAmountInput(){
+  if (!refundSelectedStudent) return;
+  var raw = document.getElementById('refundAmount').value;
+  var num = parseFloat(raw.replace(/[\s' ]/g, '').replace(/,/g, ''));
+  var amount = isNaN(num) ? 0 : num;
+  var bal = refundSelectedStudent.balance || 0;
+  var remaining = bal - amount;
+  document.getElementById('refundAmountDisplay').textContent = formatNum(amount) + ' so\'m';
+  document.getElementById('refundRemainingBalance').textContent = '+' + formatNum(remaining) + ' so\'m';
+  var errEl = document.getElementById('refundError');
+  if (amount > bal) {
+    document.getElementById('refundErrorText').textContent = 'Qaytariladigan summa balansdan oshmasligi kerak! Balans: ' + formatNum(bal) + ' so\'m';
+    errEl.classList.add('show');
+  } else if (amount <= 0) {
+    document.getElementById('refundErrorText').textContent = 'Summani kiriting!';
+    errEl.classList.add('show');
+  } else {
+    errEl.classList.remove('show');
+  }
+}
+function submitRefund(){
+  if (!refundSelectedStudent) return;
+  var errEl = document.getElementById('refundError');
+  var errTxt = document.getElementById('refundErrorText');
+  var raw = document.getElementById('refundAmount').value;
+  var num = parseFloat(raw.replace(/[\s' ]/g, '').replace(/,/g, ''));
+  var amount = isNaN(num) ? 0 : num;
+  var bal = refundSelectedStudent.balance || 0;
+  var payMethod = document.getElementById('refundPayMethod').value;
+  if (amount <= 0) { errTxt.textContent = 'Summani kiriting!'; errEl.classList.add('show'); return; }
+  if (amount > bal) { errTxt.textContent = 'Summa balansdan oshmasligi kerak!'; errEl.classList.add('show'); return; }
+  errEl.classList.remove('show');
+  var desc = document.getElementById('refundDescription').value;
+  var btn = document.getElementById('refundSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Jarayonda...';
+  var fd = new FormData();
+  fd.append('student_id', refundSelectedStudent.id);
+  fd.append('amount', String(amount));
+  fd.append('description', desc);
+  fd.append('payment_method', payMethod);
+  fd.append('kassa_id', document.getElementById('refundKassa').value);
+  fd.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+  fetch('{% url "payment_student_refund" %}', { method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body:fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check"></i> Pul qaytarish';
+      if (d.success) { closeRefundDrawer(); window.location.reload(); }
+      else { errTxt.textContent = d.error || 'Xatolik!'; errEl.classList.add('show'); }
+    })
+    .catch(function(){
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check"></i> Pul qaytarish';
+      errTxt.textContent = 'Xatolik yuz berdi!';
+      errEl.classList.add('show');
+    });
+}
+
 function selectStudent(id) {
   for (var i = 0; i < students.length; i++) { if (students[i].id === id) { selectedStudent = students[i]; break; } }
+  if (!selectedStudent) {
+    for (var i = 0; i < allStudents.length; i++) { if (allStudents[i].id === id) { selectedStudent = allStudents[i]; break; } }
+  }
   if (!selectedStudent) return;
   document.querySelectorAll('.pay-row.selected').forEach(function(r){r.classList.remove('selected');});
   var row = document.querySelector('.pay-row[data-id="'+id+'"]');
@@ -660,11 +1740,9 @@ function selectStudent(id) {
   openDrawer();
 
   var bCls = selectedStudent.balance > 0 ? 'pos' : (selectedStudent.balance < 0 ? 'neg' : '');
-  var gHtml = '';
   var gs = [];
   if (selectedStudent.groups.length > 0) {
     for (var j = 0; j < selectedStudent.groups.length; j++) gs.push('<span class="sgrp">' + selectedStudent.groups[j].name + '</span>');
-    gHtml = '<div class="dr-grps">' + gs.join('') + '</div>';
   }
 
   document.getElementById('studentCard').innerHTML =
@@ -672,18 +1750,15 @@ function selectStudent(id) {
     '<div class="dr-card-row"><span class="dr-lbl">Telefon</span><span class="dr-val">+998 ' + cleanPhone(selectedStudent.phone) + '</span></div>' +
     '<div class="dr-card-row"><span class="dr-lbl">Balans</span><span class="dr-val ' + bCls + '">' + (selectedStudent.balance > 0 ? '+' : '') + formatNum(selectedStudent.balance) + ' so\'m</span></div>';
 
-  // Update drawer visibility
   document.getElementById('drawerEmpty').style.display = 'none';
-  document.getElementById('drawerCard').classList.remove('hidden');
+  document.getElementById('drawerCard').style.display = 'flex';
 
-  // Build modal content
   var t = buildTavsilotHTML();
   var tblHtml = '';
   for (var i = 0; i < t.rows.length; i++) {
     var r = t.rows[i];
     tblHtml += '<div class="tv-tbl-row' + (r.hl ? ' tv-tbl-hl' : '') + (r.customCls ? ' ' + r.customCls : '') + '"><span class="tv-tbl-l">' + r.label + '</span><span class="tv-tbl-r ' + r.cls + (r.hl ? ' hl' : '') + '">' + r.val + ' so\'m</span></div>';
   }
-  var owed = selectedStudent.total_owed !== undefined ? selectedStudent.total_owed : Math.max(0, -selectedStudent.balance);
   document.getElementById('tvLeft').innerHTML =
     '<div class="tv-info-card">' +
       '<div class="tv-avatar"><div class="tv-av ' + bCls + '">' + (selectedStudent.first_name||'').charAt(0).toUpperCase() + (selectedStudent.last_name||'').charAt(0).toUpperCase() + '</div><div class="tv-un">' + selectedStudent.first_name + ' ' + selectedStudent.last_name + '</div></div>' +
@@ -696,23 +1771,16 @@ function selectStudent(id) {
   document.getElementById('tvDefSection').innerHTML = t.defHtml;
   document.getElementById('tvMonthsSection').innerHTML = t.monthsHtml;
   updateFootTotal();
-
-  // Modal title
   document.getElementById('tavsilotModalTitle').textContent = selectedStudent.first_name + ' ' + selectedStudent.last_name + ' — Tavsilot';
 
-  // Reset form
   document.getElementById('payAmount').value = '';
   document.getElementById('payDescription').value = '';
   document.getElementById('charCount').textContent = '0';
   document.getElementById('paySubmit').disabled = false;
 }
 
-function openTavsilotModal() {
-  document.getElementById('tavsilotModal').classList.add('show');
-}
-function closeTavsilotModal() {
-  document.getElementById('tavsilotModal').classList.remove('show');
-}
+function openTavsilotModal() { document.getElementById('tavsilotModal').classList.add('show'); }
+function closeTavsilotModal() { document.getElementById('tavsilotModal').classList.remove('show'); }
 
 function submitPayment() {
   document.getElementById('payError').classList.remove('show');
@@ -736,7 +1804,7 @@ function submitPayment() {
     .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error(t||'Server xatolik');});return r.json();})
     .then(function(d){
       btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';
-      if(d.success){var sid=selectedStudent.id;showReceipt(d);if(d.sms_note){var el=document.getElementById('paySmsNoteText');el.textContent=d.sms_note;document.getElementById('paySmsNote').style.display='block';}setTimeout(function(){location.reload();},2000);}
+      if(d.success){showReceipt(d);if(d.sms_note){var el=document.getElementById('paySmsNoteText');el.textContent=d.sms_note;document.getElementById('paySmsNote').style.display='block';}setTimeout(function(){location.reload();},2000);}
       else showError(d.error||'Xatolik yuz berdi');
     })
     .catch(function(e){btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';showError(e.message||'Xatolik');});
@@ -750,10 +1818,24 @@ function showError(m) {
 function showReceipt(d) {
   window._lastTransactionId=d.transaction_id;
   var b=document.getElementById('receiptBody');
-  if(d.receipt_html){b.innerHTML=d.receipt_html;if(d.qr_link){var e=b.querySelector('#qrcode');if(e&&typeof QRCode!=='undefined')new QRCode(e,{text:d.qr_link,width:80,height:80,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H});}}
+  b.innerHTML='<iframe id="rcptFrame" style="width:100%;height:100%;border:none;border-radius:10px;background:#fff;" title="Chek"></iframe>';
+  if(d.receipt_html){document.getElementById('rcptFrame').srcdoc=d.receipt_html;}
   document.getElementById('receiptModal').classList.add('show');
 }
 function closeReceipt(){document.getElementById('receiptModal').classList.remove('show');}
+function viewReceipt(id){
+  fetch('{% url "api_receipt_html" 0 %}'.replace('/0/', '/' + id + '/'))
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data.html) return;
+      window._lastTransactionId = id;
+      var b = document.getElementById('receiptBody');
+      b.innerHTML = '<iframe id="rcptFrame" style="width:100%;height:100%;border:none;border-radius:10px;background:#fff;" title="Chek"></iframe>';
+      document.getElementById('rcptFrame').srcdoc = data.html;
+      document.getElementById('receiptModal').classList.add('show');
+    })
+    .catch(function(){ });
+}
 function printReceipt(){
   var id = window._lastTransactionId;
   if (!id) { document.getElementById('receiptModal').classList.add('printing'); setTimeout(function(){window.print();},100); return; }
@@ -766,19 +1848,15 @@ function printReceipt(){
       w.document.write(data.html);
       w.document.close();
       var timer = setInterval(function(){
-        try {
-          if (w.document.readyState === 'complete'){
-            clearInterval(timer);
-            w.focus();
-            setTimeout(function(){ w.print(); }, 400);
-          }
-        } catch(e){}
+        try { if (w.document.readyState === 'complete'){clearInterval(timer);w.focus();setTimeout(function(){ w.print(); },400);} } catch(e){}
       }, 100);
     });
 }
 window.addEventListener('afterprint',function(){document.getElementById('receiptModal').classList.remove('printing');});
+window.addEventListener('load',function(){
+  document.getElementById('studentCount').textContent = document.querySelectorAll('.pay-row').length;
+});
 
-// Quick search
 function openQuickSearch() {
   document.getElementById('quickSearchInput').value = '';
   quickSearchFilter('');
@@ -798,25 +1876,73 @@ function quickSearchFilter(q) {
     if (q && fullName.indexOf(q) === -1 && phone.indexOf(q) === -1) continue;
     count++;
     var bc = s.balance > 0 ? 'pos' : (s.balance < 0 ? 'neg' : '');
-    var balCls = s.balance > 0 ? 'pos' : (s.balance < 0 ? 'neg' : 'zero');
     html += '<div class="qs-item" onclick="quickSelectStudent(' + s.id + ')">' +
       '<div class="sav ' + bc + '">' + (s.first_name||'').charAt(0).toUpperCase() + (s.last_name||'').charAt(0).toUpperCase() + '</div>' +
       '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">' + s.first_name + ' ' + s.last_name + '</div><div style="font-size:11px;color:#9ca3af;">+998 ' + cleanPhone(s.phone) + '</div></div>' +
-      '<div style="font-weight:700;font-size:13px;' + (s.balance < 0 ? 'color:#dc2626;' : s.balance > 0 ? 'color:#2001FF;' : 'color:#9ca3af;') + '">' + (s.balance > 0 ? '+' : '') + formatNum(s.balance) + '</div></div>';
+      '<div style="font-weight:700;font-size:13px;' + (s.balance < 0 ? 'color:#dc2626;' : s.balance > 0 ? 'color:var(--blue);' : 'color:#9ca3af;') + '">' + (s.balance > 0 ? '+' : '') + formatNum(s.balance) + '</div></div>';
   }
   if (count === 0) html = '<div class="qs-empty">O\'quvchi topilmadi</div>';
   document.getElementById('quickSearchResults').innerHTML = html;
 }
 
 function quickSelectStudent(id) { closeQuickSearch(); selectStudent(id); }
+
+// ===== KASSA SWITCH =====
+function switchKassa(kassaId) {
+  var url = new URL(window.location.href);
+  url.searchParams.set('kassa', kassaId);
+  window.location.href = url.toString();
+}
+
+function openIncomeModal() {
+  selectedStudent = null;
+  document.getElementById('drawerEmpty').style.display = 'flex';
+  document.getElementById('drawerCard').style.display = 'none';
+  document.getElementById('drawerStudentSearch').value = '';
+  document.getElementById('drawerSearchResults').innerHTML = '';
+  document.getElementById('payAmount').value = '';
+  document.getElementById('payDescription').value = '';
+  document.getElementById('charCount').textContent = '0';
+  document.getElementById('paySubmit').disabled = false;
+  openDrawer();
+  setTimeout(function(){ document.getElementById('drawerStudentSearch').focus(); }, 300);
+}
+function closeIncomeModal() { closeDrawer(); }
+
+function drawerSearchStudents(q) {
+  q = q.toLowerCase().trim();
+  var list = allStudents.length > 0 ? allStudents : students;
+  var html = '';
+  var count = 0;
+  if (!q) { document.getElementById('drawerSearchResults').innerHTML = ''; return; }
+  for (var i = 0; i < list.length; i++) {
+    var s = list[i];
+    var full = (s.first_name + ' ' + s.last_name).toLowerCase();
+    var phone = s.phone || '';
+    if (full.indexOf(q) === -1 && phone.indexOf(q) === -1) continue;
+    count++;
+    var bc = s.balance > 0 ? 'pos' : (s.balance < 0 ? 'neg' : '');
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .1s;" onmouseenter="this.style.background=\'#f5f7ff\'" onmouseleave="this.style.background=\'transparent\'" onclick="selectStudent(' + s.id + ');document.getElementById(\'drawerSearchResults\').innerHTML=\'\';document.getElementById(\'drawerStudentSearch\').value=\'\';">' +
+      '<div class="sav ' + bc + '" style="width:32px;height:32px;font-size:11px;">' + (s.first_name||'').charAt(0).toUpperCase() + (s.last_name||'').charAt(0).toUpperCase() + '</div>' +
+      '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;color:#111;">' + s.first_name + ' ' + s.last_name + '</div><div style="font-size:11px;color:#9ca3af;">+998 ' + cleanPhone(s.phone) + '</div></div>' +
+      '<div style="font-weight:700;font-size:12px;color:' + (s.balance < 0 ? '#dc2626' : s.balance > 0 ? 'var(--blue)' : '#9ca3af') + ';">' + formatNum(s.balance) + '</div></div>';
+  }
+  if (!count) html = '<div style="padding:16px;text-align:center;color:#9ca3af;font-size:12px;">O\'quvchi topilmadi</div>';
+  document.getElementById('drawerSearchResults').innerHTML = html;
+}
 </script>
 
 {% if not user_kassalar %}
+
 <style>.pay-layout{opacity:.5;pointer-events:none;}</style>
 <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;padding:32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.1);z-index:999;max-width:340px;">
-  <i class="fas fa-cash-register" style="font-size:1.5rem;color:#2001FF;margin-bottom:8px;display:block;"></i>
+  <i class="fas fa-cash-register" style="font-size:1.5rem;color:var(--blue);margin-bottom:8px;display:block;"></i>
   <p style="font-size:14px;font-weight:600;color:#111;margin:0 0 4px;">Kassa biriktirilmagan</p>
   <p style="font-size:12px;color:#6b7280;margin:0;">Avval administratorga murojaat qilib, kassangizni sozlang.</p>
 </div>
+
+
+
+
 {% endif %}
 {% endblock %}

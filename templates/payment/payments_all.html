@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}To'lovlar | Edu Tizim{% endblock %}
+{% load humanize %}
+{% block extra_css %}
+<style>
+.stat-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;}
+.stat-card .stat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.stat-card .stat-label{font-size:11px;color:#64748b;font-weight:500;}
+.stat-card .stat-value{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);}
+.stat-card .stat-sub{font-size:10px;color:#94a3b8;}
+.stat-card.today .stat-icon{background:#ecfdf5;color:#16a34a;}
+.stat-card.month-in .stat-icon{background:#ede9fe;color:#7c3aed;}
+.stat-card.month-out .stat-icon{background:#fef2f2;color:#dc2626;}
+.stat-card.total .stat-icon{background:#eff6ff;color:#2563eb;}
+.table.min{width:100%;}
+.table.min thead th{padding:7px 8px;font-size:10px;white-space:nowrap;}
+.table.min tbody td{padding:6px 8px;font-size:11px;white-space:nowrap;}
+.table.min .tx-badge{display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:600;white-space:nowrap;}
+.table.min .tx-badge.pay{background:#ecfdf5;color:#16a34a;}
+.table.min .method-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#64748b;}
+.table.min .amt{font-weight:700;font-size:11px;font-variant-numeric:tabular-nums;}
+.table.min .amt.pos{color:#16a34a;}
+.table.min .amt.neg{color:#dc2626;}
+.table.min .xato-btn{padding:2px 6px;font-size:9px;background:#dc2626;color:#fff;border:none;border-radius:3px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;}
+.date-sep td{background:#f1f5f9;font-weight:700;font-size:11px;color:var(--text);padding:8px 10px;border-bottom:2px solid var(--primary);}
+.filter-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.filter-row select,.filter-row input{padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:var(--text);}
+.filter-row select:focus,.filter-row input:focus{border-color:var(--primary);}
+@media(max-width:900px){.stat-cards{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:500px){.stat-cards{grid-template-columns:1fr;}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>To'lovlar</h2>
+        <span class="page-header-count">O'quvchilardan olingan barcha to'lovlar</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <a href="{% url 'payment_history' %}" class="btn btn-secondary"><i class="fas fa-history"></i> Shaxsiy tarix</a>
+        <a href="{% url 'payment_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> To'lov qilish</a>
+    </div>
+</div>
+
+<div class="stat-cards">
+    <div class="stat-card today">
+        <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
+        <div class="stat-label">Bugun</div>
+        <div class="stat-value" style="color:#16a34a;">+{{ today_income|floatformat:0|intcomma }} so'm</div>
+        <div class="stat-sub">Kirim</div>
+    </div>
+    <div class="stat-card today">
+        <div class="stat-icon" style="background:#fef2f2;color:#dc2626;"><i class="fas fa-calendar-day"></i></div>
+        <div class="stat-label">Bugun</div>
+        <div class="stat-value" style="color:#dc2626;">{{ today_expense|floatformat:0|intcomma }} so'm</div>
+        <div class="stat-sub">Chiqim</div>
+    </div>
+    <div class="stat-card month-in">
+        <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+        <div class="stat-label">Bu oylik kirim</div>
+        <div class="stat-value" style="color:#16a34a;">+{{ month_income|floatformat:0|intcomma }} so'm</div>
+        <div class="stat-sub">To'lovlar</div>
+    </div>
+    <div class="stat-card month-out">
+        <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+        <div class="stat-label">Bu oylik chiqim</div>
+        <div class="stat-value" style="color:#dc2626;">{{ month_expense|floatformat:0|intcomma }} so'm</div>
+        <div class="stat-sub">Dars, qaytarish</div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="padding:12px 16px;">
+        <form method="get" id="filterForm">
+            <div class="filter-row">
+                <div style="position:relative;flex:1;min-width:200px;">
+                    <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
+                    <input type="text" name="search" value="{{ search_query|default:'' }}" placeholder="Ism, familya yoki telefon..." style="width:100%;padding:8px 12px 8px 32px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:var(--text);">
+                </div>
+                <select name="payment_method" onchange="this.form.submit()">
+                    <option value="">Barcha usullar</option>
+                    {% for pm in payment_methods %}
+                    <option value="{{ pm.name|lower }}" {% if payment_method == pm.name|lower %}selected{% endif %}>{{ pm.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="date" name="date_from" value="{{ date_from|default:'' }}" onchange="this.form.submit()" title="Dan">
+                <input type="date" name="date_to" value="{{ date_to|default:'' }}" onchange="this.form.submit()" title="Gacha">
+                <button type="submit" class="btn btn-primary" style="padding:7px 14px;font-size:12px;"><i class="fas fa-search"></i> Qidirish</button>
+                {% if search_query or payment_method or date_from or date_to %}
+                <a href="{% url 'payments' %}" class="btn btn-secondary" style="padding:7px 12px;font-size:12px;"><i class="fas fa-times"></i> Tozalash</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding: 0;">
+        <div style="overflow-x: auto;">
+            <table class="table min">
+                <colgroup>
+                    <col style="width:110px;">
+                    <col>
+                    <col style="width:95px;">
+                    <col style="width:95px;">
+                    <col style="width:120px;">
+                    <col>
+                    <col>
+                    <col style="width:50px;">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Sana</th>
+                        <th>O'quvchi</th>
+                        <th>To'lov usuli</th>
+                        <th>Summa</th>
+                        <th>Balans</th>
+                        <th>Guruh</th>
+                        <th>Kim</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in transactions %}
+                    {% with t=item.t %}
+                    {% if item.show_date %}
+                    <tr class="date-sep"><td colspan="8">{{ item.date_str }}</td></tr>
+                    {% endif %}
+                    <tr>
+                        <td>{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'student_profile' t.student.pk %}" style="color:#2563eb;text-decoration:none;font-weight:500;">
+                                {{ t.student.first_name }} {{ t.student.last_name }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="method-badge">
+                            {% if t.payment_method %}
+                              {% for pm in payment_methods %}{% if pm.name|lower == t.payment_method|lower %}{{ pm.name }}{% endif %}{% endfor %}
+                              {% if t.payment_method == 'naqt' %}Naqt{% elif t.payment_method == 'karta' %}Karta{% endif %}
+                            {% else %}-{% endif %}
+                            </span>
+                        </td>
+                        <td><span class="amt pos">+{{ t.amount|floatformat:0|intcomma }}</span></td>
+                        <td style="color:#64748b;">{{ t.balance_after|floatformat:0|intcomma }}</td>
+                        <td style="font-size:10px;">{{ t.group.name|default:"-" }}</td>
+                        <td style="color:#64748b;font-size:10px;">{{ t.created_by|default:"-" }}</td>
+                        <td>
+                            {% if t.amount > 0 %}
+                            {% if 'payment.transfer' in permissions %}
+                            <button class="xato-btn" onclick="openWrongTransfer({{ t.pk }}, '{{ t.student.first_name }} {{ t.student.last_name }}', {{ t.amount }})"><i class="fas fa-exchange-alt"></i></button>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="empty">To'lovlar mavjud emas</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.has_other_pages %}
+        <div style="display:flex;justify-content:center;align-items:center;gap:4px;padding:12px 16px;border-top:1px solid var(--border);flex-wrap:wrap;">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if payment_method %}&payment_method={{ payment_method }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;color:var(--text);text-decoration:none;background:#fff;" onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'"><i class="fas fa-chevron-left"></i></a>
+            {% endif %}
+            {% for p in page_obj.paginator.page_range %}
+                {% if page_obj.number == p %}
+                <span style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--primary);font-size:12px;font-weight:600;color:#fff;background:var(--primary);">{{ p }}</span>
+                {% elif p > page_obj.number|add:'-3' and p < page_obj.number|add:'3' %}
+                <a href="?page={{ p }}{% if search_query %}&search={{ search_query }}{% endif %}{% if payment_method %}&payment_method={{ payment_method }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;color:var(--text);text-decoration:none;background:#fff;" onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">{{ p }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if payment_method %}&payment_method={{ payment_method }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;color:var(--text);text-decoration:none;background:#fff;" onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'"><i class="fas fa-chevron-right"></i></a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal-overlay" id="wrongTransferModal" onclick="if(event.target===this)closeWrongTransfer()" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,0.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div class="modal-box" style="background:#fff;border-radius:16px;width:440px;max-width:94vw;max-height:85vh;box-shadow:0 20px 60px rgba(0,0,0,0.25);animation:modalSlide .25s ease;overflow:hidden;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;">
+        <i class="fas fa-exchange-alt" style="color:var(--danger)"></i> Xato to'lovni o'tkazish
+      </h3>
+      <button onclick="closeWrongTransfer()" style="width:28px;height:28px;border-radius:6px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:12px;">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div style="padding:16px 18px;">
+      <div style="background:linear-gradient(135deg,#fef2f2 0%,#fee2e2 100%);border:1px solid rgba(220,38,38,0.15);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#991b1b;line-height:1.5;">
+        <i class="fas fa-info-circle" style="margin-right:4px;"></i>
+        <strong id="wrongFromName"></strong> ga noto'g'ri qilingan. To'g'ri o'quvchini tanlang.
+      </div>
+      <div style="background:linear-gradient(135deg,#fef2f2 0%,#fff5f5 100%);border:1px solid rgba(220,38,38,0.1);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:#64748b;font-size:12px;">Xato summa:</span>
+        <span style="font-weight:700;font-size:15px;color:var(--danger);font-variant-numeric:tabular-nums;" id="wrongAmount"></span>
+      </div>
+      <div id="wrongError" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:12px;color:#dc2626;margin-bottom:12px;">
+        <i class="fas fa-exclamation-circle"></i> <span id="wrongErrorText"></span>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">To'g'ri o'quvchini tanlang</label>
+        <div style="position:relative;">
+          <i class="fas fa-search" style="position:absolute;left:10px;top:9px;color:#94a3b8;font-size:12px;z-index:11;"></i>
+          <input type="text" id="wrongSearchInput" placeholder="Ism, familya yoki telefon..." oninput="wrongSearchFilter(this.value)" style="width:100%;padding:9px 12px 9px 32px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;outline:none;color:var(--text);background:#fff;transition:border-color .15s;" onfocus="this.style.borderColor='var(--primary)'" onblur="setTimeout(()=>{if(!document.getElementById('wrongSearchResults').children.length){document.getElementById('wrongSearchResults').style.display='none';this.style.borderColor='var(--border)'}},200)">
+        </div>
+        <input type="hidden" id="wrongToStudent" value="">
+        <div id="wrongSelectedStudent" style="display:none;margin-top:6px;padding:6px 10px;background:linear-gradient(135deg,#eef2ff 0%,#f0f4ff 100%);border:1px solid rgba(32,1,255,0.15);border-radius:6px;font-size:12px;color:var(--text);align-items:center;justify-content:space-between;">
+          <span id="wrongSelectedName"></span>
+          <button type="button" onclick="wrongClearStudent()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:11px;padding:2px;"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="wrongSearchResults" style="background:#fff;border:1.5px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Izoh (ixtiyoriy)</label>
+        <textarea id="wrongDescription" rows="2" placeholder="Xato to'lov haqida izoh..." style="padding:9px 12px;border-radius:8px;border:1.5px solid var(--border);width:100%;font-size:12px;font-family:inherit;outline:none;resize:none;color:var(--text);transition:border-color .15s;" onfocus="this.style.borderColor='var(--primary)'" onblur="if(!this.value)this.style.borderColor='var(--border)'"></textarea>
+      </div>
+      {% if 'payment.transfer' in permissions %}
+      <button id="wrongSubmit" onclick="submitWrongTransfer()" style="width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;transition:opacity .15s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+        <i class="fas fa-exchange-alt"></i> Pulni o'tkazish
+      </button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  var wrongTransactionId = null;
+  var allStudents = [
+    {% for s in students %}
+    {id:{{ s.pk }},name:"{{ s.first_name }} {{ s.last_name }}",phone:"{{ s.phone }}"},
+    {% endfor %}
+  ];
+
+  function wrongSearchFilter(q) {
+    var box = document.getElementById('wrongSearchResults');
+    var hidden = document.getElementById('wrongToStudent');
+    var selBox = document.getElementById('wrongSelectedStudent');
+    if (!q || q.length < 1) { box.style.display='none'; box.innerHTML=''; hidden.value=''; selBox.style.display='none'; return; }
+    var lq = q.toLowerCase();
+    var matches = allStudents.filter(function(s){ return (s.name.toLowerCase().indexOf(lq)!==-1) || (s.phone.indexOf(lq)!==-1); }).slice(0,8);
+    if (!matches.length) { box.innerHTML='<div style="padding:10px;color:#94a3b8;font-size:12px;text-align:center;">Topilmadi</div>'; box.style.display='block'; return; }
+    var html='';
+    for(var i=0;i<matches.length;i++){
+      var s=matches[i];
+      html+='<div style="padding:8px 12px;cursor:pointer;font-size:12px;display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;transition:background .1s;" onmouseover="this.style.background=\'#eef2ff\'" onmouseout="this.style.background=\'#fff\'" onclick="wrongSelectStudent('+s.id+',\''+s.name.replace(/'/g,"\\'")+'\',\''+s.phone+'\')">';
+      html+='<span style="font-weight:500;color:var(--text);">'+s.name+'</span>';
+      html+='<span style="color:#94a3b8;font-size:11px;">+998 '+s.phone+'</span>';
+      html+='</div>';
+    }
+    box.innerHTML=html;
+    box.style.display='block';
+  }
+
+  function wrongSelectStudent(id, name, phone) {
+    document.getElementById('wrongToStudent').value = id;
+    document.getElementById('wrongSearchInput').value = '';
+    document.getElementById('wrongSearchResults').style.display='none';
+    document.getElementById('wrongSearchResults').innerHTML='';
+    var sel = document.getElementById('wrongSelectedStudent');
+    sel.style.display='flex';
+    document.getElementById('wrongSelectedName').innerHTML='<i class="fas fa-user" style="color:var(--primary);margin-right:5px;"></i>'+name+' <span style="color:#94a3b8;font-size:11px;margin-left:4px;">+998 '+phone+'</span>';
+  }
+
+  function wrongClearStudent() {
+    document.getElementById('wrongToStudent').value='';
+    document.getElementById('wrongSelectedStudent').style.display='none';
+    document.getElementById('wrongSelectedName').innerHTML='';
+  }
+
+  function openWrongTransfer(txnId, fromName, amount) {
+    wrongTransactionId = txnId;
+    document.getElementById('wrongFromName').textContent = fromName;
+    document.getElementById('wrongAmount').textContent = Number(amount).toLocaleString() + ' so\'m';
+    document.getElementById('wrongToStudent').value = '';
+    document.getElementById('wrongSearchInput').value = '';
+    document.getElementById('wrongSearchResults').style.display='none';
+    document.getElementById('wrongSearchResults').innerHTML='';
+    document.getElementById('wrongSelectedStudent').style.display='none';
+    document.getElementById('wrongSelectedName').innerHTML='';
+    document.getElementById('wrongDescription').value = '';
+    document.getElementById('wrongError').style.display = 'none';
+    document.getElementById('wrongSubmit').disabled = false;
+    document.getElementById('wrongSubmit').innerHTML = '<i class="fas fa-exchange-alt"></i> Pulni o\'tkazish';
+    document.getElementById('wrongTransferModal').style.display = 'flex';
+  }
+
+  function closeWrongTransfer() {
+    document.getElementById('wrongTransferModal').style.display = 'none';
+    wrongTransactionId = null;
+  }
+
+  function getCookie(name) {
+    var value = '; ' + document.cookie;
+    var parts = value.split('; ' + name + '=');
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+  }
+
+  function submitWrongTransfer() {
+    var toStudentId = document.getElementById('wrongToStudent').value;
+    var description = document.getElementById('wrongDescription').value;
+    if (!toStudentId) {
+      document.getElementById('wrongErrorText').textContent = 'Iltimos, o\'quvchini tanlang!';
+      document.getElementById('wrongError').style.display = 'flex';
+      return;
+    }
+    var btn = document.getElementById('wrongSubmit');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Jarayonda...';
+    document.getElementById('wrongError').style.display = 'none';
+
+    var formData = new FormData();
+    formData.append('to_student_id', toStudentId);
+    formData.append('description', description);
+
+    fetch('{% url "transfer_wrong_payment" 0 %}'.replace('/0/', '/' + wrongTransactionId + '/'), {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      body: formData,
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          closeWrongTransfer();
+          location.reload();
+        } else {
+          document.getElementById('wrongErrorText').textContent = data.error || 'Xatolik yuz berdi';
+          document.getElementById('wrongError').style.display = 'flex';
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Pulni o\'tkazish';
+        }
+      })
+      .catch(function(err) {
+        document.getElementById('wrongErrorText').textContent = err.message || 'Xatolik yuz berdi';
+        document.getElementById('wrongError').style.display = 'flex';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Pulni o\'tkazish';
+      });
+  }
+</script>
+{% endblock %}

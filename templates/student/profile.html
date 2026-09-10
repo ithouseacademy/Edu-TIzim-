@@ -284,7 +284,7 @@
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:14px;">
-                    <button type="submit" class="pp-btn-blue"><i class="fas fa-check" style="font-size:11px;"></i> Saqlash</button>
+                    {% if 'student.update' in permissions %}<button type="submit" class="pp-btn-blue"><i class="fas fa-check" style="font-size:11px;"></i> Saqlash</button>{% endif %}
                 </div>
             </div>
         </form>
@@ -491,10 +491,12 @@
                 <h4 style="font-size:12px;font-weight:600;color:#222;margin:0;">SMS yuborish</h4>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                {% if 'student.sms' in permissions %}
                 <button class="pp-btn pp-btn-primary" onclick="openPPSMSModal('debt')"><i class="fas fa-exclamation-triangle"></i> Qarz eslatma</button>
                 <button class="pp-btn pp-btn-secondary" onclick="openPPSMSModal('absence')"><i class="fas fa-user-slash"></i> Davomat SMS</button>
                 <button class="pp-btn pp-btn-secondary" onclick="openPPSMSModal('payment')"><i class="fas fa-check-circle"></i> To'lov SMS</button>
                 <button class="pp-btn pp-btn-secondary" onclick="openPPSMSModal('custom')"><i class="fas fa-edit"></i> Maxsus SMS</button>
+                {% endif %}
             </div>
         </div>
         <div class="pp-form-wrap">
@@ -575,9 +577,11 @@
                     <label style="display:block;font-size:11px;font-weight:500;color:#808080;margin-bottom:3px;">Xabar matni</label>
                     <textarea id="ppSMSMessage" rows="4" placeholder="SMS matnini kiriting..." style="padding:8px;border:1px solid #E4E7EC;border-radius:4px;width:100%;font-size:11px;font-family:'Inter',sans-serif;outline:none;box-sizing:border-box;resize:vertical;"></textarea>
                 </div>
+                {% if 'student.sms' in permissions %}
                 <button id="ppSMSSubmit" onclick="submitPPSMS()" style="width:100%;height:34px;border:none;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:'Inter',sans-serif;background:#2001FF;color:white;">
                     <i class="fas fa-paper-plane"></i> <span id="ppSMSBtnText">SMS yuborish</span>
                 </button>
+                {% endif %}
                 <div id="ppSMSError" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:6px 10px;font-size:11px;color:#dc2626;margin-top:8px;"></div>
                 <div id="ppSMSSuccess" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:6px 10px;font-size:11px;color:#16a34a;margin-top:8px;"></div>
             </div>
@@ -651,7 +655,7 @@
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:8px;">
-                    <button type="submit" class="pp-btn-blue"><i class="fas fa-check" style="font-size:10px;"></i> Saqlash</button>
+                    {% if 'student.update' in permissions %}<button type="submit" class="pp-btn-blue"><i class="fas fa-check" style="font-size:10px;"></i> Saqlash</button>{% endif %}
                 </div>
             </div>
         </form>
@@ -842,7 +846,7 @@
                         <div class="def-reason-edit" style="display:none;align-items:center;gap:6px;">
                             <span style="font-weight:500;white-space:nowrap;">Sabab:</span>
                             <input type="text" class="def-reason-inp" data-student="{{ student.id }}" data-month="{{ d.month }}" value="{{ d.reason }}" placeholder="Sababni kiriting..." style="flex:1;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;font-family:inherit;outline:none;">
-                            <button class="def-reason-save" style="padding:6px 12px;background:#2563eb;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:500;">Saqlash</button>
+                            {% if 'student.update' in permissions %}<button class="def-reason-save" style="padding:6px 12px;background:#2563eb;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:500;">Saqlash</button>{% endif %}
                             <button class="def-reason-cancel" style="padding:6px 8px;background:none;color:#6b7280;border:none;font-size:11px;cursor:pointer;font-family:inherit;" onclick="cancelDefReason(this)">Bekor</button>
                         </div>
                     </div>
@@ -919,9 +923,11 @@
                 <label style="display:block;font-size:12px;font-weight:500;color:#808080;margin-bottom:3px;">Izoh (ixtiyoriy)</label>
                 <textarea id="profilePayDesc" rows="2" placeholder="Izoh..." style="padding:10px 12px;border:1px solid #E4E7EC;border-radius:4px;width:100%;font-size:13px;font-family:'Inter',sans-serif;outline:none;box-sizing:border-box;"></textarea>
             </div>
+            {% if 'payment.create' in permissions %}
             <button id="profilePaySubmit" onclick="submitPPPayment()" style="width:100%;height:40px;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:'Inter',sans-serif;background:#2001FF;color:white;">
                 <i class="fas fa-check-circle"></i> <span id="profilePayBtnText">To'lovni tasdiqlash</span>
             </button>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -973,9 +979,11 @@
                 <label style="display:block;font-size:12px;font-weight:500;color:#808080;margin-bottom:3px;">Izoh (ixtiyoriy)</label>
                 <textarea id="profileWrongDesc" rows="2" placeholder="Xato to'lov haqida izoh..." style="padding:10px;border:1px solid #E4E7EC;border-radius:4px;width:100%;font-size:13px;font-family:'Inter',sans-serif;outline:none;"></textarea>
             </div>
+            {% if 'payment.transfer' in permissions %}
             <button id="profileWrongSubmit" onclick="submitWrongPPTransfer()" style="width:100%;height:40px;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:'Inter',sans-serif;background:#f59e0b;color:white;">
                 <i class="fas fa-exchange-alt"></i> Pulni o'tkazish
             </button>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -1132,23 +1140,28 @@ function submitPPPayment() {
     });
 }
 
+var _ppReceiptHtml = '';
 function showPPReceipt(data) {
+    _ppReceiptHtml = data.receipt_html || '';
     var b = document.getElementById('profileReceiptBody');
-    b.innerHTML = data.receipt_html || '<div style="text-align:center;padding:20px;color:#808080;">Chek topilmadi</div>';
-    if (data.qr_link) {
-        var e = b.querySelector('#qrcode');
-        if (e && typeof QRCode !== 'undefined') {
-            new QRCode(e, { text: data.qr_link, width: 80, height: 80, colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.H });
-        }
+    if (_ppReceiptHtml) {
+        b.innerHTML = '<iframe style="width:100%;height:52vh;border:none;background:#fff;" title="Chek"></iframe>';
+        b.querySelector('iframe').srcdoc = _ppReceiptHtml;
+    } else {
+        b.innerHTML = '<div style="text-align:center;padding:20px;color:#808080;">Chek topilmadi</div>';
     }
     document.getElementById('profileReceiptModal').style.display = 'flex';
 }
 
 function printPPReceipt() {
-    var w = window.open('', '', 'width=400,height=600');
-    w.document.write('<html><head><title>Chek</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"><style>body{margin:0;padding:10px;font-family:Courier New,monospace;} *{color:#000!important;font-weight:900!important;} @page{margin:0;}</style></head><body>' + document.getElementById('profileReceiptBody').innerHTML + '</body></html>');
+    if (!_ppReceiptHtml) return;
+    var w = window.open('', '', 'width=500,height=700');
+    if (!w) return;
+    w.document.write(_ppReceiptHtml);
     w.document.close();
-    setTimeout(function() { w.print(); w.close(); }, 300);
+    var timer = setInterval(function(){
+        try { if (w.document.readyState === 'complete'){clearInterval(timer);w.focus();setTimeout(function(){ w.print(); },400);} } catch(e){}
+    }, 100);
 }
 
 function openWrongPPTransfer() {
@@ -1316,7 +1329,8 @@ document.addEventListener('click', function(e) {
     var month = inp.getAttribute('data-month');
     var reason = inp.value.trim();
     btn.disabled = true;
-    btn.textContent = '...';
+    btn.textContent = '...'; 
+    
     fetch('/api/student/deferred-reason/', {
       method: 'POST',
       headers: {'Content-Type':'application/json','X-CSRFToken': getCookie('csrftoken')},

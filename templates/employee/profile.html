@@ -1,121 +1,1408 @@
 {% extends "base.html" %}
+{% load dict_filters %}
 {% block title %}{{ employee.first_name }} {{ employee.last_name }} | Edu Tizim{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+    --p: #2563EB;           /* Primary */
+    --bg: #F8F9FB;          /* Background */
+    --card: #FFFFFF;        /* Card */
+    --bd: #E5E7EB;          /* Border */
+    --bd2: #ECECEC;         /* Soft border */
+    --ok: #22C55E;          /* Success */
+    --dng: #EF4444;         /* Danger */
+    --tx: #111827;          /* Text */
+    --tx2: #6B7280;         /* Secondary */
+    --tx3: #9CA3AF;         /* Muted */
+}
+
+/* ===== KEEP GLOBAL APP CHROME ===== */
+body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+.main-content { height: 100vh; overflow: hidden; }
+.content { height: calc(100vh - 64px); overflow: hidden; padding: 20px; }
+
+/* ===== PAGE SHELL (no page scroll — everything fits) ===== */
+.tfd-page { display: flex; align-items: stretch; gap: 20px; height: 100%; color: var(--tx); }
+
+/* ===== SIDEBAR ===== */
+.tfd-sb {
+    width: 240px; flex-shrink: 0; background: var(--card);
+    border: 1px solid var(--bd2); border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    height: 100%;
+    display: flex; flex-direction: column;
+    padding: 20px 14px 14px; overflow-y: auto;
+}
+.tfd-sb::-webkit-scrollbar { width: 6px; }
+.tfd-sb::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 99px; }
+
+.tfd-sb-head { text-align: center; padding: 0 0 16px; border-bottom: 1px solid var(--bd2); }
+.tfd-avatar {
+    width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 10px;
+    background: linear-gradient(135deg, var(--p), #60A5FA); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 21px; font-weight: 600; overflow: hidden;
+    border: 3px solid #fff; box-shadow: 0 0 0 1px var(--bd), 0 8px 20px -10px rgba(37,99,235,.5);
+}
+.tfd-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.tfd-sb-name { font-size: 13px; font-weight: 600; color: var(--tx); line-height: 1.3; }
+.tfd-sb-role { font-size: 10.5px; font-weight: 600; color: var(--p); margin-top: 3px; }
+.tfd-sb-phone { font-size: 12px; color: var(--tx2); margin-top: 3px; }
+
+.tfd-actions { display: flex; justify-content: center; gap: 6px; margin-top: 12px; }
+.tfd-act {
+    width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--bd2);
+    background: #fff; color: var(--tx2); display: inline-flex; align-items: center;
+    justify-content: center; font-size: 11px; cursor: pointer;
+    transition: all .15s; text-decoration: none;
+}
+.tfd-act:hover { color: var(--p); border-color: #BFDBFE; background: #EFF6FF; }
+
+/* ===== SIDEBAR STATS ===== */
+.tfd-stats { margin-top: 16px; }
+.tfd-stats-label {
+    font-size: 10px; font-weight: 600; color: var(--tx3); text-transform: uppercase;
+    letter-spacing: .6px; padding: 0 10px; margin-bottom: 6px;
+}
+.tfd-stat {
+    display: flex; align-items: center; gap: 10px; height: 34px;
+    padding: 0 10px; border-radius: 8px; cursor: default; transition: background .12s;
+}
+.tfd-stat:hover { background: #F7F9FC; }
+.tfd-toggle {
+    width: 100%; background: none; border: none; cursor: pointer;
+    font-family: 'Inter', sans-serif; font-size: inherit; text-align: left; padding: 0 10px;
+}
+.tfd-stat-caret {
+    margin-left: auto; font-size: 10px; color: var(--tx3);
+    transition: transform .15s; flex-shrink: 0;
+}
+.tfd-toggle.open .tfd-stat-caret { transform: rotate(180deg); }
+a.tfd-stat { cursor: pointer; text-decoration: none; }
+a.tfd-stat:hover .tfd-stat-l { color: var(--p); }
+.tfd-stat-ic {
+    width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--p); background: #EFF6FF;
+}
+.tfd-stat-b { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.tfd-stat-l { font-size: 12px; color: var(--tx2); font-weight: 400; white-space: nowrap; }
+.tfd-stat-v { font-size: 12px; font-weight: 600; color: var(--tx); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.tfd-sb-foot { margin-top: auto; padding-top: 16px; }
+.tfd-sb-link {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+    border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--tx2);
+    text-decoration: none; transition: all .15s;
+}
+.tfd-sb-link:hover { background: #F7F9FC; color: var(--p); }
+
+/* ===== MAIN ===== */
+.tfd-main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+.tfd-head, .tfd-tabs, .tfd-toolbar { flex-shrink: 0; }
+.tfd-body { flex: 1; min-height: 0; overflow: auto; }
+.tfd-body::-webkit-scrollbar { width: 8px; height: 8px; }
+.tfd-body::-webkit-scrollbar-track { background: transparent; }
+.tfd-body::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 99px; }
+.tfd-body::-webkit-scrollbar-thumb:hover { background: var(--tx3); }
+
+/* ===== HEADER ===== */
+.tfd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.tfd-ghead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.tfd-title { font-size: 16px; font-weight: 600; color: var(--tx); }
+.tfd-sub { font-size: 12px; color: var(--tx2); margin-top: 2px; }
+.tfd-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ===== BUTTONS ===== */
+.tfd-btn {
+    height: 34px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--bd);
+    background: #fff; color: var(--tx); font-size: 12px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    font-family: 'Inter', sans-serif; text-decoration: none; transition: all .15s;
+}
+.tfd-btn:hover { border-color: #93C5FD; color: var(--p); background: #FBFDFF; }
+.tfd-btn-primary { background: linear-gradient(135deg, var(--p), #3B82F6); border-color: transparent; color: #fff; box-shadow: 0 4px 12px -4px rgba(37,99,235,.45); }
+.tfd-btn-primary:hover { background: linear-gradient(135deg, #1D4ED8, #2563EB); color: #fff; border-color: transparent; }
+
+/* ===== PILL TABS ===== */
+.tfd-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-bottom: 4px; margin-bottom: 12px; }
+.tfd-tab {
+    height: 34px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--bd2);
+    background: #fff; color: var(--tx2); font-size: 12px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+    cursor: pointer; transition: all .15s; font-family: 'Inter', sans-serif; flex-shrink: 0;
+}
+.tfd-tab i { font-size: 11px; opacity: .85; }
+.tfd-tab:hover { border-color: #93C5FD; color: var(--p); }
+.tfd-tab.active {
+    background: linear-gradient(135deg, var(--p), #3B82F6); color: #fff; border-color: transparent;
+    font-weight: 600; box-shadow: 0 4px 12px -4px rgba(37,99,235,.4);
+}
+.tfd-tab.active:hover { color: #fff; }
+
+.tfd-more { position: relative; flex-shrink: 0; }
+.tfd-more-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; min-width: 220px;
+    background: #fff; border: 1px solid var(--bd2); border-radius: 12px;
+    box-shadow: 0 12px 32px -8px rgba(0,0,0,.12); padding: 6px; z-index: 70;
+    display: none;
+}
+.tfd-more.open .tfd-more-menu { display: block; animation: tfdFade .15s ease; }
+.tfd-more-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px;
+    border-radius: 8px; font-size: 12px; font-weight: 500; color: #374151;
+    background: #fff; border: none; cursor: pointer; text-align: left;
+    font-family: 'Inter', sans-serif; text-decoration: none; transition: all .12s;
+}
+.tfd-more-item:hover { background: #F7F9FC; color: var(--p); }
+.tfd-more-item i { width: 16px; text-align: center; font-size: 12px; }
+
+/* ===== TOOLBAR ===== */
+.tfd-toolbar {
+    background: #fff; border: 1px solid var(--bd2); border-radius: 12px;
+    padding: 14px; display: flex; align-items: flex-end; gap: 12px;
+    margin-bottom: 12px; flex-wrap: wrap;
+}
+.tfd-filter { display: flex; flex-direction: column; gap: 6px; min-width: 160px; }
+.tfd-filter label { font-size: 10.5px; font-weight: 600; color: var(--tx2); }
+.tfd-input, .tfd-select {
+    height: 38px; border: 1px solid var(--bd); border-radius: 9px; padding: 0 12px;
+    font-size: 12px; color: var(--tx); background: #fff; outline: none;
+    font-family: 'Inter', sans-serif; width: 100%; transition: all .15s;
+}
+.tfd-input::placeholder { color: var(--tx3); }
+.tfd-input:focus, .tfd-select:focus { border-color: var(--p); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+.tfd-dd { position: relative; min-width: 180px; }
+.tfd-dd-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; }
+.tfd-dd-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tfd-dd-arrow { font-size: 10px; color: var(--tx3); transition: transform .15s; }
+.tfd-dd.open .tfd-dd-arrow { transform: rotate(180deg); }
+.tfd-dd-menu {
+    position: absolute; top: calc(100% + 4px); left: 0; min-width: 240px; z-index: 90;
+    background: #fff; border: 1px solid var(--bd); border-radius: 10px;
+    box-shadow: 0 12px 32px -8px rgba(0,0,0,.15); padding: 8px; display: none;
+}
+.tfd-dd.open .tfd-dd-menu { display: block; }
+.tfd-dd-search { margin-bottom: 6px; }
+.tfd-dd-list { max-height: 220px; overflow-y: auto; }
+.tfd-dd-list::-webkit-scrollbar { width: 6px; }
+.tfd-dd-list::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 99px; }
+.tfd-dd-item {
+    display: block; width: 100%; text-align: left; padding: 7px 10px; border-radius: 7px;
+    font-size: 12px; color: #374151; background: #fff; border: none; cursor: pointer;
+    font-family: 'Inter', sans-serif;
+}
+.tfd-dd-item:hover { background: #F7F9FC; color: var(--p); }
+.tfd-dd-item.sel { background: #EFF6FF; color: var(--p); font-weight: 600; }
+.tfd-toolbar-actions { display: flex; gap: 8px; margin-left: auto; align-items: center; }
+.tfd-icobtn {
+    width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--bd);
+    background: #fff; color: var(--tx2); display: inline-flex; align-items: center;
+    justify-content: center; font-size: 13px; cursor: pointer; transition: all .15s;
+    position: relative;
+}
+.tfd-icobtn:hover { background: var(--p); border-color: var(--p); color: #fff; }
+.tfd-icobtn.active { background: #EFF6FF; border-color: var(--p); color: var(--p); }
+.tfd-icobtn.active:hover { background: var(--p); color: #fff; }
+
+.tfd-cols-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; min-width: 200px;
+    background: #fff; border: 1px solid var(--bd2); border-radius: 12px;
+    box-shadow: 0 12px 32px -8px rgba(0,0,0,.12); padding: 6px; z-index: 70; display: none;
+}
+.tfd-cols-menu.open { display: block; animation: tfdFade .15s ease; }
+.tfd-col-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    border-radius: 8px; font-size: 13px; color: #374151; cursor: pointer;
+}
+.tfd-col-item:hover { background: #F7F9FC; }
+.tfd-col-item input { accent-color: var(--p); width: 15px; height: 15px; }
+
+/* ===== TABLE ===== */
+.tfd-table-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.05); overflow: hidden; }
+.tfd-scroll { overflow-x: auto; }
+.tfd-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.tfd-scroll::-webkit-scrollbar-track { background: var(--bg); }
+.tfd-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 99px; }
+.tfd-scroll::-webkit-scrollbar-thumb:hover { background: var(--tx3); }
+
+table.tfd-table { width: 100%; border-collapse: collapse; }
+.tfd-table th {
+    position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid var(--bd2);
+    padding: 0 14px; height: 40px; font-size: 12px; font-weight: 600; color: var(--tx2);
+    text-align: left; white-space: nowrap;
+}
+.tfd-table td { padding: 0 14px; height: 44px; font-size: 12px; color: var(--tx); border-bottom: 1px solid #F1F3F4; white-space: nowrap; }
+.tfd-table tbody tr:hover td { background: #F9FAFB; }
+.tfd-table tbody tr:last-child td { border-bottom: none; }
+.tfd-table .num { text-align: right; }
+.tfd-table th.num { text-align: right; }
+
+.tfd-student { font-weight: 600; color: var(--tx); }
+.tfd-group { color: var(--tx2); }
+.tfd-cell-muted { color: var(--tx2); }
+.tfd-note { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx2); display: block; }
+
+.tfd-amt { font-weight: 600; font-variant-numeric: tabular-nums; }
+.tfd-amt.pos { color: var(--ok); }
+.tfd-amt.neg { color: var(--dng); }
+.tfd-bal { color: var(--tx2); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* ===== BADGES ===== */
+.tfd-bdg { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 99px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.tfd-bdg i { font-size: 9px; }
+.tfd-bdg-green { background: #ECFDF5; color: #059669; }
+.tfd-bdg-red { background: #FEF2F2; color: #DC2626; }
+.tfd-bdg-blue { background: #EFF6FF; color: var(--p); }
+.tfd-bdg-amber { background: #FFFBEB; color: #D97706; }
+.tfd-bdg-purple { background: #F5F3FF; color: #7C3AED; }
+.tfd-bdg-gray { background: #F3F4F6; color: var(--tx2); }
+
+/* ===== TAB CONTENT ===== */
+.tfd-tab-content { display: none; }
+.tfd-tab-content.active { display: block; animation: tfdFade .18s ease; }
+@keyframes tfdFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ===== KPI ===== */
+.tfd-kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.tfd-kpi { background: #fff; border: 1px solid var(--bd2); border-radius: 12px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+.tfd-kpi .k-l { font-size: 11px; font-weight: 500; color: var(--tx2); display: flex; align-items: center; gap: 8px; }
+.tfd-kpi .k-l i { font-size: 11px; }
+.tfd-kpi .k-v { font-size: 16px; font-weight: 600; color: var(--tx); margin-top: 5px; font-variant-numeric: tabular-nums; }
+.tfd-kpi .k-s { font-size: 11px; color: var(--tx3); margin-top: 3px; }
+
+.tfd-card { background: #fff; border: 1px solid var(--bd2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.03); margin-bottom: 12px; }
+.tfd-card-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #F1F3F4; flex-wrap: wrap; }
+.tfd-card-hd h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--tx); }
+.tfd-card-hd p { margin: 2px 0 0; font-size: 11.5px; color: var(--tx3); }
+.tfd-card-bd { padding: 18px; }
+.tfd-card-bd.flush { padding: 0; }
+
+.tfd-bar-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.tfd-bar-row .b-l { font-size: 11.5px; color: var(--tx2); font-weight: 500; }
+.tfd-bar-row .b-v { font-size: 12px; font-weight: 600; color: var(--tx); }
+.tfd-bar { height: 6px; background: #F1F3F4; border-radius: 99px; overflow: hidden; margin-bottom: 12px; }
+.tfd-bar > span { display: block; height: 100%; border-radius: 99px; }
+.tfd-bar-blue { background: linear-gradient(90deg, var(--p), #60A5FA); }
+.tfd-bar-green { background: linear-gradient(90deg, #22C55E, #4ADE80); }
+.tfd-bar-orange { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+.tfd-bar-purple { background: linear-gradient(90deg, #8B5CF6, #A78BFA); }
+
+/* ===== PENDING BOX ===== */
+.tfd-pending { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.tfd-pending strong { color: #92400E; font-size: 12.5px; }
+.tfd-pending span { font-size: 11.5px; color: #92400E; }
+
+/* ===== EMPTY ===== */
+.tfd-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; color: var(--tx3); text-align: center; }
+.tfd-empty i { font-size: 26px; color: #D1D5DB; }
+.tfd-empty span { font-size: 12.5px; font-weight: 500; }
+
+.tfd-backdrop { position: fixed; inset: 0; background: rgba(17,24,39,.5); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(3px); }
+.tfd-backdrop.open { display: flex; }
+.tfd-modal { background: #fff; border-radius: 16px; max-width: 420px; width: 100%; max-height: 88vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,.18); animation: tfdFade .16s ease; }
+.tfd-modal-hd { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #F1F3F4; }
+.tfd-modal-hd h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--tx); }
+.tfd-modal-close { background: #F3F4F6; border: none; width: 30px; height: 30px; border-radius: 9px; cursor: pointer; font-size: 12px; color: var(--tx2); }
+.tfd-modal-close:hover { background: #FEF2F2; color: var(--dng); }
+.tfd-modal-bd { padding: 20px; }
+.tfd-lbl { font-size: 12px; font-weight: 600; color: #374151; display: block; margin-bottom: 6px; }
+.tfd-field { margin-bottom: 12px; }
+.tfd-opt { flex: 1; padding: 9px; border: 1.5px solid var(--bd); border-radius: 9px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif; color: #374151; transition: all .15s; }
+.tfd-opt.on { border-color: var(--p); background: #EFF6FF; color: var(--p); font-weight: 600; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1280px) {
+    .content { padding: 16px; }
+    .tfd-sb { width: 220px; }
+    .tfd-filter { min-width: 140px; }
+    .tfd-kpi-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+}
+@media (max-width: 1024px) {
+    .tfd-sb { display: none; }
+    .tfd-head-actions { width: 100%; }
+    .tfd-toolbar-actions { margin-left: 0; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div class="page-header-left">
-        <h2>{{ employee.first_name }} {{ employee.last_name }}</h2>
-        <span class="page-header-count">Xodim profili</span>
-    </div>
-</div>
-<div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-    <div>
-        <div class="card" style="margin-bottom: 24px;">
-            <div class="card-header">
-                <h3><i class="fas fa-user-tie"></i> Xodim ma'lumotlari</h3>
+<div class="tfd-page">
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="tfd-sb">
+        <div class="tfd-sb-head">
+            <div class="tfd-avatar">
+                {% if employee.photo %}<img src="{{ employee.photo.url }}" alt="{{ employee.first_name }}">{% else %}{{ employee.first_name|first|upper }}{{ employee.last_name|first|upper }}{% endif %}
             </div>
-            <div class="card-body">
-                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
-                    {% if employee.photo %}
-                    <img src="{{ employee.photo.url }}" alt="{{ employee.first_name }}" style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover;">
-                    {% else %}
-                    <div style="width: 72px; height: 72px; border-radius: 50%; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.5rem;">
-                        {{ employee.first_name|first|upper }}{{ employee.last_name|first|upper }}
-                    </div>
-                    {% endif %}
-                    <div>
-                        <strong style="font-size: 1.2rem;">{{ employee.first_name }} {{ employee.last_name }}</strong>
-                        {% if employee.user %}
-                        <div style="font-size: 0.8rem; color: #16a34a; margin-top: 4px;"><i class="fas fa-check-circle"></i> Login mavjud</div>
-                        {% endif %}
-                    </div>
-                </div>
-                <table class="table min">
-                    <tbody>
-                        <tr><td><strong>Telefon:</strong></td><td>+998 {{ employee.phone }}</td></tr>
-                        <tr><td><strong>Elektron pochta:</strong></td><td>{{ employee.email|default:"-" }}</td></tr>
-                        <tr><td><strong>Jinsi:</strong></td><td>{{ employee.get_gender_display|default:"-" }}</td></tr>
-                        <tr><td><strong>Tug'ilgan sana:</strong></td><td>{{ employee.birth_date|date:"d.m.Y"|default:"-" }}</td></tr>
-                        <tr><td><strong>Vazifasi:</strong></td><td>{% if employee.position %}<span class="badge badge-blue">{{ employee.position.name }}</span>{% else %}<span style="color:#94a3b8;">-</span>{% endif %}</td></tr>
-                        <tr><td><strong>Rol:</strong></td><td>{% if employee.role %}<span class="badge badge-purple">{{ employee.role.name }}</span>{% else %}<span style="color:#94a3b8;">-</span>{% endif %}</td></tr>
-                        <tr><td><strong>Filiallar:</strong></td><td>{% for b in employee.branches.all %}<span class="badge badge-green" style="margin:1px;">{{ b.name }}</span>{% empty %}<span style="color:#94a3b8;">-</span>{% endfor %}</td></tr>
-                        <tr><td><strong>Ish haqi:</strong></td><td>{% if employee.salary_enabled %}{{ employee.salary|default:"0" }} so'm{% else %}<span style="color:#94a3b8;">Chiqmaydi</span>{% endif %}</td></tr>
-                        <tr><td><strong>Guruhlar soni:</strong></td><td><span class="badge" style="background:#e0f2fe;color:#0369a1;">{{ groups|length }} ta guruh</span></td></tr>
-                        <tr><td><strong>Izoh:</strong></td><td>{{ employee.notes|default:"-" }}</td></tr>
-                        <tr><td><strong>Ro'yxatdan o'tgan:</strong></td><td>{{ employee.created_at|date:"d.m.Y H:i" }}</td></tr>
-                    </tbody>
-                </table>
-                <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
-                    <a href="{% url 'employee_update' employee.pk %}" class="btn btn-warning"><i class="fas fa-edit"></i> Tahrirlash</a>
-                    <a href="{% url 'employee_delete' employee.pk %}" class="btn btn-danger"><i class="fas fa-trash"></i> O'chirish</a>
-                    <a href="{% url 'employee_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Orqaga</a>
-                </div>
+            <div class="tfd-sb-name">{{ employee.first_name }} {{ employee.last_name }}</div>
+            <div class="tfd-sb-role">{% if employee.position %}{{ employee.position.name }}{% else %}O'qituvchi{% endif %}</div>
+            <div class="tfd-sb-phone">+998 {{ employee.phone }}</div>
+            <div class="tfd-actions">
+                {% if employee.email %}
+                <a class="tfd-act" href="mailto:{{ employee.email }}" title="Xabar"><i class="far fa-envelope"></i></a>
+                {% else %}
+                <button type="button" class="tfd-act" title="Xabar"><i class="far fa-envelope"></i></button>
+                {% endif %}
+                <button type="button" class="tfd-act" title="Kalendar" onclick="switchTab('tab-oylik'); updateMoreTab('tab-oylik');"><i class="far fa-calendar-alt"></i></button>
+                <a class="tfd-act" href="tel:+998{{ employee.phone }}" title="Qo'ng'iroq"><i class="fas fa-phone-alt"></i></a>
+                {% if employee.user and 'admin.permissions.manage' in permissions or is_super_admin %}<a class="tfd-act tfd-act-settings" href="{% url 'employee_permissions' employee.pk %}" title="Sozlash — huquqlarni boshqarish"><i class="fas fa-user-shield"></i></a>{% endif %}
+                {% if 'employee.update' in permissions %}<a class="tfd-act" href="{% url 'employee_update' employee.pk %}" title="Tahrirlash"><i class="fas fa-edit"></i></a>{% endif %}
             </div>
         </div>
-    </div>
-    <div>
-        <div class="card">
-            <div class="card-header">
-                <h3><i class="fas fa-chalkboard-teacher"></i> Guruhlari ({{ groups|length }})</h3>
+
+        <div class="tfd-stats">
+            <div class="tfd-stats-label">O'qituvchi statistikasi</div>
+
+            <div class="tfd-stat">
+                <div class="tfd-stat-ic"><i class="fas fa-calendar-check"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">Davomat</span><span class="tfd-stat-v">{{ att_total|spacesep }} dars</span></div>
             </div>
-            <div class="card-body" style="padding:0;">
-                {% if groups %}
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Guruh</th>
-                            <th>Kurs</th>
-                            <th>O'quvchilar</th>
-                            <th>Holat</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for g in groups %}
-                        <tr>
-                            <td>{{ forloop.counter }}</td>
-                            <td><a href="{% url 'group_detail' g.pk %}" style="color:#2563eb;">{{ g.name }}</a></td>
-                            <td>{{ g.course.name|default:"-" }}</td>
-                            <td>{{ g.student_count }}</td>
-                            <td><span class="badge {% if g.status == 'aktiv' %}badge-green{% elif g.status == 'kutilyotgan' %}badge-yellow{% else %}badge-gray{% endif %}">{{ g.get_status_display }}</span></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <div style="text-align:center;padding:40px 20px;color:#94a3b8;">
-                    <i class="fas fa-chalkboard-teacher" style="font-size:36px;display:block;margin-bottom:12px;"></i>
-                    <p>Bu xodimga guruh biriktirilmagan</p>
+            <div class="tfd-stat">
+                <div class="tfd-stat-ic"><i class="fas fa-percent"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">Davomatdan foizi</span><span class="tfd-stat-v">{{ attendance_rate }}%</span></div>
+            </div>
+            <div class="tfd-stat">
+                <div class="tfd-stat-ic"><i class="fas fa-percentage"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">{% if salary.salary_type == 'percent' %}Ishlash foizi{% else %}Belgilangan oylik{% endif %}</span><span class="tfd-stat-v">{% if salary.salary_type == 'percent' %}{{ salary.percent|floatformat:0 }}%{% elif salary.monthly_salary %}{{ salary.monthly_salary|spacesep }} UZS{% else %}Oylik{% endif %}</span></div>
+            </div>
+            <div class="tfd-stat">
+                <div class="tfd-stat-ic"><i class="fas fa-gift"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">Bonus</span><span class="tfd-stat-v">0 UZS</span></div>
+            </div>
+            <div class="tfd-stat">
+                <div class="tfd-stat-ic"><i class="fas fa-hand-holding-usd"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">Avans qarzi</span><span class="tfd-stat-v">{{ salary.avans_balance|spacesep }} UZS</span></div>
+            </div>
+            <div class="tfd-stat">
+                <div class="tfd-stat-ic"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">Jarima</span><span class="tfd-stat-v">0 UZS</span></div>
+            </div>
+            <div class="tfd-stat">
+                <div class="tfd-stat-ic"><i class="fas fa-graduation-cap"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">Akad</span><span class="tfd-stat-v">0 UZS</span></div>
+            </div>
+            <div class="tfd-stat">
+                <div class="tfd-stat-ic"><i class="fas fa-wallet"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">Xodim balansi</span><span class="tfd-stat-v">{{ salary.balance|spacesep }} UZS</span></div>
+            </div>
+            <div class="tfd-stat">
+                <div class="tfd-stat-ic"><i class="fas fa-hourglass-half"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">To'lanmagan</span><span class="tfd-stat-v">{{ salary.pending_amount|spacesep }} UZS</span></div>
+            </div>
+            <div class="tfd-stat">
+                <div class="tfd-stat-ic"><i class="fas fa-book-open"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">Darslar</span><span class="tfd-stat-v">{{ total_lessons|default:0 }} ta</span></div>
+            </div>
+            <button type="button" class="tfd-stat tfd-toggle" onclick="toggleGuruhlar()">
+                <div class="tfd-stat-ic"><i class="fas fa-layer-group"></i></div>
+                <div class="tfd-stat-b"><span class="tfd-stat-l">Guruhlar</span><span class="tfd-stat-v">{{ groups|length }} ta</span></div>
+                <i class="fas fa-chevron-down tfd-stat-caret"></i>
+            </button>
+        </div>
+
+        <div class="tfd-stats tfd-guruhlar" id="tfdGuruhlarList" style="display:none;">
+            <div class="tfd-stats-label">Guruhlar ro'yxati ({{ groups|length }})</div>
+            {% for g in groups %}
+            <a href="{% url 'group_detail' g.pk %}" class="tfd-stat" title="{{ g.course.name|default:'' }}">
+                <div class="tfd-stat-ic"><i class="fas fa-layer-group"></i></div>
+                <div class="tfd-stat-b">
+                    <span class="tfd-stat-l">{{ g.name }}</span>
+                    <span class="tfd-stat-v">{{ g.student_count }} ta</span>
                 </div>
+            </a>
+            {% empty %}
+            <div style="padding:6px 10px;font-size:12px;color:var(--tx3);">Guruhlar mavjud emas</div>
+            {% endfor %}
+        </div>
+
+        <div class="tfd-sb-foot">
+            <a href="{% url 'employee_list' %}" class="tfd-sb-link"><i class="fas fa-arrow-left"></i> Xodimlar ro'yxati</a>
+        </div>
+    </aside>
+
+    <!-- ================= MAIN ================= -->
+    <main class="tfd-main">
+
+        <div class="tfd-head">
+            <div>
+                <div class="tfd-title">O'qituvchi profili</div>
+                <div class="tfd-sub">{{ employee.first_name }} {{ employee.last_name }} · Moliyaviy boshqaruv paneli</div>
+            </div>
+            <div class="tfd-head-actions">
+                {% if employee.user and 'admin.permissions.manage' in permissions or is_super_admin %}<a class="tfd-btn" href="{% url 'employee_permissions' employee.pk %}" style="border:1.5px solid #93C5FD;color:var(--p);"><i class="fas fa-user-shield"></i> Sozlash</a>{% endif %}
+                {% if 'employee.update' in permissions %}<button type="button" class="tfd-btn" onclick="openProfilePercent()"><i class="fas fa-percent"></i> Foizni tahrirlash</button>{% endif %}
+                {% if salary.balance > 0 and 'employee.update' in permissions %}
+                <button type="button" class="tfd-btn tfd-btn-primary" onclick="openProfilePay()"><i class="fas fa-money-bill-wave"></i> Oylik to'lash</button>
                 {% endif %}
             </div>
         </div>
-    </div>
-    {% if receipts %}
-    <div style="grid-column: 1 / -1; margin-top: 0;">
-      <div class="card">
-        <div class="card-header">
-          <h3><i class="fas fa-receipt"></i> Cheklar ({{ receipts|length }})</h3>
-          <a href="{% url 'receipt_list' %}?q={{ employee.first_name }} {{ employee.last_name }}" style="font-size:13px;color:#2563eb;">Barchasini ko'rish</a>
+
+        <!-- ===== PILL TABS ===== -->
+        <div class="tfd-tabs">
+            <button type="button" class="tfd-tab active" data-tab="tab-tranz" data-table="1"><i class="fas fa-exchange-alt"></i> Tranzaksiyalar tarixi</button>
+            <button type="button" class="tfd-tab" data-tab="tab-tolovlar"><i class="fas fa-coins"></i> O'quvchilar to'lovlari</button>
+            <button type="button" class="tfd-tab" data-tab="tab-avans"><i class="fas fa-hand-holding-usd"></i> Avans tarixi</button>
+            <button type="button" class="tfd-tab" data-tab="tab-t-tarix"><i class="fas fa-hourglass-half"></i> To'lanmagan tarixi</button>
+            <button type="button" class="tfd-tab" data-tab="tab-t-tolov"><i class="fas fa-exclamation-circle"></i> To'lanmagan to'lovlar</button>
+            <button type="button" class="tfd-tab" data-tab="tab-harakat" data-table="1"><i class="fas fa-history"></i> Harakatlar tarixi</button>
+            <button type="button" class="tfd-tab" data-tab="tab-eslatma"><i class="fas fa-sticky-note"></i> Eslatma</button>
+            <button type="button" class="tfd-tab" data-tab="tab-kpi"><i class="fas fa-chart-line"></i> KPI asboblar paneli</button>
+            <button type="button" class="tfd-tab" data-tab="tab-balans" data-table="1"><i class="fas fa-scale-balanced"></i> Balans tarixi</button>
+            <button type="button" class="tfd-tab" data-tab="tab-oylik" data-table="1"><i class="fas fa-wallet"></i> Oylik tarixi</button>
+            <button type="button" class="tfd-tab" data-tab="tab-hisobot"><i class="fas fa-file-alt"></i> O'qituvchining hisoboti</button>
+            <button type="button" class="tfd-tab" data-tab="tab-qongiroq"><i class="fas fa-phone-alt"></i> Qo'ng'iroqlar tarixi</button>
+            <button type="button" class="tfd-tab" data-tab="tab-guruhlar"><i class="fas fa-layer-group"></i> Guruhlar</button>
+            <button type="button" class="tfd-tab" data-tab="tab-audit" data-table="1"><i class="fas fa-shield-alt"></i> Harakatlar tarixi (audit)</button>
+            <div class="tfd-more" id="tfdMore">
+                <button type="button" class="tfd-tab" onclick="event.stopPropagation(); toggleMore()"><i class="fas fa-ellipsis-h"></i> Yana</button>
+                <div class="tfd-more-menu">
+                    {% if 'employee.update' in permissions %}<a class="tfd-more-item" href="{% url 'employee_update' employee.pk %}"><i class="fas fa-edit"></i> Profilni tahrirlash</a>{% endif %}
+                    {% if 'employee.update' in permissions %}<button type="button" class="tfd-more-item" onclick="openProfilePay()"><i class="fas fa-money-bill-wave"></i> Oylik to'lash</button>{% endif %}
+                    {% if 'employee.update' in permissions %}<button type="button" class="tfd-more-item" onclick="openProfilePercent()"><i class="fas fa-percent"></i> Foizni tahrirlash</button>{% endif %}
+                    <a class="tfd-more-item" href="{% url 'employee_list' %}"><i class="fas fa-users"></i> Xodimlar ro'yxati</a>
+                </div>
+            </div>
         </div>
-        <div class="card-body" style="padding:0;">
-          <table class="table min">
-            <thead>
-              <tr><th>#</th><th>O'quvchi</th><th>Summa</th><th>Sana</th></tr>
-            </thead>
-            <tbody>
-              {% for r in receipts %}
-              <tr>
-                <td>{{ r.transaction_id }}</td>
-                <td>{{ r.student_name }}</td>
-                <td style="font-weight:600;color:#16a34a;">{{ r.amount|floatformat:0 }}</td>
-                <td style="color:#64748b;">{{ r.created_at|date:"d.m.Y H:i" }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+
+        <!-- ===== TOOLBAR ===== -->
+        <div class="tfd-toolbar" id="tfdToolbar">
+            <div class="tfd-filter">
+                <label>Sana</label>
+                <input type="date" class="tfd-input" id="tfdDate" onchange="applyFilters()">
+            </div>
+            <div class="tfd-filter">
+                <label>Tranzaksiya turi</label>
+                <select class="tfd-select" id="tfdType" onchange="applyFilters()">
+                    <option value="">Barchasi</option>
+                    <option value="income">To'lovdan tushum</option>
+                    <option value="payout">Oylik berildi</option>
+                    <option value="refund">Qaytarilgan to'lov</option>
+                    <option value="correction">Tuzatish</option>
+                </select>
+            </div>
+            <div class="tfd-filter">
+                <label>O'quvchi</label>
+                <div class="tfd-dd" id="tfdStudentDD">
+                    <input type="hidden" id="tfdStudent" value="">
+                    <button type="button" class="tfd-select tfd-dd-btn" onclick="toggleDD('tfdStudentDD')">
+                        <span class="tfd-dd-val">Barchasi</span><i class="fas fa-chevron-down tfd-dd-arrow"></i>
+                    </button>
+                    <div class="tfd-dd-menu">
+                        <input type="text" class="tfd-input tfd-dd-search" placeholder="O'quvchini qidirish..." oninput="filterDD(this,'tfdStudentList')" onclick="event.stopPropagation()" autocomplete="off">
+                        <div class="tfd-dd-list" id="tfdStudentList">
+                            <button type="button" class="tfd-dd-item sel" data-val="" onclick="pickDD('tfdStudent','tfdStudentDD','')">Barchasi</button>
+                            {% for s in filter_students %}<button type="button" class="tfd-dd-item" data-val="{{ s|lower }}" onclick="pickDD('tfdStudent','tfdStudentDD','{{ s|lower }}',this)">{{ s }}</button>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tfd-filter">
+                <label>Guruh</label>
+                <div class="tfd-dd" id="tfdGroupDD">
+                    <input type="hidden" id="tfdGroup" value="">
+                    <button type="button" class="tfd-select tfd-dd-btn" onclick="toggleDD('tfdGroupDD')">
+                        <span class="tfd-dd-val">Barchasi</span><i class="fas fa-chevron-down tfd-dd-arrow"></i>
+                    </button>
+                    <div class="tfd-dd-menu">
+                        <input type="text" class="tfd-input tfd-dd-search" placeholder="Guruhni qidirish..." oninput="filterDD(this,'tfdGroupList')" onclick="event.stopPropagation()" autocomplete="off">
+                        <div class="tfd-dd-list" id="tfdGroupList">
+                            <button type="button" class="tfd-dd-item sel" data-val="" onclick="pickDD('tfdGroup','tfdGroupDD','')">Barchasi</button>
+                            {% for g in filter_groups %}<button type="button" class="tfd-dd-item" data-val="{{ g|lower }}" onclick="pickDD('tfdGroup','tfdGroupDD','{{ g|lower }}',this)">{{ g }}</button>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tfd-toolbar-actions">
+                <button type="button" class="tfd-icobtn" id="tfdFilterBtn" title="Filtrlarni tozalash" onclick="resetFilters()"><i class="fas fa-filter"></i></button>
+                <div style="position:relative;">
+                    <button type="button" class="tfd-icobtn" title="Sozlamalar" onclick="toggleSettings()"><i class="fas fa-cog"></i></button>
+                    <div class="tfd-cols-menu" id="tfdSettingsMenu">
+                        {% if 'employee.update' in permissions %}<a class="tfd-more-item" href="{% url 'employee_update' employee.pk %}"><i class="fas fa-edit"></i> Profilni tahrirlash</a>{% endif %}
+                        {% if 'employee.update' in permissions %}<button type="button" class="tfd-more-item" onclick="openProfilePay()"><i class="fas fa-money-bill-wave"></i> Oylik to'lash</button>{% endif %}
+                        {% if 'employee.update' in permissions %}<button type="button" class="tfd-more-item" onclick="openProfilePercent()"><i class="fas fa-percent"></i> Foizni tahrirlash</button>{% endif %}
+                        <a class="tfd-more-item" href="{% url 'employee_list' %}"><i class="fas fa-users"></i> Xodimlar ro'yxati</a>
+                    </div>
+                </div>
+                <div style="position:relative;">
+                    <button type="button" class="tfd-icobtn" title="Ustunlar" onclick="toggleCols()"><i class="fas fa-columns"></i></button>
+                    <div class="tfd-cols-menu" id="tfdColsMenu">
+                        <label class="tfd-col-item"><input type="checkbox" id="col-date" checked onchange="toggleCol('date')"> Sana</label>
+                        <label class="tfd-col-item"><input type="checkbox" id="col-student" checked onchange="toggleCol('student')"> O'quvchilar</label>
+                        <label class="tfd-col-item"><input type="checkbox" id="col-group" checked onchange="toggleCol('group')"> Guruh</label>
+                        <label class="tfd-col-item"><input type="checkbox" id="col-type" checked onchange="toggleCol('type')"> Turi</label>
+                        <label class="tfd-col-item"><input type="checkbox" id="col-status" checked onchange="toggleCol('status')"> Holati</label>
+                        <label class="tfd-col-item"><input type="checkbox" id="col-note" checked onchange="toggleCol('note')"> Izoh</label>
+                        <label class="tfd-col-item"><input type="checkbox" id="col-amount" checked onchange="toggleCol('amount')"> Miqdori</label>
+                        <label class="tfd-col-item"><input type="checkbox" id="col-next" checked onchange="toggleCol('next')"> Keyingi Miqdor</label>
+                        <label class="tfd-col-item"><input type="checkbox" id="col-prev" checked onchange="toggleCol('prev')"> Oldingi Miqdor</label>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-    {% endif %}
+
+        <!-- ===== SCROLLABLE BODY (only this scrolls) ===== -->
+        <div class="tfd-body">
+
+        <!-- ===== TAB: TRANZAKSIYALAR ===== -->
+        <div class="tfd-tab-content active" id="tab-tranz">
+            <div class="tfd-table-card">
+                {% if salary.transactions %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead>
+                            <tr>
+                                <th class="col-date">Sana</th>
+                                <th class="col-student">O'quvchilar</th>
+                                <th class="col-group">Guruh</th>
+                                <th class="col-type">Turi</th>
+                                <th class="col-status">Holati</th>
+                                <th class="col-note">Izoh</th>
+                                <th class="col-amount num">Miqdori</th>
+                                <th class="col-next num">Keyingi Miqdor</th>
+                                <th class="col-prev num">Oldingi Miqdor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in salary.transactions %}
+                            <tr data-date="{{ t.date }}" data-type="{{ t.transaction_type }}" data-student="{{ t.student_name|lower }}" data-group="{{ t.group_name|lower }}" data-search="{{ t.student_name|lower }} {{ t.group_name|lower }} {{ t.description|default:''|lower }}">
+                                <td class="col-date tfd-cell-muted">{{ t.date }}</td>
+                                <td class="col-student"><span class="tfd-student">{{ t.student_name|default:"—" }}</span></td>
+                                <td class="col-group"><span class="tfd-group">{{ t.group_name|default:"—" }}</span></td>
+                                <td class="col-type">
+                                    {% if t.transaction_type == 'income' %}<span class="tfd-bdg tfd-bdg-green"><i class="fas fa-arrow-down"></i> To'lovdan tushum</span>
+                                    {% elif t.transaction_type == 'payout' %}
+                                      {% if t.salary_type == 'advance' %}<span class="tfd-bdg tfd-bdg-amber"><i class="fas fa-hand-holding-usd"></i> Avans berildi</span>
+                                      {% else %}<span class="tfd-bdg tfd-bdg-blue"><i class="fas fa-arrow-up"></i> Oylik berildi</span>{% endif %}
+                                    {% elif t.transaction_type == 'refund' %}<span class="tfd-bdg tfd-bdg-amber"><i class="fas fa-undo"></i> Qaytarilgan</span>
+                                    {% else %}<span class="tfd-bdg tfd-bdg-purple"><i class="fas fa-pen"></i> Tuzatish</span>{% endif %}
+                                </td>
+                                <td class="col-status">
+                                    {% if t.transaction_type == 'income' %}<span class="tfd-bdg tfd-bdg-green">Tasdiqlangan</span>
+                                    {% elif t.transaction_type == 'payout' %}<span class="tfd-bdg tfd-bdg-blue">Yakunlangan</span>
+                                    {% elif t.transaction_type == 'refund' %}<span class="tfd-bdg tfd-bdg-amber">Qaytarilgan</span>
+                                    {% else %}<span class="tfd-bdg tfd-bdg-gray">Tuzatish</span>{% endif %}
+                                </td>
+                                <td class="col-note"><span class="tfd-note">{{ t.description|default:"—" }}</span></td>
+                                <td class="col-amount num">
+                                    {% if t.amount < 0 %}<span class="tfd-amt neg">{{ t.amount|spacesep }} UZS</span>
+                                    {% else %}<span class="tfd-amt pos">{{ t.amount|spacesep }} UZS</span>{% endif %}
+                                </td>
+                                <td class="col-next num tfd-bal">{{ t.balance_after|spacesep }} UZS</td>
+                                <td class="col-prev num tfd-bal">{{ t.prev_balance|spacesep }} UZS</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-exchange-alt"></i><span>Tranzaksiyalar mavjud emas</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ===== TAB: O'QUVCHILAR TO'LOVLARI ===== -->
+        <div class="tfd-tab-content" id="tab-tolovlar">
+            <div class="tfd-table-card">
+                {% if lessons %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead>
+                            <tr><th>Sana</th><th>O'quvchi</th><th>Guruh</th><th class="num">Dars narxi</th><th class="num">Foiz</th><th class="num">Summa</th><th>Holat</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for l in lessons %}
+                            <tr>
+                                <td class="tfd-cell-muted">{{ l.date|date:"d.m.Y" }}</td>
+                                <td><span class="tfd-student">{{ l.student }}</span></td>
+                                <td><span class="tfd-group">{% if l.group %}{{ l.group.name }}{% else %}—{% endif %}</span></td>
+                                <td class="num tfd-bal">{{ l.lesson_price|spacesep }} UZS</td>
+                                <td class="num tfd-bal">{{ l.teacher_percent|floatformat:0 }}%</td>
+                                <td class="num tfd-amt pos">{{ l.teacher_amount|spacesep }} UZS</td>
+                                <td>{% if l.status == 'paid' %}<span class="tfd-bdg tfd-bdg-green"><i class="fas fa-check-circle"></i> To'langan</span>{% else %}<span class="tfd-bdg tfd-bdg-red"><i class="fas fa-clock"></i> Kutilayotgan</span>{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-coins"></i><span>O'quvchilar to'lovlari mavjud emas</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ===== TAB: AVANS TARIXI ===== -->
+        <div class="tfd-tab-content" id="tab-avans">
+            <div class="tfd-table-card">
+                {% if advance_payout_transactions %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead><tr><th>Sana</th><th>Turi</th><th>Izoh</th><th class="num">Miqdori</th><th class="num">Keyingi Miqdor</th></tr></thead>
+                        <tbody>
+                            {% for t in advance_payout_transactions %}
+                            <tr data-date="{{ t.date }}" data-type="{{ t.transaction_type }}" data-student="{{ t.student_name|lower }}" data-group="{{ t.group_name|lower }}" data-search="{{ t.student_name|lower }} {{ t.group_name|lower }} {{ t.description|default:''|lower }}">
+                                <td class="tfd-cell-muted">{{ t.date }}</td>
+                                <td><span class="tfd-bdg tfd-bdg-amber"><i class="fas fa-hand-holding-usd"></i> Avans</span></td>
+                                <td><span class="tfd-note">{{ t.description|default:"Avans berildi" }}</span></td>
+                                <td class="num"><span class="tfd-amt neg">{{ t.amount|spacesep }} UZS</span></td>
+                                <td class="num tfd-bal">{{ t.balance_after|spacesep }} UZS</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-hand-holding-usd"></i><span>Avans tarixi mavjud emas</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ===== TAB: TO'LANMAGAN TARIXI ===== -->
+        <div class="tfd-tab-content" id="tab-t-tarix">
+            <div class="tfd-table-card">
+                {% if salary.pending_students %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead><tr><th>O'quvchi</th><th class="num">Darslar</th><th class="num">Summa</th></tr></thead>
+                        <tbody>
+                            {% for p in salary.pending_students %}
+                            <tr>
+                                <td><span class="tfd-student">{{ p.student_name }}</span></td>
+                                <td class="num tfd-bal">{{ p.lessons }} ta</td>
+                                <td class="num"><span class="tfd-amt neg">{{ p.amount|spacesep }} UZS</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-check-circle"></i><span>Kutilayotgan to'lovlar yo'q</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ===== TAB: TO'LANMAGAN TO'LOVLAR ===== -->
+        <div class="tfd-tab-content" id="tab-t-tolov">
+            <div class="tfd-kpi-grid">
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-hourglass-half"></i> Kutilayotgan summa</div><div class="k-v" style="color:#D97706;">{{ salary.pending_amount|spacesep }} UZS</div><div class="k-s">Jami to'lanmagan</div></div>
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-book-open"></i> Kutilayotgan darslar</div><div class="k-v">{{ salary.pending_count }}</div><div class="k-s">To'lov qilinmagan darslar</div></div>
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-users"></i> O'quvchilar</div><div class="k-v">{{ salary.pending_student_count }}</div><div class="k-s">Qarzi bor o'quvchilar</div></div>
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-wallet"></i> Mavjud oylik</div><div class="k-v" style="color:var(--p);">{{ salary.balance|spacesep }} UZS</div><div class="k-s">Balansdagi summa</div></div>
+            </div>
+            {% if salary.pending_amount > 0 %}
+            <div class="tfd-pending">
+                <strong><i class="fas fa-info-circle"></i> Kutilayotgan summa: {{ salary.pending_amount|spacesep }} UZS</strong>
+                <span>To'lov qilinganda avtomatik yoziladi (FIFO)</span>
+            </div>
+            {% endif %}
+            <div class="tfd-table-card">
+                {% if salary.pending_students %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead><tr><th>O'quvchi</th><th class="num">Darslar</th><th class="num">Summa</th></tr></thead>
+                        <tbody>
+                            {% for p in salary.pending_students %}
+                            <tr>
+                                <td><span class="tfd-student">{{ p.student_name }}</span></td>
+                                <td class="num tfd-bal">{{ p.lessons }} ta</td>
+                                <td class="num"><span class="tfd-amt neg">{{ p.amount|spacesep }} UZS</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-check-circle"></i><span>Kutilayotgan to'lovlar yo'q</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ===== TAB: HARAKATLAR TARIXI ===== -->
+        <div class="tfd-tab-content" id="tab-harakat">
+            <div class="tfd-table-card">
+                {% if salary.transactions %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead>
+                            <tr><th>Sana</th><th>O'quvchi</th><th>Turi</th><th>Izoh</th><th class="num">Miqdori</th><th>Kim tomonidan</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for t in salary.transactions %}
+                            <tr data-date="{{ t.date }}" data-type="{{ t.transaction_type }}" data-student="{{ t.student_name|lower }}" data-group="{{ t.group_name|lower }}" data-search="{{ t.student_name|lower }} {{ t.group_name|lower }} {{ t.description|default:''|lower }}">
+                                <td class="tfd-cell-muted">{{ t.date }}</td>
+                                <td><span class="tfd-student">{{ t.student_name|default:"—" }}</span></td>
+                                <td>
+                                    {% if t.transaction_type == 'income' %}<span class="tfd-bdg tfd-bdg-green">To'lovdan tushum</span>
+                                    {% elif t.transaction_type == 'payout' %}
+                                      {% if t.salary_type == 'advance' %}<span class="tfd-bdg tfd-bdg-amber">Avans berildi</span>
+                                      {% else %}<span class="tfd-bdg tfd-bdg-blue">Oylik berildi</span>{% endif %}
+                                    {% elif t.transaction_type == 'refund' %}<span class="tfd-bdg tfd-bdg-amber">Qaytarilgan</span>
+                                    {% else %}<span class="tfd-bdg tfd-bdg-purple">Tuzatish</span>{% endif %}
+                                </td>
+                                <td><span class="tfd-note">{{ t.description|default:"—" }}</span></td>
+                                <td class="num">
+                                    {% if t.amount < 0 %}<span class="tfd-amt neg">{{ t.amount|spacesep }} UZS</span>
+                                    {% else %}<span class="tfd-amt pos">{{ t.amount|spacesep }} UZS</span>{% endif %}
+                                </td>
+                                <td class="tfd-cell-muted">{{ t.created_by|default:"—" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-history"></i><span>Harakatlar tarixi mavjud emas</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ===== TAB: ESLATMA ===== -->
+        <div class="tfd-tab-content" id="tab-eslatma">
+            <div class="tfd-card">
+                <div class="tfd-card-hd"><div><h3><i class="fas fa-sticky-note"></i> Eslatma</h3><p>Xodim haqidagi izohlar</p></div></div>
+                <div class="tfd-card-bd">
+                    <p style="font-size:14px;color:#374151;line-height:1.7;margin:0;">{{ employee.notes|default:"Eslatma mavjud emas" }}</p>
+                </div>
+            </div>
+            <div class="tfd-card">
+                <div class="tfd-card-hd"><div><h3>Umumiy ma'lumot</h3><p>Xodim profili</p></div></div>
+                <div class="tfd-card-bd">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px 24px;">
+                        <div><div class="tfd-lbl">Telefon</div><div style="font-size:14px;font-weight:600;color:var(--tx);">+998 {{ employee.phone }}</div></div>
+                        <div><div class="tfd-lbl">Email</div><div style="font-size:14px;color:var(--tx);">{{ employee.email|default:"—" }}</div></div>
+                        <div><div class="tfd-lbl">Vazifasi</div><div style="font-size:14px;color:var(--tx);">{% if employee.position %}{{ employee.position.name }}{% else %}—{% endif %}</div></div>
+                        <div><div class="tfd-lbl">Rol</div><div style="font-size:14px;color:var(--tx);">{% if employee.role %}{{ employee.role.name }}{% else %}—{% endif %}</div></div>
+                        <div><div class="tfd-lbl">Qo'shilgan sana</div><div style="font-size:14px;color:var(--tx);">{{ employee.created_at|date:"d.m.Y" }}</div></div>
+                        <div><div class="tfd-lbl">Filiallar</div><div style="font-size:14px;color:var(--tx);">{% for b in employee.branches.all %}{{ b.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</div></div>
+                        <div><div class="tfd-lbl">Ish haqi turi</div><div style="font-size:14px;color:var(--tx);">{% if employee.salary_enabled %}{% if employee.salary_type == 'percent' %}Foiz: {{ employee.percent|floatformat:0 }}%{% elif employee.monthly_salary %}Oylik: {{ employee.monthly_salary|floatformat:0 }} so'm{% else %}Oylik{% endif %}{% else %}Chiqmaydi{% endif %}</div></div>
+                        <div><div class="tfd-lbl">Login holati</div><div style="font-size:14px;color:var(--tx);">{% if employee.user %}<span class="tfd-bdg tfd-bdg-green"><i class="fas fa-check-circle"></i> Mavjud</span>{% else %}<span class="tfd-bdg tfd-bdg-gray">Yo'q</span>{% endif %}</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: KPI ===== -->
+        <div class="tfd-tab-content" id="tab-kpi">
+            <div class="tfd-kpi-grid">
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-wallet"></i> Mavjud oylik</div><div class="k-v" style="color:var(--p);">{{ salary.balance|spacesep }} UZS</div><div class="k-s">Balansdagi mavjud summa</div></div>
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-arrow-down"></i> Bu oy ishlangan</div><div class="k-v" style="color:var(--ok);">{{ salary.month_earned|spacesep }} UZS</div><div class="k-s">Davomat asosida</div></div>
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-sun"></i> Bugungi tushum</div><div class="k-v">{{ salary.today_income|spacesep }} UZS</div><div class="k-s">Bugungi tushgan summa</div></div>
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-arrow-up"></i> Bu oy to'langan</div><div class="k-v" style="color:var(--dng);">{{ salary.month_paid|spacesep }} UZS</div><div class="k-s">To'lab berilgan summa</div></div>
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-book-open"></i> O'tilgan darslar</div><div class="k-v">{{ total_lessons }}</div><div class="k-s">{{ month_lessons }} ta bu oyda</div></div>
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-calendar-check"></i> Davomat</div><div class="k-v">{{ attendance_rate }}%</div><div class="k-s">{{ att_present }} / {{ att_total }} keldi</div></div>
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-users"></i> Aktiv guruhlar</div><div class="k-v">{{ groups|length }}</div><div class="k-s">Biriktirilgan guruhlar</div></div>
+                <div class="tfd-kpi"><div class="k-l"><i class="fas fa-hourglass-half"></i> Kutilayotgan</div><div class="k-v" style="color:#D97706;">{{ salary.pending_amount|spacesep }} UZS</div><div class="k-s">{{ salary.pending_student_count }} ta o'quvchi</div></div>
+            </div>
+            <div class="tfd-card">
+                <div class="tfd-card-hd"><div><h3><i class="fas fa-chart-pie"></i> Oylik xulosasi</h3><p>Balans va prognoz</p></div></div>
+                <div class="tfd-card-bd">
+                    <div class="tfd-bar-row"><span class="b-l">Mavjud oylik</span><span class="b-v" style="color:var(--p);">{{ salary.balance|spacesep }} UZS</span></div>
+                    <div class="tfd-bar"><span class="tfd-bar-blue" style="width:{{ salary_bar }}%;"></span></div>
+                    <div class="tfd-bar-row"><span class="b-l">Bu oy ishlangan</span><span class="b-v" style="color:var(--ok);">{{ salary.month_earned|spacesep }} UZS</span></div>
+                    <div class="tfd-bar"><span class="tfd-bar-green" style="width:{{ income_bar }}%;"></span></div>
+                    <div class="tfd-bar-row"><span class="b-l">Kutilayotgan</span><span class="b-v" style="color:#D97706;">{{ salary.pending_amount|spacesep }} UZS</span></div>
+                    <div class="tfd-bar"><span class="tfd-bar-orange" style="width:{{ pending_bar }}%;"></span></div>
+                    <div class="tfd-bar-row"><span class="b-l">Davomat darajasi</span><span class="b-v">{{ attendance_rate }}%</span></div>
+                    <div class="tfd-bar"><span class="tfd-bar-purple" style="width:{{ attendance_rate }}%;"></span></div>
+                    <div class="tfd-bar-row"><span class="b-l">Oy davom etmoqda</span><span class="b-v">{{ month_progress }}%</span></div>
+                    <div class="tfd-bar"><span class="tfd-bar-blue" style="width:{{ month_progress }}%;"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: BALANS TARIXI ===== -->
+        <div class="tfd-tab-content" id="tab-balans">
+            <div class="tfd-table-card">
+                {% if salary.transactions %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead>
+                            <tr><th>Sana</th><th>O'quvchi</th><th>Turi</th><th class="num">Miqdori</th><th class="num">Oldingi Miqdor</th><th class="num">Keyingi Miqdor</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for t in salary.transactions %}
+                            <tr data-date="{{ t.date }}" data-type="{{ t.transaction_type }}" data-student="{{ t.student_name|lower }}" data-group="{{ t.group_name|lower }}" data-search="{{ t.student_name|lower }} {{ t.group_name|lower }} {{ t.description|default:''|lower }}">
+                                <td class="tfd-cell-muted">{{ t.date }}</td>
+                                <td><span class="tfd-student">{{ t.student_name|default:"—" }}</span></td>
+                                <td>
+                                    {% if t.transaction_type == 'income' %}<span class="tfd-bdg tfd-bdg-green">To'lovdan tushum</span>
+                                    {% elif t.transaction_type == 'payout' %}
+                                      {% if t.salary_type == 'advance' %}<span class="tfd-bdg tfd-bdg-amber">Avans berildi</span>
+                                      {% else %}<span class="tfd-bdg tfd-bdg-blue">Oylik berildi</span>{% endif %}
+                                    {% elif t.transaction_type == 'refund' %}<span class="tfd-bdg tfd-bdg-amber">Qaytarilgan</span>
+                                    {% else %}<span class="tfd-bdg tfd-bdg-purple">Tuzatish</span>{% endif %}
+                                </td>
+                                <td class="num">
+                                    {% if t.amount < 0 %}<span class="tfd-amt neg">{{ t.amount|spacesep }} UZS</span>
+                                    {% else %}<span class="tfd-amt pos">{{ t.amount|spacesep }} UZS</span>{% endif %}
+                                </td>
+                                <td class="num tfd-bal">{{ t.prev_balance|spacesep }} UZS</td>
+                                <td class="num tfd-bal">{{ t.balance_after|spacesep }} UZS</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-scale-balanced"></i><span>Balans tarixi mavjud emas</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ===== TAB: OYLIK TARIXI ===== -->
+        <div class="tfd-tab-content" id="tab-oylik">
+            <div class="tfd-table-card">
+                {% if salary_payout_transactions %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead><tr><th>Sana</th><th>Turi</th><th>Izoh</th><th class="num">Miqdori</th><th class="num">Keyingi Miqdor</th></tr></thead>
+                        <tbody>
+                            {% for t in salary_payout_transactions %}
+                            <tr data-date="{{ t.date }}" data-type="{{ t.transaction_type }}" data-student="{{ t.student_name|lower }}" data-group="{{ t.group_name|lower }}" data-search="{{ t.student_name|lower }} {{ t.group_name|lower }} {{ t.description|default:''|lower }}">
+                                <td class="tfd-cell-muted">{{ t.date }}</td>
+                                <td><span class="tfd-bdg tfd-bdg-purple"><i class="fas fa-money-bill-wave"></i> Oylik</span></td>
+                                <td><span class="tfd-note">{{ t.description|default:"Oylik berildi" }}</span></td>
+                                <td class="num"><span class="tfd-amt neg">{{ t.amount|spacesep }} UZS</span></td>
+                                <td class="num tfd-bal">{{ t.balance_after|spacesep }} UZS</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-wallet"></i><span>Oylik tarixi mavjud emas</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ===== TAB: HISOBOT ===== -->
+        <div class="tfd-tab-content" id="tab-hisobot">
+            <div class="tfd-table-card" style="margin-bottom:16px;">
+                <div class="tfd-card-hd"><div><h3><i class="fas fa-percent"></i> Foizlar tarixi</h3><p>Ishlatilgan foizlar bo'yicha statistika</p></div></div>
+                {% if percent_history %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead><tr><th>Foiz</th><th class="num">Darslar soni</th><th>Oxirgi ishlatilgan</th></tr></thead>
+                        <tbody>
+                            {% for ph in percent_history %}
+                            <tr>
+                                <td><span class="tfd-bdg tfd-bdg-purple">{{ ph.teacher_percent|floatformat:0 }}%</span></td>
+                                <td class="num tfd-bal">{{ ph.lessons_count }} ta</td>
+                                <td class="tfd-cell-muted">{{ ph.last_date|date:"d.m.Y" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-percent"></i><span>Foiz tarixi mavjud emas</span></div>
+                {% endif %}
+            </div>
+
+            {% if groups %}
+            <div class="tfd-table-card" style="margin-bottom:16px;">
+                <div class="tfd-card-hd"><div><h3><i class="fas fa-layer-group"></i> Biriktirilgan guruhlar</h3><p>{{ groups|length }} ta guruh</p></div></div>
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead><tr><th>Guruh</th><th>Kurs</th><th class="num">O'quvchilar</th><th>Holat</th></tr></thead>
+                        <tbody>
+                            {% for g in groups %}
+                            <tr>
+                                <td><a href="{% url 'group_detail' g.pk %}" style="color:var(--p);font-weight:600;text-decoration:none;">{{ g.name }}</a></td>
+                                <td class="tfd-cell-muted">{{ g.course.name|default:"—" }}</td>
+                                <td class="num tfd-bal">{{ g.student_count }} ta</td>
+                                <td>
+                                    {% if g.status == 'aktiv' %}<span class="tfd-bdg tfd-bdg-green">Aktiv</span>
+                                    {% elif g.status == 'kutilyotgan' %}<span class="tfd-bdg tfd-bdg-amber">Kutilyotgan</span>
+                                    {% else %}<span class="tfd-bdg tfd-bdg-gray">{{ g.get_status_display }}</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if receipts %}
+            <div class="tfd-table-card">
+                <div class="tfd-card-hd"><div><h3><i class="fas fa-receipt"></i> Cheklar</h3><p>Rasmiylashtirilgan cheklar</p></div></div>
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead><tr><th>#</th><th>O'quvchi</th><th class="num">Summa</th><th>Sana</th></tr></thead>
+                        <tbody>
+                            {% for r in receipts %}
+                            <tr>
+                                <td class="tfd-cell-muted">{{ r.transaction_id }}</td>
+                                <td><span class="tfd-student">{{ r.student_name }}</span></td>
+                                <td class="num tfd-amt pos">{{ r.amount|spacesep }} UZS</td>
+                                <td class="tfd-cell-muted">{{ r.created_at|date:"d.m.Y H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ===== TAB: QO'NG'IROQLAR TARIXI ===== -->
+        <div class="tfd-tab-content" id="tab-qongiroq">
+            <div class="tfd-table-card">
+                <div class="tfd-empty"><i class="fas fa-phone-alt"></i><span>Qo'ng'iroqlar tarixi mavjud emas</span></div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: AUDIT ===== -->
+        <div class="tfd-tab-content" id="tab-audit">
+            <div class="tfd-table-card">
+                {% if salary.transactions %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead>
+                            <tr><th>Sana</th><th>O'quvchi</th><th>Guruh</th><th>Turi</th><th class="num">Miqdori</th><th>Kim tomonidan</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for t in salary.transactions %}
+                            <tr data-date="{{ t.date }}" data-type="{{ t.transaction_type }}" data-student="{{ t.student_name|lower }}" data-group="{{ t.group_name|lower }}" data-search="{{ t.student_name|lower }} {{ t.group_name|lower }} {{ t.description|default:''|lower }}">
+                                <td class="tfd-cell-muted">{{ t.date }}</td>
+                                <td><span class="tfd-student">{{ t.student_name|default:"—" }}</span></td>
+                                <td><span class="tfd-group">{{ t.group_name|default:"—" }}</span></td>
+                                <td>
+                                    {% if t.transaction_type == 'income' %}<span class="tfd-bdg tfd-bdg-green">To'lovdan tushum</span>
+                                    {% elif t.transaction_type == 'payout' %}
+                                      {% if t.salary_type == 'advance' %}<span class="tfd-bdg tfd-bdg-amber">Avans berildi</span>
+                                      {% else %}<span class="tfd-bdg tfd-bdg-blue">Oylik berildi</span>{% endif %}
+                                    {% elif t.transaction_type == 'refund' %}<span class="tfd-bdg tfd-bdg-amber">Qaytarilgan</span>
+                                    {% else %}<span class="tfd-bdg tfd-bdg-purple">Tuzatish</span>{% endif %}
+                                </td>
+                                <td class="num">
+                                    {% if t.amount < 0 %}<span class="tfd-amt neg">{{ t.amount|spacesep }} UZS</span>
+                                    {% else %}<span class="tfd-amt pos">{{ t.amount|spacesep }} UZS</span>{% endif %}
+                                </td>
+                                <td class="tfd-cell-muted">{{ t.created_by|default:"—" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-shield-alt"></i><span>Audit tarixi mavjud emas</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ===== TAB: GURUHLAR ===== -->
+        <div class="tfd-tab-content" id="tab-guruhlar">
+            <div class="tfd-ghead">
+                <div>
+                    <div class="tfd-title">Guruhlar ({{ groups|length }} ta)</div>
+                    <div class="tfd-sub">O'qituvchining barcha guruhlari</div>
+                </div>
+            </div>
+            <div class="tfd-toolbar" id="tfdGroupToolbar">
+                <div class="tfd-filter">
+                    <label>Guruh</label>
+                    <div class="tfd-dd" id="tfdGNameDD">
+                        <input type="hidden" id="tfdGName" value="">
+                        <button type="button" class="tfd-select tfd-dd-btn" onclick="toggleDD('tfdGNameDD')">
+                            <span class="tfd-dd-val">Barchasi</span><i class="fas fa-chevron-down tfd-dd-arrow"></i>
+                        </button>
+                        <div class="tfd-dd-menu">
+                            <input type="text" class="tfd-input tfd-dd-search" placeholder="Guruhni qidirish..." oninput="filterDD(this,'tfdGNameList')" onclick="event.stopPropagation()" autocomplete="off">
+                            <div class="tfd-dd-list" id="tfdGNameList">
+                                <button type="button" class="tfd-dd-item sel" data-val="" onclick="pickGDD('tfdGName','tfdGNameDD','')">Barchasi</button>
+                                {% for g in groups %}<button type="button" class="tfd-dd-item" data-val="{{ g.name|lower }}" onclick="pickGDD('tfdGName','tfdGNameDD','{{ g.name|lower }}',this)">{{ g.name }}</button>{% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tfd-filter">
+                    <label>Dars kuni</label>
+                    <div class="tfd-dd" id="tfdGDayDD">
+                        <input type="hidden" id="tfdGDay" value="">
+                        <button type="button" class="tfd-select tfd-dd-btn" onclick="toggleDD('tfdGDayDD')">
+                            <span class="tfd-dd-val">Barchasi</span><i class="fas fa-chevron-down tfd-dd-arrow"></i>
+                        </button>
+                        <div class="tfd-dd-menu">
+                            <input type="text" class="tfd-input tfd-dd-search" placeholder="Kunni qidirish..." oninput="filterDD(this,'tfdGDayList')" onclick="event.stopPropagation()" autocomplete="off">
+                            <div class="tfd-dd-list" id="tfdGDayList">
+                                <button type="button" class="tfd-dd-item sel" data-val="" onclick="pickGDD('tfdGDay','tfdGDayDD','')">Barchasi</button>
+                                <button type="button" class="tfd-dd-item" data-val="dushanba" onclick="pickGDD('tfdGDay','tfdGDayDD','dushanba',this)">Dushanba</button>
+                                <button type="button" class="tfd-dd-item" data-val="seshanba" onclick="pickGDD('tfdGDay','tfdGDayDD','seshanba',this)">Seshanba</button>
+                                <button type="button" class="tfd-dd-item" data-val="chorshanba" onclick="pickGDD('tfdGDay','tfdGDayDD','chorshanba',this)">Chorshanba</button>
+                                <button type="button" class="tfd-dd-item" data-val="payshanba" onclick="pickGDD('tfdGDay','tfdGDayDD','payshanba',this)">Payshanba</button>
+                                <button type="button" class="tfd-dd-item" data-val="juma" onclick="pickGDD('tfdGDay','tfdGDayDD','juma',this)">Juma</button>
+                                <button type="button" class="tfd-dd-item" data-val="shanba" onclick="pickGDD('tfdGDay','tfdGDayDD','shanba',this)">Shanba</button>
+                                <button type="button" class="tfd-dd-item" data-val="yakshanba" onclick="pickGDD('tfdGDay','tfdGDayDD','yakshanba',this)">Yakshanba</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tfd-filter">
+                    <label>Kurs</label>
+                    <div class="tfd-dd" id="tfdGCourseDD">
+                        <input type="hidden" id="tfdGCourse" value="">
+                        <button type="button" class="tfd-select tfd-dd-btn" onclick="toggleDD('tfdGCourseDD')">
+                            <span class="tfd-dd-val">Barchasi</span><i class="fas fa-chevron-down tfd-dd-arrow"></i>
+                        </button>
+                        <div class="tfd-dd-menu">
+                            <input type="text" class="tfd-input tfd-dd-search" placeholder="Kursni qidirish..." oninput="filterDD(this,'tfdGCourseList')" onclick="event.stopPropagation()" autocomplete="off">
+                            <div class="tfd-dd-list" id="tfdGCourseList">
+                                <button type="button" class="tfd-dd-item sel" data-val="" onclick="pickGDD('tfdGCourse','tfdGCourseDD','')">Barchasi</button>
+                                {% for c in group_courses %}<button type="button" class="tfd-dd-item" data-val="{{ c|lower }}" onclick="pickGDD('tfdGCourse','tfdGCourseDD','{{ c|lower }}',this)">{{ c }}</button>{% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tfd-toolbar-actions">
+                    <button type="button" class="tfd-icobtn" id="tfdGFilterBtn" title="Filtrlarni tozalash" onclick="resetGroupFilters()"><i class="fas fa-filter"></i></button>
+                </div>
+            </div>
+            <div class="tfd-table-card">
+                {% if groups %}
+                <div class="tfd-scroll">
+                    <table class="tfd-table">
+                        <thead>
+                            <tr><th>Guruh</th><th>Kurs</th><th>Ta'lim turi</th><th>Dars kunlari</th><th class="num">O'quvchilar</th><th>Holati</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for g in groups %}
+                            <tr data-name="{{ g.name|lower }}" data-course="{% if g.course %}{{ g.course.name|lower }}{% endif %}" data-day="{{ g.days_display|lower }}">
+                                <td><a href="{% url 'group_detail' g.pk %}" style="color:var(--p);font-weight:600;text-decoration:none;">{{ g.name }}</a></td>
+                                <td>{{ g.course.name|default:"—" }}</td>
+                                <td>{% if g.education_type == 'onlayn' %}Onlayn{% else %}Oflayn{% endif %}</td>
+                                <td>{{ g.days_display|default:"—" }}</td>
+                                <td class="num">{{ g.student_count }} ta</td>
+                                <td>
+                                    {% if g.status == 'aktiv' %}<span class="tfd-bdg tfd-bdg-green">Aktiv</span>
+                                    {% elif g.status == 'kutilyotgan' %}<span class="tfd-bdg tfd-bdg-amber">Kutilyotgan</span>
+                                    {% elif g.status == 'yopilgan' %}<span class="tfd-bdg tfd-bdg-red">Yopilgan</span>
+                                    {% else %}<span class="tfd-bdg tfd-bdg-gray">Arxivlangan</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="tfd-empty"><i class="fas fa-layer-group"></i><span>Guruhlar mavjud emas</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        </div><!-- /tfd-body -->
+
+    </main>
 </div>
+
+<!-- ===== MODAL: OYLIK TO'LASH ===== -->
+<div class="tfd-backdrop" id="payModal">
+    <div class="tfd-modal">
+        <div class="tfd-modal-hd">
+            <h3><i class="fas fa-money-bill-wave" style="color:var(--p);"></i> Oylik to'lash</h3>
+            <button type="button" class="tfd-modal-close" onclick="closeProfileModal('payModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="tfd-modal-bd">
+            <div style="display:flex;gap:12px;margin-bottom:16px;">
+                <div class="tfd-kpi" style="flex:1;box-shadow:none;"><div class="k-l">To'lanadigan summa</div><div class="k-v" style="color:var(--p);">{{ salary.balance|spacesep }} UZS</div></div>
+                <div class="tfd-kpi" style="flex:1;box-shadow:none;"><div class="k-l">{% if salary.salary_type == 'percent' %}Foiz{% else %}Belgilangan oylik{% endif %}</div><div class="k-v">{% if salary.salary_type == 'percent' %}{{ salary.percent|floatformat:0 }}%{% else %}{{ salary.monthly_salary|spacesep }} UZS{% endif %}</div></div>
+            </div>
+            <div class="tfd-field">
+                <label class="tfd-lbl">To'lov usuli</label>
+                <select class="tfd-select" id="profilePayMethod">
+                    <option value="">Tanlang...</option>
+                    {% for pm in payment_methods %}<option value="{{ pm.name }}">{{ pm.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="tfd-field">
+                <label class="tfd-lbl">Izoh</label>
+                <input type="text" class="tfd-input" id="profilePayComment" placeholder="Masalan: Iyul oyligi">
+            </div>
+            {% if 'employee.update' in permissions %}<button type="button" class="tfd-btn tfd-btn-primary" style="width:100%;justify-content:center;height:46px;" onclick="submitProfilePay()"><i class="fas fa-check"></i> Tasdiqlash</button>{% endif %}
+            <div id="profilePayMsg" style="margin-top:10px;font-size:13px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL: FOIZNI TAHRIRLASH ===== -->
+<div class="tfd-backdrop" id="percentModal">
+    <div class="tfd-modal">
+        <div class="tfd-modal-hd">
+            <h3><i class="fas fa-percent" style="color:var(--p);"></i> Oylikni tahrirlash</h3>
+            <button type="button" class="tfd-modal-close" onclick="closeProfileModal('percentModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="tfd-modal-bd">
+            <div class="tfd-field">
+                <label class="tfd-lbl">Oylik turi</label>
+                <div style="display:flex;gap:10px;">
+                    <label class="tfd-opt" id="profileOptMonthly"><input type="radio" name="profilePctType" value="monthly" style="display:none;"> Oylik</label>
+                    <label class="tfd-opt" id="profileOptPercent"><input type="radio" name="profilePctType" value="percent" style="display:none;"> Foiz</label>
+                </div>
+            </div>
+            <div class="tfd-field" id="profilePctInputWrap">
+                <label class="tfd-lbl">Foiz (%)</label>
+                <input type="number" class="tfd-input" id="profilePctValue" min="0" max="100" step="0.01" placeholder="30">
+            </div>
+            <div class="tfd-field" id="profileMsInputWrap" style="display:none;">
+                <label class="tfd-lbl">Belgilangan oylik (so'm)</label>
+                <input type="number" class="tfd-input" id="profileMsValue" min="0" step="1000" placeholder="10 000 000">
+            </div>
+            {% if 'employee.update' in permissions %}<button type="button" class="tfd-btn tfd-btn-primary" style="width:100%;justify-content:center;height:46px;" onclick="submitProfilePercent()"><i class="fas fa-check"></i> Saqlash</button>{% endif %}
+            <div id="profilePctMsg" style="margin-top:10px;font-size:13px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const PROFILE_EMP_ID = {{ employee.pk }};
+const PROFILE_SALARY = {
+  balance: {{ salary.balance|floatformat:0 }},
+  percent: {{ salary.percent|floatformat:0 }},
+  monthly_salary: {{ salary.monthly_salary|floatformat:0 }},
+  salary_type: "{{ salary.salary_type }}"
+};
+const PROFILE_PMS = [
+  {% for pm in payment_methods %}"{{ pm.name }}",{% endfor %}
+];
+
+// ===== TABS =====
+document.querySelectorAll('.tfd-tab[data-tab]').forEach(function(tab){
+  tab.addEventListener('click', function(){ switchTab(tab.dataset.tab); });
+});
+function switchTab(id){
+  document.querySelectorAll('.tfd-tab').forEach(function(t){ if(t.dataset.tab) t.classList.remove('active'); });
+  document.querySelectorAll('.tfd-tab-content').forEach(function(c){ c.classList.remove('active'); });
+  var t = document.querySelector('.tfd-tab[data-tab="'+id+'"]');
+  if (t) t.classList.add('active');
+  var c = document.getElementById(id);
+  if (c) c.classList.add('active');
+  var showToolbar = t && t.dataset.table === '1';
+  var tb = document.getElementById('tfdToolbar');
+  if (tb) tb.style.display = showToolbar ? '' : 'none';
+}
+function updateMoreTab(id){ switchTab(id); }
+function toggleMore(){
+  document.getElementById('tfdMore').classList.toggle('open');
+}
+document.addEventListener('click', function(e){
+  var m = document.getElementById('tfdMore');
+  if (m && !e.target.closest('#tfdMore')) m.classList.remove('open');
+  var cm = document.getElementById('tfdColsMenu');
+  if (cm && !e.target.closest('.tfd-cols-menu') && !e.target.closest('button[title="Ustunlar"]')) cm.classList.remove('open');
+  var sm = document.getElementById('tfdSettingsMenu');
+  if (sm && !e.target.closest('.tfd-cols-menu') && !e.target.closest('button[title="Sozlamalar"]')) sm.classList.remove('open');
+});
+function toggleCols(){
+  document.getElementById('tfdColsMenu').classList.toggle('open');
+  document.getElementById('tfdSettingsMenu').classList.remove('open');
+}
+function toggleSettings(){
+  document.getElementById('tfdSettingsMenu').classList.toggle('open');
+  document.getElementById('tfdColsMenu').classList.remove('open');
+}
+
+// ===== SIDEBAR GROUPS ACCORDION =====
+function toggleGuruhlar(){
+  var list = document.getElementById('tfdGuruhlarList');
+  var btn = document.querySelector('.tfd-toggle');
+  var open = list.style.display !== 'none';
+  list.style.display = open ? 'none' : 'block';
+  if (btn) btn.classList.toggle('open', !open);
+  if (list.style.display !== 'none') list.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ===== FILTERS =====
+function applyFilters(){
+  var d = document.getElementById('tfdDate').value;
+  var dt = d ? d.split('-').reverse().join('.') : '';
+  var ty = document.getElementById('tfdType').value;
+  var st = document.getElementById('tfdStudent').value;
+  var gr = document.getElementById('tfdGroup').value;
+  var any = d || ty || st || gr;
+  var filterBtn = document.getElementById('tfdFilterBtn');
+  if (filterBtn) filterBtn.classList.toggle('active', !!any);
+  document.querySelectorAll('tr[data-type]').forEach(function(r){
+    var show = true;
+    if (show && dt && r.dataset.date !== dt) show = false;
+    if (show && ty && r.dataset.type !== ty) show = false;
+    if (show && st && r.dataset.student !== st) show = false;
+    if (show && gr && r.dataset.group !== gr) show = false;
+    r.style.display = show ? '' : 'none';
+  });
+}
+function resetFilters(){
+  ['tfdDate','tfdType'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.value='';
+  });
+  document.querySelectorAll('.tfd-dd').forEach(function(dd){
+    var inp = dd.querySelector('input[type=hidden]'); if (inp) inp.value = '';
+    var val = dd.querySelector('.tfd-dd-val'); if (val) val.textContent = 'Barchasi';
+    dd.querySelectorAll('.tfd-dd-item').forEach(function(it){ it.classList.toggle('sel', it.dataset.val === ''); });
+  });
+  applyFilters();
+}
+
+// ===== SEARCHABLE DROPDOWN =====
+function toggleDD(id){
+  document.querySelectorAll('.tfd-dd.open').forEach(function(o){ if (o.id !== id) o.classList.remove('open'); });
+  var dd = document.getElementById(id);
+  dd.classList.toggle('open');
+  var s = dd.querySelector('.tfd-dd-search');
+  if (s) { s.value = ''; filterDD(s, dd.querySelector('.tfd-dd-list').id); if (dd.classList.contains('open')) s.focus(); }
+}
+function filterDD(input, listId){
+  var q = (input.value || '').toLowerCase().trim();
+  document.getElementById(listId).querySelectorAll('.tfd-dd-item').forEach(function(it){
+    it.style.display = it.textContent.toLowerCase().indexOf(q) === -1 ? 'none' : '';
+  });
+}
+function pickDD(inputId, ddId, val, item){
+  document.getElementById(inputId).value = val;
+  document.getElementById(ddId).classList.remove('open');
+  var label = item ? item.textContent : 'Barchasi';
+  document.querySelector('#' + ddId + ' .tfd-dd-val').textContent = label;
+  document.getElementById(ddId).querySelectorAll('.tfd-dd-item').forEach(function(it){
+    it.classList.toggle('sel', it.dataset.val === val);
+  });
+  applyFilters();
+}
+document.addEventListener('click', function(e){
+  if (!e.target.closest('.tfd-dd')) {
+    document.querySelectorAll('.tfd-dd.open').forEach(function(o){ o.classList.remove('open'); });
+  }
+});
+
+// ===== GROUPS FILTERS =====
+function pickGDD(inputId, ddId, val, item){
+  document.getElementById(inputId).value = val;
+  document.getElementById(ddId).classList.remove('open');
+  var label = item ? item.textContent : 'Barchasi';
+  document.querySelector('#' + ddId + ' .tfd-dd-val').textContent = label;
+  document.getElementById(ddId).querySelectorAll('.tfd-dd-item').forEach(function(it){
+    it.classList.toggle('sel', it.dataset.val === val);
+  });
+  applyGroupFilters();
+}
+function applyGroupFilters(){
+  var nm = document.getElementById('tfdGName').value;
+  var dy = document.getElementById('tfdGDay').value;
+  var cs = document.getElementById('tfdGCourse').value;
+  var any = nm || dy || cs;
+  var btn = document.getElementById('tfdGFilterBtn');
+  if (btn) btn.classList.toggle('active', !!any);
+  document.querySelectorAll('#tab-guruhlar tbody tr').forEach(function(r){
+    var show = true;
+    if (show && nm && (r.dataset.name || '') !== nm) show = false;
+    if (show && dy && (r.dataset.day || '').indexOf(dy) === -1) show = false;
+    if (show && cs && (r.dataset.course || '') !== cs) show = false;
+    r.style.display = show ? '' : 'none';
+  });
+}
+function resetGroupFilters(){
+  ['tfdGName','tfdGDay','tfdGCourse'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.value='';
+  });
+  document.querySelectorAll('#tfdGroupToolbar .tfd-dd').forEach(function(dd){
+    var val = dd.querySelector('.tfd-dd-val'); if (val) val.textContent = 'Barchasi';
+    dd.querySelectorAll('.tfd-dd-item').forEach(function(it){ it.classList.toggle('sel', it.dataset.val === ''); });
+  });
+  applyGroupFilters();
+}
+
+// ===== COLUMN VISIBILITY =====
+function toggleCol(col){
+  var on = document.getElementById('col-'+col).checked;
+  document.querySelectorAll('th.col-'+col+', td.col-'+col).forEach(function(el){
+    el.style.display = on ? '' : 'none';
+  });
+}
+
+// ===== MODALS =====
+function closeProfileModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.tfd-backdrop').forEach(function(b){
+  b.addEventListener('click', function(e){ if(e.target===b) b.classList.remove('open'); });
+});
+
+function openProfilePay(){
+  var sel = document.getElementById('profilePayMethod');
+  sel.innerHTML = '<option value="">Tanlang...</option>' +
+    PROFILE_PMS.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+  document.getElementById('profilePayComment').value = '';
+  document.getElementById('profilePayMsg').innerHTML = '';
+  document.getElementById('payModal').classList.add('open');
+}
+
+function submitProfilePay(){
+  var method = document.getElementById('profilePayMethod').value;
+  var comment = document.getElementById('profilePayComment').value;
+  var msg = document.getElementById('profilePayMsg');
+  msg.innerHTML = '<span style="color:#6B7280;">Yuborilmoqda...</span>';
+  fetch('/api/salary/teachers/'+PROFILE_EMP_ID+'/pay/',{
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({payment_method:method, description:comment})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.success){
+      msg.innerHTML = '<span style="color:#16A34A;font-weight:600;">'+d.message+'</span>';
+      setTimeout(function(){ location.reload(); }, 900);
+    }else{
+      msg.innerHTML = '<span style="color:#DC2626;">'+(d.error||'Xatolik')+'</span>';
+    }
+  })
+  .catch(function(e){ msg.innerHTML = '<span style="color:#DC2626;">Xatolik: '+e.message+'</span>'; });
+}
+
+function openProfilePercent(){
+  var type = PROFILE_SALARY.salary_type === 'percent' ? 'percent' : 'monthly';
+  document.querySelector('input[name="profilePctType"][value="'+type+'"]').checked = true;
+  document.getElementById('profilePctValue').value = PROFILE_SALARY.percent || 0;
+  document.getElementById('profileMsValue').value = PROFILE_SALARY.monthly_salary || 0;
+  document.getElementById('profilePctMsg').innerHTML = '';
+  syncProfilePctUI();
+  document.getElementById('percentModal').classList.add('open');
+}
+
+function syncProfilePctUI(){
+  var t = document.querySelector('input[name="profilePctType"]:checked').value;
+  var m = document.getElementById('profileOptMonthly');
+  var p = document.getElementById('profileOptPercent');
+  m.classList.toggle('on', t === 'monthly');
+  p.classList.toggle('on', t === 'percent');
+  document.getElementById('profilePctInputWrap').style.display = t === 'percent' ? 'block' : 'none';
+  document.getElementById('profileMsInputWrap').style.display = t === 'monthly' ? 'block' : 'none';
+}
+document.querySelectorAll('input[name="profilePctType"]').forEach(function(r){
+  r.addEventListener('change', syncProfilePctUI);
+});
+
+function submitProfilePercent(){
+  var type = document.querySelector('input[name="profilePctType"]:checked').value;
+  var msg = document.getElementById('profilePctMsg');
+  var body;
+  if(type === 'monthly'){
+    body = JSON.stringify({salary_type: 'monthly', monthly_salary: document.getElementById('profileMsValue').value});
+  }else{
+    body = JSON.stringify({salary_type: 'percent', percent: document.getElementById('profilePctValue').value});
+  }
+  fetch('/api/salary/teachers/'+PROFILE_EMP_ID+'/percent/',{
+    method:'PUT', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:body
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.success){
+      msg.innerHTML = '<span style="color:#16A34A;font-weight:600;">Saqlangan</span>';
+      setTimeout(function(){ location.reload(); }, 700);
+    }else{
+      msg.innerHTML = '<span style="color:#DC2626;">'+(d.error||'Xatolik')+'</span>';
+    }
+  })
+  .catch(function(e){ msg.innerHTML = '<span style="color:#DC2626;">Xatolik: '+e.message+'</span>'; });
+}
+</script>
 {% endblock %}

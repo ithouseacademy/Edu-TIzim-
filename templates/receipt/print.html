@@ -106,14 +106,14 @@
     <hr class="rc-divider">
 
     <div class="rc-section-title">To'lov ma'lumotlari</div>
-    <div class="rc-row"><span>Sana: -- {{ transaction.created_at|date:"d.m.Y H:i" }}</span></div>
-    <div class="rc-row"><span>Kassir: -- {{ transaction.created_by|default:"Admin" }}</span></div>
-    <div class="rc-row"><span>O'quvchi: -- {{ transaction.student.first_name }} {{ transaction.student.last_name }}</span></div>
-    <div class="rc-row"><span>Telefon: -- {{ transaction.student.phone }}</span></div>
+    <div class="rc-row"><span class="rc-label">Sana:</span><span class="rc-value">{{ transaction.created_at|date:"d.m.Y H:i" }}</span></div>
+    <div class="rc-row"><span class="rc-label">Kassir:</span><span class="rc-value">{{ transaction.created_by|default:"Admin" }}</span></div>
+    <div class="rc-row"><span class="rc-label">O'quvchi:</span><span class="rc-value">{{ transaction.student.first_name }} {{ transaction.student.last_name }}</span></div>
+    <div class="rc-row"><span class="rc-label">Telefon:</span><span class="rc-value">{{ transaction.student.phone }}</span></div>
     {% if transaction.payment_method %}
-    <div class="rc-row"><span>To'lov turi: -- {{ transaction.payment_method|title }}</span></div>
+    <div class="rc-row"><span class="rc-label">To'lov turi:</span><span class="rc-value">{{ transaction.payment_method|title }}</span></div>
     {% endif %}
-    <div class="rc-row"><span>Miqdori: -- {{ transaction.amount|spacesep }} so'm</span></div>
+    <div class="rc-row"><span class="rc-label">Miqdori:</span><span class="rc-value">{{ transaction.amount|spacesep }} so'm</span></div>
 
     <hr class="rc-divider">
 
@@ -136,9 +136,9 @@
     </div>
     {% endif %}
 
-    {% if transaction.description %}
+    {% if transaction.description|receipt_desc %}
     <hr class="rc-divider">
-    <div class="rc-row"><span>Izoh: -- {{ transaction.description }}</span></div>
+    <div class="rc-row"><span class="rc-label">Izoh:</span><span class="rc-value">{{ transaction.description|receipt_desc }}</span></div>
     {% endif %}
 
     <hr class="rc-divider solid">
@@ -167,12 +167,6 @@
 
   </div>
 
-  {% if not inline %}
-  <div class="no-print">
-    <button onclick="window.print()"><i class="fas fa-print"></i> Chop etish</button>
-    <button onclick="window.close()"><i class="fas fa-times"></i> Yopish</button>
-  </div>
-  {% endif %}
 </div>
 {% endwith %}
 

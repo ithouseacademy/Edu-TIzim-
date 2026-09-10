@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from datetime import date, timedelta, datetime
 from decimal import Decimal
 
@@ -157,6 +158,16 @@ class Group(models.Model):
     @property
     def frozen_students_count(self):
         return self.students.filter(frozen_until__gte=date.today()).count()
+
+    @property
+    def days_display(self):
+        raw = (self.days or "").strip()
+        if not raw:
+            lt = self.lesson_times.first()
+            raw = lt.days if lt and lt.days else ""
+        day_map = dict(LessonTime.DAY_CHOICES)
+        selected = [d.strip() for d in raw.split(",") if d.strip()]
+        return ", ".join(day_map.get(d, d) for d in selected)
 
     def __str__(self):
         return f"{self.name} ({self.course.name})"
@@ -422,6 +433,10 @@ class Employee(models.Model):
         MALE = "erkak", "Erkak"
         FEMALE = "ayol", "Ayol"
 
+    class SalaryType(models.TextChoices):
+        MONTHLY = "monthly", "Oylik"
+        PERCENT = "percent", "Foiz"
+
     user = models.OneToOneField(
         "auth.User", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="employee_profile", verbose_name="Foydalanuvchi"
@@ -435,11 +450,25 @@ class Employee(models.Model):
     position = models.ForeignKey(Position, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vazifasi")
     photo = models.ImageField(upload_to="employees/", blank=True, null=True, verbose_name="Profil rasmi")
     salary_enabled = models.BooleanField(default=False, verbose_name="Ish haqi chiqarish")
+    salary_type = models.CharField(
+        max_length=20, choices=SalaryType.choices, default=SalaryType.PERCENT, verbose_name="Oylik turi"
+    )
+    percent = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('0.00'), verbose_name="Foiz (%)"
+    )
+    monthly_salary = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        verbose_name="Belgilangan oylik maosh",
+        help_text="Administrator/Support uchun tayinlangan oylik maosh (foiz tizimidan alohida)",
+    )
     branches = models.ManyToManyField(Branch, blank=True, verbose_name="Filiallar")
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Rol")
     salary_same = models.BooleanField(default=False, verbose_name="Hammaga bir xil")
     salary = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="Ish haqi")
     notes = models.TextField(blank=True, null=True, verbose_name="Izoh")
+    telegram_chat_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="Telegram chat ID")
+    telegram_eslatma_chat_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="Eslatma bot chat ID")
+    notifications_seen_at = models.DateTimeField(blank=True, null=True, verbose_name="Bildirishnomalarni ko'rgan vaqt")
     is_active = models.BooleanField(default=True, verbose_name="Faol")
     is_deleted = models.BooleanField(default=False, verbose_name="O'chirilgan")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -458,6 +487,261 @@ class Employee(models.Model):
     class Meta:
         verbose_name = "Xodim"
         verbose_name_plural = "Xodimlar"
+
+
+class Task(models.Model):
+    """Xodimga beriladigan topshiriq.
+
+    Admin topshiriq yaratadi va xodimni tanlaydi. Topshiriq xodimning
+    akkauntida (Topshiriqlar bo'limi) ko'rinadi, agar xodim telegram botga
+    o'z raqamini ulagan bo'lsa, telegramga ham boradi.
+    """
+    class Status(models.TextChoices):
+        NEW = "yangi", "Yangi"
+        IN_PROGRESS = "jarayonda", "Jarayonda"
+        DONE = "bajarildi", "Bajarildi"
+        NOT_DONE = "bajarilmadi", "Bajarilmadi"
+        CANCELLED = "bekor_qilindi", "Bekor qilindi"
+
+    title = models.CharField(max_length=255, verbose_name="Topshiriq nomi")
+    description = models.TextField(blank=True, default="", verbose_name="Batafsil ma'lumot")
+    reminder = models.TextField(blank=True, default="", verbose_name="Eslatma")
+    assigned_to = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, related_name="tasks", verbose_name="Tayinlangan xodim"
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.NEW, verbose_name="Holati"
+    )
+    deadline = models.DateField(null=True, blank=True, verbose_name="Muddat")
+    created_by = models.CharField(max_length=255, blank=True, default="", verbose_name="Kim tomonidan")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = ActiveManager()
+    all_objects = models.Manager()
+
+    def delete(self, *args, **kwargs):
+        self.is_active = False
+        self.save(update_fields=["is_active"])
+
+    @property
+    def status_display(self):
+        return self.get_status_display()
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name = "Topshiriq"
+        verbose_name_plural = "Topshiriqlar"
+        ordering = ["-created_at"]
+
+
+class Reminder(models.Model):
+    """Xodimga yuboriladigan eslatma (matn xabar).
+
+    Topshiriqdan farqli — eslatma shunchaki xabar sifatida xodimga yuboriladi.
+    Xodim uni «O'qidim» deb belgilashi mumkin. send_to_all=True bo'lsa — barcha
+    faol xodimlarga birdaniga (employee=None).
+    """
+    class Priority(models.TextChoices):
+        IMPORTANT = "muhim", "🔴 Muhim"
+        NORMAL = "eslatma", "🟡 Eslatma"
+        INFO = "ma'lumot", "🔵 Ma'lumot"
+
+    employee = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, null=True, blank=True,
+        related_name="reminders", verbose_name="Tayinlangan xodim"
+    )
+    message = models.TextField(verbose_name="Eslatma matni")
+    priority = models.CharField(
+        max_length=20, choices=Priority.choices, default=Priority.NORMAL, verbose_name="Muhimlik"
+    )
+    send_to_all = models.BooleanField(default=False, verbose_name="Barchaga yuborilgan")
+    is_read = models.BooleanField(default=False, verbose_name="O'qilgan")
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name="O'qilgan vaqt")
+    created_by = models.CharField(max_length=255, blank=True, default="", verbose_name="Kim tomonidan")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = ActiveManager()
+    all_objects = models.Manager()
+
+    def delete(self, *args, **kwargs):
+        self.is_active = False
+        self.save(update_fields=["is_active"])
+
+    def __str__(self):
+        return self.message[:50]
+
+    class Meta:
+        verbose_name = "Eslatma"
+        verbose_name_plural = "Eslatmalar"
+        ordering = ["-created_at"]
+
+
+class EslatmaReminderSetting(models.Model):
+    """Davomat eslatmasi sozlamasi (bitta qator — pk=1).
+
+    Yoqilgan bo'lsa: dars bo'lgani holda o'qituvchi belgilangan vaqt ichida
+    davomat qilmagan guruhlar uchun o'sha o'qituvchiga eslatma yuboriladi.
+    """
+    enabled = models.BooleanField(default=False, verbose_name="Davomat eslatmasi yoqilgan")
+    delay_minutes = models.PositiveIntegerField(default=60, verbose_name="Necha daqiqadan keyin eslatish")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan")
+
+    class Meta:
+        verbose_name = "Davomat eslatmasi sozlamasi"
+        verbose_name_plural = "Davomat eslatmasi sozlamalari"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class AttendanceReminderLog(models.Model):
+    """Qaysi guruh (qaysi sana) uchun eslatma yuborilgani — dublikat oldini oladi."""
+
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="attendance_reminder_logs", verbose_name="Guruh")
+    date = models.DateField(verbose_name="Sana")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yuborilgan vaqt")
+
+    class Meta:
+        verbose_name = "Davomat eslatma logi"
+        verbose_name_plural = "Davomat eslatma loglari"
+        unique_together = ("group", "date")
+
+
+class ReminderRead(models.Model):
+    """«Hammaga» yuborilgan eslatmaning HAR BIR foydalanuvchi uchun alohida o'qilgan holati.
+
+    Send_to_all eslatmalar global emas — biri o'qisa boshqasi uchun o'qilgan
+    bo'lmaydi. Kimlik sifatida user ishlatiladi (admin/employee_profile'siz
+    foydalanuvchi ham o'qiy oladi); employee ham saqlanadi (legacy + bot).
+    (Shaxsiy — employee=None — eslatmalar uchun Reminder.is_read ishlatiladi.)
+    """
+    reminder = models.ForeignKey(
+        Reminder, on_delete=models.CASCADE, related_name="read_states", verbose_name="Eslatma"
+    )
+    employee = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, null=True, blank=True,
+        related_name="reminder_read_states", verbose_name="Xodim"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True,
+        related_name="reminder_read_states", verbose_name="Foydalanuvchi"
+    )
+    is_read = models.BooleanField(default=False, verbose_name="O'qilgan")
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name="O'qilgan vaqt")
+
+    class Meta:
+        verbose_name = "Eslatmaning o'qilgan holati"
+        verbose_name_plural = "Eslatmalarning o'qilgan holati"
+        constraints = [
+            models.UniqueConstraint(fields=["reminder", "user"], name="uniq_reminder_user"),
+            models.UniqueConstraint(fields=["reminder", "employee"], name="uniq_reminder_employee"),
+        ]
+
+
+class PushSubscription(models.Model):
+    """Brauzer push-obunasi — sayt yopiq bo'lsa ham bildirishnoma yetkazish uchun."""
+
+    user = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="push_subscriptions",
+        verbose_name="Foydalanuvchi",
+    )
+    endpoint = models.TextField(verbose_name="Endpoint", unique=True)
+    p256dh = models.CharField(max_length=255, verbose_name="p256dh kalit")
+    auth = models.CharField(max_length=255, verbose_name="auth token")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Push-obuna #{self.pk}"
+
+    class Meta:
+        verbose_name = "Push-obuna"
+        verbose_name_plural = "Push-obunalar"
+
+
+class GroupTeacherAssignment(models.Model):
+    """Guruhga sanalar bo'yicha o'qituvchi biriktiruvi.
+
+    Humoyun → Feruza holati uchun:
+    - 1-15-avgust → Humoyun (start_date=avgust1, end_date=avgust15)
+    - 16-avgustdan → Feruza (start_date=avgust16, end_date=null)
+    Davomat shu sanadagi biriktirilgan o'qituvchiga yoziladi.
+    """
+    group = models.ForeignKey(
+        Group, on_delete=models.CASCADE, related_name="teacher_assignments", verbose_name="Guruh"
+    )
+    teacher = models.ForeignKey(
+        Employee, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="group_assignments", verbose_name="O'qituvchi"
+    )
+    start_date = models.DateField(verbose_name="Boshlanish sanasi")
+    end_date = models.DateField(null=True, blank=True, verbose_name="Tugash sanasi")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Guruh o'qituvchi biriktiruvi"
+        verbose_name_plural = "Guruh o'qituvchi biriktiruvlari"
+        ordering = ["-start_date"]
+
+    def __str__(self):
+        return f"{self.group.name} — {self.teacher or 'Yo\'q'} ({self.start_date} - {self.end_date or 'hozirgacha'})"
+
+
+class LessonTeacherSalary(models.Model):
+    """Har bir o'tilgan dars uchun o'qituvchi oylik yozuvi.
+
+    Qoidalar:
+    - Davomat vaqtida o'qituvchi, narx va foiz "muzlatiladi" va keyinchalik o'zgarmaydi.
+    - O'quvchi balansi darsni to'lasa (balans 0 dan katta/qolsa) → Paid, o'qituvchiga darhol yoziladi.
+    - Balans minusda bo'lsa → Pending saqlanadi.
+    - To'lov qilinganda eng eski Pending yozuvlar (FIFO) Paid holatiga o'tkaziladi.
+    """
+    class Status(models.TextChoices):
+        PENDING = "pending", "Kutilayotgan"
+        PAID = "paid", "To'langan"
+
+    student = models.ForeignKey(
+        Student, on_delete=models.CASCADE, related_name="lesson_salaries", verbose_name="O'quvchi"
+    )
+    group = models.ForeignKey(
+        Group, on_delete=models.CASCADE, related_name="lesson_salaries", verbose_name="Guruh"
+    )
+    teacher = models.ForeignKey(
+        Employee, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="lesson_salaries", verbose_name="O'qituvchi"
+    )
+    attendance = models.ForeignKey(
+        "Attendance", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="salary_records", verbose_name="Davomat"
+    )
+    date = models.DateField(verbose_name="Dars sanasi")
+    lesson_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Dars narxi")
+    teacher_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('30.00'), verbose_name="Foiz (%)")
+    teacher_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="O'qituvchi ulushi")
+    status = models.CharField(
+        max_length=15, choices=Status.choices, default=Status.PENDING, verbose_name="Holati"
+    )
+    payment_date = models.DateField(null=True, blank=True, verbose_name="To'lov sanasi")
+    paid_by_transaction = models.ForeignKey(
+        "Transaction", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="released_salaries", verbose_name="To'lov tranzaksiyasi"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Dars o'qituvchi oyligi"
+        verbose_name_plural = "Dars o'qituvchi oyliklari"
+        ordering = ["date", "id"]
+
+    def __str__(self):
+        return f"{self.student} — {self.group} — {self.teacher_amount} so'm ({self.get_status_display()})"
 
 
 class Attendance(models.Model):
@@ -585,6 +869,74 @@ class Transaction(models.Model):
         return f"{self.student} - {self.amount} ({self.get_transaction_type_display()})"
 
 
+class TeacherBalance(models.Model):
+    employee = models.OneToOneField(
+        Employee, on_delete=models.CASCADE, related_name="teacher_balance", verbose_name="O'qituvchi"
+    )
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Oylik balansi")
+    avans_balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Avans qarzi")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "O'qituvchi balansi"
+        verbose_name_plural = "O'qituvchi balanslari"
+
+    def __str__(self):
+        return f"{self.employee} - {self.balance} so'm"
+
+
+class TeacherTransaction(models.Model):
+    class Type(models.TextChoices):
+        INCOME = "income", "To'lovdan tushum"
+        PAYOUT = "payout", "Oylik berildi"
+        ADVANCE = "advance", "Avans berildi"
+        ADVANCE_CLOSE = "advance_close", "Avans yopildi"
+        REFUND = "refund", "Qaytarilgan to'lov"
+        CORRECTION = "correction", "Tuzatish"
+
+    class SalaryType(models.TextChoices):
+        SALARY = "salary", "Xodimga oylik"
+        ADVANCE = "advance", "Xodimga avans"
+
+    employee = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, related_name="salary_transactions", verbose_name="O'qituvchi"
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Summa")
+    balance_after = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Operatsiyadan keyingi balans")
+    avans_balance_after = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Operatsiyadan keyingi avans qarzi")
+    transaction_type = models.CharField(max_length=20, choices=Type.choices, verbose_name="Operatsiya turi")
+    salary_type = models.CharField(
+        max_length=20, choices=SalaryType.choices, blank=True, default="",
+        verbose_name="Oylik / avans turi",
+    )
+    payment_transaction = models.ForeignKey(
+        "Transaction", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="teacher_shares", verbose_name="To'lov tranzaksiyasi"
+    )
+    student = models.ForeignKey(
+        "Student", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="teacher_transactions", verbose_name="O'quvchi"
+    )
+    group = models.ForeignKey(
+        Group, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="teacher_transactions", verbose_name="Guruh"
+    )
+    percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), verbose_name="Foiz (%)")
+    salary_date = models.DateField(null=True, blank=True, verbose_name="Oylik sanasi")
+    payment_method = models.CharField(max_length=50, blank=True, default="", verbose_name="To'lov usuli")
+    description = models.TextField(blank=True, null=True, verbose_name="Izoh")
+    created_by = models.CharField(max_length=255, blank=True, default="", verbose_name="Kim tomonidan")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "O'qituvchi tranzaksiyasi"
+        verbose_name_plural = "O'qituvchi tranzaksiyalari"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.employee} - {self.amount} ({self.get_transaction_type_display()})"
+
+
 class ReceiptTemplate(models.Model):
     name = models.CharField(max_length=255, verbose_name="Template nomi")
     is_default = models.BooleanField(default=False, verbose_name="Standart")
@@ -623,6 +975,7 @@ class ReceiptTemplate(models.Model):
 
 
 class GlobalConfig(models.Model):
+    deduct_present = models.BooleanField(default=True, verbose_name="Keldi — pul yechish")
     deduct_absent = models.BooleanField(default=False, verbose_name="Sababsiz kelmaganlardan pul yechish")
     deduct_excused = models.BooleanField(default=False, verbose_name="Sababli kelmaganlardan pul yechish")
 
@@ -900,6 +1253,10 @@ class KassaTransaction(models.Model):
         SUPPLIES = "kantselyariya", "Kantselyariya"
         OTHER = "boshqa", "Boshqa"
 
+    class SalaryType(models.TextChoices):
+        SALARY = "salary", "Xodimga oylik"
+        ADVANCE = "advance", "Xodimga avans"
+
     expense_category = models.CharField(
         max_length=50, choices=ExpenseCategory.choices, blank=True, default="",
         verbose_name="Chiqim kategoriyasi"
@@ -908,10 +1265,18 @@ class KassaTransaction(models.Model):
         max_length=100, blank=True, default="",
         verbose_name="Kirim kategoriyasi"
     )
+    salary_type = models.CharField(
+        max_length=20, choices=SalaryType.choices, blank=True, default="",
+        verbose_name="Oylik / avans turi",
+    )
     description = models.TextField(blank=True, default="", verbose_name="Sabab / Izoh")
     student = models.ForeignKey(
         "Student", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="kassa_transactions", verbose_name="O'quvchi"
+    )
+    employee = models.ForeignKey(
+        "Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="kassa_transactions", verbose_name="Xodim"
     )
     payment_method = models.CharField(
         max_length=50, blank=True, default="", verbose_name="To'lov usuli"
@@ -1005,3 +1370,74 @@ class SmsHistory(models.Model):
 
     def __str__(self):
         return f"{self.student_name} → {self.recipient_phone} ({self.get_sms_type_display()})"
+
+
+class Permission(models.Model):
+    """Granular permission definition (synced from frontend.permissions registry)."""
+    name = models.CharField(max_length=255, verbose_name="Nomi")
+    codename = models.CharField(max_length=100, unique=True, verbose_name="Kod nomi")
+    module = models.CharField(max_length=100, verbose_name="Modul")
+    action = models.CharField(max_length=100, verbose_name="Harakat")
+    description = models.TextField(blank=True, default="", verbose_name="Tavsif")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Ruxsat"
+        verbose_name_plural = "Ruxsatlar"
+        ordering = ["module", "action"]
+
+    def __str__(self):
+        return self.codename
+
+
+class AdminPermission(models.Model):
+    """Grant of a Permission to a specific admin/staff user."""
+    user = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="admin_permissions", verbose_name="Foydalanuvchi"
+    )
+    permission = models.ForeignKey(
+        Permission, on_delete=models.CASCADE, related_name="admin_grants", verbose_name="Ruxsat"
+    )
+    granted_by = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="granted_permissions", verbose_name="Kim tomonidan berilgan"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Admin ruxsati"
+        verbose_name_plural = "Admin ruxsatlari"
+        unique_together = ("user", "permission")
+
+    def __str__(self):
+        return f"{self.user.username} — {self.permission.codename}"
+
+
+class PermissionAuditLog(models.Model):
+    """Audit log for every permission change."""
+    ACTION_CHOICES = [
+        ("grant", "Berildi"),
+        ("revoke", "Olib tashlandi"),
+    ]
+    actor = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="permission_audit_done", verbose_name="Kim o'zgartirdi"
+    )
+    target_user = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE,
+        related_name="permission_audit_received", verbose_name="Kimning huquqi o'zgartirildi"
+    )
+    permission_codename = models.CharField(max_length=100, verbose_name="Ruxsat kodi")
+    permission_module = models.CharField(max_length=100, blank=True, default="", verbose_name="Modul")
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name="Harakat")
+    detail = models.TextField(blank=True, default="", verbose_name="Tavsif")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Sana")
+
+    class Meta:
+        verbose_name = "Ruxsat audit logi"
+        verbose_name_plural = "Ruxsat audit loglari"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.actor} {self.get_action_display()} {self.permission_codename} → {self.target_user}"

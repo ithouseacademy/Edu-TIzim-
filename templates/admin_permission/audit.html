@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static perm_tags %}
+{% block title %}Audit log | Edu Tizim{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-xl font-bold text-[#0f172a]">Audit log</h2>
+      <p class="text-sm text-[#64748b] mt-0.5">Huquq o'zgarishlari tarixi</p>
+    </div>
+    <a href="{% url 'admin_list' %}" class="px-5 py-2.5 border border-[#e2e8f0] rounded-lg text-sm font-semibold text-[#64748b] hover:bg-[#f8fafc] transition-all">Orqaga</a>
+  </div>
+
+  <div class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-[#f8fafc] border-b border-[#e2e8f0] text-left text-xs uppercase tracking-wide text-[#64748b]">
+            <th class="px-5 py-3 font-semibold">Sana</th>
+            <th class="px-5 py-3 font-semibold">Kim o'zgartirdi</th>
+            <th class="px-5 py-3 font-semibold">Kimga</th>
+            <th class="px-5 py-3 font-semibold">Ruxsat</th>
+            <th class="px-5 py-3 font-semibold">Harakat</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc]">
+            <td class="px-5 py-3 text-[#64748b]">{{ log.created_at|date:"d.m.Y H:i:s" }}</td>
+            <td class="px-5 py-3 font-medium text-[#0f172a]">{{ log.actor.first_name|default:log.actor }}</td>
+            <td class="px-5 py-3 font-medium text-[#0f172a]">{{ log.target_user.first_name|default:log.target_user }}</td>
+            <td class="px-5 py-3">
+              <span class="badge badge-blue text-[11px]">{{ perm_labels|get_item:log.permission_codename|default:log.permission_codename }}</span>
+            </td>
+            <td class="px-5 py-3">
+              {% if log.action == "grant" %}
+              <span class="badge badge-green"><i class="fas fa-check"></i> Berildi</span>
+              {% else %}
+              <span class="badge badge-red"><i class="fas fa-times"></i> Olib tashlandi</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="px-5 py-10 text-center text-[#94a3b8]">Audit yozuvlari mavjud emas</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

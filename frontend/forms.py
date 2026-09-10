@@ -2,7 +2,7 @@ import re
 from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import Course, CourseLevel, Group, Student, MarketingSurvey, LessonTime, Branch, Room, Role, Position, Employee, Kassa, KassaTransaction, KassaTransfer, ExpenseCategory, IncomeCategory
+from .models import Course, CourseLevel, Group, Student, MarketingSurvey, LessonTime, Branch, Room, Role, Position, Employee, Task, Reminder, Kassa, KassaTransaction, KassaTransfer, ExpenseCategory, IncomeCategory
 
 
 class LoginForm(forms.Form):
@@ -29,14 +29,47 @@ class CourseForm(forms.ModelForm):
         }
 
 
+class FlexibleMoneyField(forms.DecimalField):
+    """Pul qiymatlari uchun moslashuvchan maydon.
+
+    '38 333', '38,333', '1 000 000', '38333.5' kabi yozuvlarni qabul qiladi.
+    """
+
+    def to_python(self, value):
+        if value in self.empty_values:
+            return None
+        if isinstance(value, str):
+            value = value.strip().replace("\u00a0", "").replace(" ", "")
+            if "," in value and "." in value:
+                value = value.replace(",", "")
+            elif "," in value:
+                groups = value.split(",")
+                if all(len(g) == 3 for g in groups[1:]):
+                    value = "".join(groups)
+                elif len(groups) == 2:
+                    value = f"{groups[0]}.{groups[1]}"
+        return super().to_python(value)
+
+
 class CourseLevelForm(forms.ModelForm):
+    daily_price = FlexibleMoneyField(
+        max_digits=12,
+        decimal_places=2,
+        label="Kunlik narx (so'm)",
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Masalan: 38 333 yoki 38333",
+            "inputmode": "numeric",
+            "autocomplete": "off",
+        }),
+    )
+
     class Meta:
         model = CourseLevel
         fields = ["course", "name", "daily_price"]
         widgets = {
             "course": forms.Select(attrs={"class": "form-control"}),
             "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Daraja nomi (masalan: Elementary)"}),
-            "daily_price": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Kunlik narx (so'm)", "min": "0"}),
         }
 
 
@@ -416,6 +449,79 @@ class PositionForm(forms.ModelForm):
         }
 
 
+class TaskForm(forms.ModelForm):
+    deadline = forms.DateField(
+        required=False,
+        input_formats=["%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y"],
+        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}, format="%Y-%m-%d"),
+        label="Muddat",
+    )
+
+    class Meta:
+        model = Task
+        fields = ["title", "description", "reminder", "assigned_to", "status", "deadline"]
+        widgets = {
+            "title": forms.TextInput(attrs={"class": "form-control", "placeholder": "Topshiriq nomini kiriting"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "placeholder": "Topshiriq batafsil tavsifi...", "rows": 4}),
+            "reminder": forms.Textarea(attrs={"class": "form-control", "placeholder": "Misol: ertaga soat 10:00 da eslataman...", "rows": 2}),
+            "assigned_to": forms.Select(attrs={"class": "form-control"}),
+            "status": forms.Select(attrs={"class": "form-control"}),
+        }
+        labels = {
+            "reminder": "Eslatma",
+            "assigned_to": "Xodim (kimga)",
+            "status": "Holati",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["assigned_to"].queryset = Employee.objects.filter(is_active=True, is_deleted=False).order_by("first_name", "last_name")
+        self.fields["assigned_to"].empty_label = "--- Xodim tanlang ---"
+        self.fields["status"].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        reminder = (cleaned.get("reminder") or "").strip()
+        deadline = cleaned.get("deadline")
+        if reminder and not deadline:
+            self.add_error("deadline", "Eslatma kiritilgan bo'lsa, muddat (sana) ham kiritilishi shart.")
+        elif not reminder and deadline:
+            self.add_error("deadline", "Muddat faqat eslatma kiritilganda mumkin bo'ladi yoki eslatma qo'shing.")
+        return cleaned
+
+
+class ReminderForm(forms.ModelForm):
+    class Meta:
+        model = Reminder
+        fields = ["employee", "priority", "message", "send_to_all"]
+        widgets = {
+            "employee": forms.Select(attrs={"class": "form-control"}),
+            "priority": forms.Select(attrs={"class": "form-control"}),
+            "message": forms.Textarea(attrs={"class": "form-control", "placeholder": "Eslatma matnini yozing...", "rows": 3}),
+            "send_to_all": forms.CheckboxInput(attrs={"class": "form-checkbox"}),
+        }
+        labels = {
+            "employee": "Xodim (kimga)",
+            "priority": "Muhimlik darajasi",
+            "message": "Eslatma matni",
+            "send_to_all": "Hammaga yuborish (barcha faol xodimlarga)",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["employee"].queryset = Employee.objects.filter(is_active=True, is_deleted=False).order_by("first_name", "last_name")
+        self.fields["employee"].empty_label = "--- Xodim tanlang ---"
+        self.fields["employee"].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("send_to_all"):
+            cleaned["employee"] = None
+        elif not cleaned.get("employee"):
+            raise forms.ValidationError("Xodimni tanlang yoki «Hammaga yuborish»ni belgilang")
+        return cleaned
+
+
 class EmployeeForm(forms.ModelForm):
     password = forms.CharField(
         required=False,
@@ -431,6 +537,7 @@ class EmployeeForm(forms.ModelForm):
         fields = [
             "first_name", "last_name", "phone", "email", "gender",
             "birth_date", "position", "photo", "salary_enabled",
+            "salary_type", "percent", "monthly_salary",
             "branches", "role", "salary_same", "salary", "notes",
         ]
         widgets = {
@@ -442,6 +549,9 @@ class EmployeeForm(forms.ModelForm):
             "birth_date": forms.DateInput(attrs={"class": "form-input", "type": "date"}),
             "position": forms.Select(attrs={"class": "form-input"}),
             "salary_enabled": forms.CheckboxInput(attrs={"class": "hidden"}),
+            "salary_type": forms.RadioSelect(choices=Employee.SalaryType.choices),
+            "percent": forms.NumberInput(attrs={"class": "form-input", "placeholder": "30", "min": "0", "max": "100", "step": "0.01"}),
+            "monthly_salary": forms.NumberInput(attrs={"class": "form-input", "placeholder": "0", "min": "0", "step": "1000"}),
             "branches": forms.CheckboxSelectMultiple(),
             "role": forms.Select(attrs={"class": "form-input"}),
             "salary_same": forms.CheckboxInput(attrs={"class": "hidden"}),
@@ -456,6 +566,21 @@ class EmployeeForm(forms.ModelForm):
         self.fields["branches"].queryset = Branch.objects.all()
         self.fields["role"].queryset = Role.objects.all()
         self.fields["role"].empty_label = "Tanlang"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        phone = cleaned_data.get("phone")
+        password = cleaned_data.get("password")
+        if phone and password:
+            qs = User.objects.filter(username=phone)
+            if self.instance.pk and self.instance.user_id:
+                qs = qs.exclude(pk=self.instance.user_id)
+            if qs.exists():
+                self.add_error(
+                    "phone",
+                    "Bu telefon raqam bilan tizimda foydalanuvchi allaqachon mavjud. Boshqa raqam kiriting.",
+                )
+        return cleaned_data
 
 
 class KassaForm(forms.ModelForm):

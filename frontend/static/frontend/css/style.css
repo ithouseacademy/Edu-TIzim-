@@ -450,7 +450,7 @@ body.sidebar-collapsed .main-content {
 }
 
 .content {
-    padding: 24px 32px;
+    /* padding: 24px 32px; */
 }
 
 /* ===== PAGE HEADER ===== */
@@ -956,6 +956,18 @@ body.sidebar-collapsed .main-content {
 
 .table tbody tr:hover {
     background: #f8fafc;
+}
+
+.table tbody tr.unread {
+    background: #fff8e6;
+}
+
+.table tbody tr.unread td {
+    border-left: 3px solid #e53935;
+}
+
+.table tbody tr.unread:hover {
+    background: #fff4d6;
 }
 
 .table tbody tr:last-child td {

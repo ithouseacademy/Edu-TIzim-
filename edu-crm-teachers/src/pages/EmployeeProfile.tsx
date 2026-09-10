@@ -21,19 +21,19 @@ export default function EmployeeProfile({ id, onBack }: { id: number; onBack: ()
   const emp = data
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto animate-page-enter">
       <div className="mb-6">
-        <button onClick={onBack} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+        <button onClick={onBack} className="text-sm text-gray-500 hover:text-[#2001ff] flex items-center gap-1">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Orqaga
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl shadow-premium-sm border border-gray-100">
           <div className="p-6">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl font-bold flex-shrink-0">
+              <div className="w-16 h-16 rounded-full bg-[#eef0ff] text-[#2001ff] flex items-center justify-center text-xl font-bold flex-shrink-0">
                 {emp.first_name[0]}{emp.last_name[0]}
               </div>
               <div>
@@ -87,7 +87,7 @@ export default function EmployeeProfile({ id, onBack }: { id: number; onBack: ()
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl shadow-premium-sm border border-gray-100">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="font-semibold text-gray-900">Guruhlari ({emp.groups.length})</h3>
           </div>
@@ -107,7 +107,7 @@ export default function EmployeeProfile({ id, onBack }: { id: number; onBack: ()
                   {emp.groups.map((g, i) => (
                     <tr key={g.id} className="border-b border-gray-100">
                       <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}</td>
-                      <td className="px-4 py-3 font-medium text-blue-600">{g.name}</td>
+                      <td className="px-4 py-3 font-medium text-[#2001ff]">{g.name}</td>
                       <td className="px-4 py-3 text-gray-600">{g.course || "-"}</td>
                       <td className="px-4 py-3 text-center">{g.student_count}</td>
                       <td className="px-4 py-3 text-center">

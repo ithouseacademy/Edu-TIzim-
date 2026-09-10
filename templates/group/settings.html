@@ -61,6 +61,7 @@
             </div>
             <div class="card-body">
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a href="{% url 'group_teacher_assignments' group.pk %}" class="btn btn-secondary" style="background:#1e40af;color:#fff;"><i class="fas fa-user-tie"></i> O'qituvchi biriktiruvlari</a>
                     <a href="{% url 'group_delete' group.pk %}" class="btn btn-danger"><i class="fas fa-trash"></i> Guruhni o'chirish</a>
                     {% if group.status != 'arxivlangan' %}
                     <a href="{% url 'group_archive' group.pk %}" class="btn btn-warning"><i class="fas fa-archive"></i> Guruhni arxivlash</a>

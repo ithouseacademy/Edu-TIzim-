@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Eslatmalar | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Eslatmalar</h2>
+        <span class="page-header-count">{{ reminders|length }} ta eslatma{% if unread_count %} · <b id="unread-count-text" style="color:#e65100">{{ unread_count }} o'qilmagan</b>{% endif %}</span>
+    </div>
+    {% if is_admin %}
+    <div class="page-header-right">
+        <button id="toggle-remind-form-btn" class="btn btn-primary" type="button" {% if form.errors %}style="display:none"{% endif %}>
+            <i class="fas fa-plus"></i> Eslatma qo'shish
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+{% include "task/_tabs.html" %}
+
+{% if is_admin %}
+<div class="card form-card" id="remind-form-card" style="max-width: 560px; margin-bottom: 24px;{% if not form.errors %} display: none;{% endif %}">
+    <div class="card-header between">
+        <h3><i class="fas fa-bell"></i> Eslatma yuborish</h3>
+        <button id="close-remind-form-btn" class="btn btn-sm btn-outline-secondary" type="button"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <div class="field-error">{{ field.errors.0 }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Yuborish</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header between">
+        <h3><i class="fas fa-history"></i> Yuborilgan eslatmalar</h3>
+        {% if unread_count %}
+        <button id="mark-all-read-btn" class="btn btn-sm btn-outline-primary" style="padding:6px 12px;font-size:12px">
+            <i class="fas fa-check-double"></i> Barchasini o'qilgan deb belgilash
+        </button>
+        {% endif %}
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Xodim</th>
+                    <th>Eslatma</th>
+                    <th>Holati</th>
+                    <th>Yuborilgan sana</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reminders %}
+                {% with is_r=r.viewer_is_read %}
+                <tr class="rem-row{% if not is_r %} unread{% endif %}" {% if not is_r %}data-read-id="{{ r.id }}" title="O'qilgan deb belgilash uchun bosing"{% endif %}>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        {% if r.send_to_all %}
+                        <strong><i class="fas fa-users"></i> Barchaga</strong>
+                        {% if is_admin %}
+                        <div style="font-size:12px;color:var(--text-light)">{{ r.reader_count }} ta xodim o'qigan</div>
+                        <a href="{% url 'reminder_readers' r.id %}" class="btn btn-sm btn-outline-secondary" style="margin-top:4px;padding:3px 9px;font-size:11px"><i class="fas fa-list"></i> Kim o'qigan</a>
+                        {% endif %}
+                        {% else %}
+                        <strong>{{ r.employee.first_name }} {{ r.employee.last_name }}</strong>
+                        {% if r.employee.position %}
+                        <div style="font-size:12px;color:var(--text-light)">{{ r.employee.position.name }}</div>
+                        {% endif %}
+                        {% endif %}
+                    </td>
+                    <td style="max-width: 360px;">
+                        {% if r.priority == "muhim" %}
+                        <span class="status-badge" style="background:#fdecea;color:#c62828"><i class="fas fa-exclamation-circle"></i> Muhim</span>
+                        {% elif r.priority == "ma'lumot" %}
+                        <span class="status-badge" style="background:#e3f2fd;color:#1565c0"><i class="fas fa-info-circle"></i> Ma'lumot</span>
+                        {% else %}
+                        <span class="status-badge" style="background:#fff8e1;color:#b26a00"><i class="fas fa-bell"></i> Eslatma</span>
+                        {% endif %}
+                        {% if not is_r %}<span class="status-badge" style="background:#e53935;color:#fff"><i class="fas fa-circle"></i> Yangi</span>{% endif %}
+                        <div style="margin-top:4px">{{ r.message }}</div>
+                        <div style="font-size:12px;color:var(--text-light);margin-top:2px">Kim tomonidan: {{ r.created_by|default_if_none:"—" }}</div>
+                    </td>
+                    <td>
+                        {% if is_r %}
+                        <span class="status-badge" style="background:#e8f5e9;color:#2e7d32"><i class="fas fa-check"></i> O'qilgan</span>
+                        {% else %}
+                        <span class="status-badge" style="background:#fff3e0;color:#e65100"><i class="fas fa-clock"></i> O'qilmagan</span>
+                        <button
+                            class="btn btn-sm btn-outline-primary"
+                            style="margin-left:6px;padding:4px 10px;font-size:12px"
+                            data-mark-read="{{ r.id }}">
+                            <i class="fas fa-check"></i> O'qidim
+                        </button>
+                        {% endif %}
+                    </td>
+                    <td>{{ r.created_at|date:"d.m.Y H:i" }}</td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr><td colspan="5" class="empty">Hozircha eslatmalar yuborilmagan</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const csrf = "{{ csrf_token }}"
+        const unreadText = document.getElementById("unread-count-text")
+        const markAllBtn = document.getElementById("mark-all-read-btn")
+
+        const formCard = document.getElementById("remind-form-card")
+        const openBtn = document.getElementById("toggle-remind-form-btn")
+        const closeBtn = document.getElementById("close-remind-form-btn")
+        function setFormVisible(show) {
+            if (!formCard) return
+            formCard.style.display = show ? "block" : "none"
+            if (openBtn) openBtn.style.display = show ? "none" : ""
+        }
+        if (openBtn) openBtn.addEventListener("click", () => setFormVisible(true))
+        if (closeBtn) closeBtn.addEventListener("click", () => setFormVisible(false))
+
+        function refreshBadges() {
+            fetch("/api/site/notifications-badge/", { headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then((res) => res.json())
+                .then((d) => {
+                    const navBadge = document.getElementById("nav-notif-badge")
+                    if (navBadge) navBadge.textContent = d.total || ""
+                    const bellBadge = document.getElementById("bell-notif-badge")
+                    if (bellBadge) bellBadge.textContent = d.reminders || ""
+                })
+                .catch(() => {})
+        }
+
+        function markRead(id) {
+            const row = document.querySelector(`tr[data-read-id="${id}"]`)
+            fetch(`/tasks/eslatmalar/${id}/oqidim/`, {
+                method: "POST",
+                headers: { "X-CSRFToken": csrf, "Content-Type": "application/json" },
+            })
+                .then((res) => res.json())
+                .then((data) => {
+                    if (data && data.ok) {
+                        if (row) {
+                            row.classList.remove("unread")
+                            row.removeAttribute("data-read-id")
+                            row.removeAttribute("title")
+                            const cell = row.querySelectorAll("td")[3]
+                            if (cell) {
+                                cell.innerHTML = '<span class="status-badge" style="background:#e8f5e9;color:#2e7d32"><i class="fas fa-check"></i> O\'qilgan</span>'
+                            }
+                        }
+                        if (unreadText) {
+                            const m = /(\d+)/.exec(unreadText.textContent)
+                            let n = m ? parseInt(m[1], 10) : 0
+                            n = Math.max(0, n - 1)
+                            unreadText.textContent = n + " o'qilmagan"
+                            if (n === 0) unreadText.remove()
+                        }
+                        if (markAllBtn && (!document.querySelector("tr[data-read-id]"))) markAllBtn.remove()
+                        refreshBadges()
+                    } else {
+                        alert(data && data.error ? data.error : "Xatolik yuz berdi")
+                    }
+                })
+                .catch(() => {
+                    alert("Xatolik yuz berdi")
+                })
+        }
+
+        document.querySelectorAll("[data-mark-read]").forEach((btn) => {
+            btn.addEventListener("click", (ev) => {
+                ev.stopPropagation()
+                const id = btn.getAttribute("data-mark-read")
+                btn.disabled = true
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'
+                markRead(id)
+            })
+        })
+
+        document.querySelectorAll("tr[data-read-id]").forEach((row) => {
+            row.style.cursor = "pointer"
+            row.addEventListener("click", () => markRead(row.getAttribute("data-read-id")))
+        })
+
+        if (markAllBtn) {
+            markAllBtn.addEventListener("click", () => {
+                markAllBtn.disabled = true
+                markAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'
+                fetch("/tasks/eslatmalar/oqilgan/", {
+                    method: "POST",
+                    headers: { "X-CSRFToken": csrf, "Content-Type": "application/json" },
+                })
+                    .then((res) => res.json())
+                    .then((data) => {
+                        if (data && data.ok) {
+                            location.reload()
+                        } else {
+                            alert(data && data.error ? data.error : "Xatolik yuz berdi")
+                            markAllBtn.disabled = false
+                            markAllBtn.innerHTML = '<i class="fas fa-check-double"></i> Barchasini o\'qilgan deb belgilash'
+                        }
+                    })
+                    .catch(() => {
+                        alert("Xatolik yuz berdi")
+                        markAllBtn.disabled = false
+                        markAllBtn.innerHTML = '<i class="fas fa-check-double"></i> Barchasini o\'qilgan deb belgilash'
+                    })
+            })
+        }
+    })()
+</script>
+{% endblock %}

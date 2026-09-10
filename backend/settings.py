@@ -47,6 +47,10 @@ CORS_ALLOWED_ORIGINS = [
     'https://edutizim.ithouse.academy',
 ]
 
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://[\w-]+\.ithouse\.academy$',
+]
+
 CORS_ALLOW_CREDENTIALS = True
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -81,6 +85,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'frontend.permission_middleware.PermissionMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -96,6 +101,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'frontend.context_processors.perms_context',
+                'frontend.context_processors.new_tasks_badge',
             ],
         },
     },
@@ -167,3 +174,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+
+# Eslatmalar va topshiriqlar uchun alohida bot (@ithouseeslatma_bot).
+# Studen bot (BOT_TOKEN) SMS kodlar uchun, bu bot esa xodimlarga eslatma/topshiriq yuboradi.
+REMINDER_BOT_TOKEN = os.getenv('REMINDER_BOT_TOKEN', '8312369152:AAH1T29fFJaWl42-cdX9gDcAW0ufR2jHVyE')

@@ -84,15 +84,15 @@
     </button>
     <div class="settings-menu" id="settingsMenu">
       <a href="{% url 'group_history' group.pk %}"><i class="fas fa-history" style="color: #8b5cf6;"></i> Tarix</a>
-      <a href="{% url 'group_settings' group.pk %}"><i class="fas fa-cog" style="color: #2563eb;"></i> Tahrirlash</a>
-      <a href="{% url 'group_extend' group.pk %}"><i class="fas fa-calendar-plus" style="color: #2563eb;"></i> Kun qo'shish</a>
-      <a href="{% url 'transfer_all_students' group.pk %}"><i class="fas fa-exchange-alt" style="color: #7c3aed;"></i> Barcha o'quvchini ko'chirish</a>
-      <a href="{% url 'group_freeze' group.pk %}"><i class="fas fa-snowflake" style="color: #0ea5e9;"></i> Muzlatish</a>
+      {% if 'group.settings' in permissions %}<a href="{% url 'group_settings' group.pk %}"><i class="fas fa-cog" style="color: #2563eb;"></i> Tahrirlash</a>{% endif %}
+      {% if 'group.settings' in permissions %}<a href="{% url 'group_extend' group.pk %}"><i class="fas fa-calendar-plus" style="color: #2563eb;"></i> Kun qo'shish</a>{% endif %}
+      {% if 'student.transfer' in permissions %}<a href="{% url 'transfer_all_students' group.pk %}"><i class="fas fa-exchange-alt" style="color: #7c3aed;"></i> Barcha o'quvchini ko'chirish</a>{% endif %}
+      {% if 'group.freeze' in permissions %}<a href="{% url 'group_freeze' group.pk %}"><i class="fas fa-snowflake" style="color: #0ea5e9;"></i> Muzlatish</a>{% endif %}
       <hr>
       {% if group.status != 'arxivlangan' %}
-      <a href="{% url 'group_archive' group.pk %}" style="color: #c2410c;"><i class="fas fa-archive"></i> Arxivlash</a>
+      {% if 'group.update' in permissions %}<a href="{% url 'group_archive' group.pk %}" style="color: #c2410c;"><i class="fas fa-archive"></i> Arxivlash</a>{% endif %}
       {% endif %}
-      <a href="{% url 'group_delete' group.pk %}" class="danger"><i class="fas fa-trash"></i> O'chirish</a>
+      {% if 'group.delete' in permissions %}<a href="{% url 'group_delete' group.pk %}" class="danger"><i class="fas fa-trash"></i> O'chirish</a>{% endif %}
     </div>
   </div>
   <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -126,7 +126,7 @@
 
         <td style="padding: 6px 12px 6px 0; color: #1e293b;">`
           <span style="background: #fef3c7; color: #b45309; padding: 2px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">{{ group.get_day_type_display }}</span>
-            kunlar: {{ group.days|default:"-" }}
+    {{ group.days_display|default:"-" }}
         </td>
         
         <td style="padding: 6px 12px 6px 0; font-weight: 600; color: #475569;">O'qituvchi</td>
@@ -173,12 +173,14 @@ document.addEventListener('click', function(e) {
   <a href="{% url 'group_davom' group.pk %}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#2001ff;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;">
     <i class="fas fa-arrow-right"></i> Davomat
   </a>
+  {% if 'group.settings' in permissions %}
   <button onclick="openAllModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
     <i class="fas fa-user-plus"></i> Guruhga o'quvchi qo'shish
   </button>
   <button onclick="openPendingModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#f59e0b;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
     <i class="fas fa-clock"></i> Kutilyotganlarni qo'shish
   </button>
+  {% endif %}
 </div>
 
 <!-- O'QUVCHILAR JADVALI -->
@@ -188,14 +190,18 @@ document.addEventListener('click', function(e) {
       <i class="fas fa-user-graduate"></i> O'quvchilar ({{ students.count }})
     </h3>
     <div style="display: flex; gap: 8px;">
+      {% if 'group.settings' in permissions %}
       <button onclick="openAllModal()" class="btn btn-sm" style="background: #f1f5f9; color: #475569; padding: 6px 14px; border-radius: 6px; border: 1px solid #e2e8f0; cursor: pointer; font-size: 13px;">
         <i class="fas fa-users"></i> Barcha o'quvchilar
       </button>
       <button onclick="openPendingModal()" class="btn btn-sm" style="background: #fffbeb; color: #92400e; padding: 6px 14px; border-radius: 6px; border: 1px solid #fde68a; cursor: pointer; font-size: 13px;">
         <i class="fas fa-clock"></i> Kutilyotganlar
       </button>
+      {% endif %}
+      {% if 'group.export' in permissions %}
       <a href="{% url 'group_detail_export_excel' group.pk %}" class="btn btn-sm" style="background:#2001ff;color:white;padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;text-decoration:none;" title="Excel"><i class="fas fa-file-excel"></i> Excel</a>
       <a href="{% url 'group_detail_export_csv' group.pk %}" class="btn btn-sm" style="background:#2001ff;color:white;padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;text-decoration:none;" title="CSV"><i class="fas fa-file-csv"></i> CSV</a>
+      {% endif %}
     </div>
   </div>
   <div style="overflow-x: auto;">
@@ -251,12 +257,12 @@ document.addEventListener('click', function(e) {
               </button>
               <div class="student-toolbar">
                 <a href="{% url 'student_profile' s.pk %}" title="O'quv tarixi"><i class="fas fa-history"></i></a>
-                <a href="{% url 'transfer_student' group_pk=group.pk student_pk=s.pk %}" title="Boshqa guruhga o'tkazish"><i class="fas fa-exchange-alt"></i></a>
+                {% if 'student.transfer' in permissions %}<a href="{% url 'transfer_student' group_pk=group.pk student_pk=s.pk %}" title="Boshqa guruhga o'tkazish"><i class="fas fa-exchange-alt"></i></a>{% endif %}
                 <a href="{% url 'student_profile' s.pk %}" title="Profil"><i class="fas fa-user"></i></a>
-                <a href="{% url 'graduate_student' group_pk=group.pk student_pk=s.pk %}" title="Bitirish"><i class="fas fa-graduation-cap" style="color:#16a34a;"></i></a>
+                {% if 'student.update' in permissions %}<a href="{% url 'graduate_student' group_pk=group.pk student_pk=s.pk %}" title="Bitirish"><i class="fas fa-graduation-cap" style="color:#16a34a;"></i></a>{% endif %}
                 <span class="sep"></span>
-                <a href="{% url 'student_delete' s.pk %}" class="danger" title="O'chirish"><i class="fas fa-trash"></i></a>
-                <a href="#" class="danger" title="Guruhdan chiqarish" onclick="event.stopPropagation();openRemoveModal('{{ s.pk }}','{{ s.first_name }} {{ s.last_name }}')"><i class="fas fa-user-minus"></i></a>
+                {% if 'student.delete' in permissions %}<a href="{% url 'student_delete' s.pk %}" class="danger" title="O'chirish"><i class="fas fa-trash"></i></a>{% endif %}
+                {% if 'student.update' in permissions %}<a href="#" class="danger" title="Guruhdan chiqarish" onclick="event.stopPropagation();openRemoveModal('{{ s.pk }}','{{ s.first_name }} {{ s.last_name }}')"><i class="fas fa-user-minus"></i></a>{% endif %}
               </div>
             </div>
           </td>
@@ -320,7 +326,7 @@ document.addEventListener('click', function(e) {
               {% if group in s.groups.all %}
               <span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#f59e0b;"><i class="fas fa-check"></i> Qo'shilgan</span>
               {% else %}
-              <a href="{% url 'add_student_to_group' group_pk=group.pk student_pk=s.pk %}" class="student-add-btn" onclick="return confirm('{{ s.first_name }} {{ s.last_name }} ni guruhga qo\'shishni tasdiqlaysizmi?')"><i class="fas fa-plus"></i></a>
+              {% if 'group.settings' in permissions %}<a href="{% url 'add_student_to_group' group_pk=group.pk student_pk=s.pk %}" class="student-add-btn" onclick="return confirm('{{ s.first_name }} {{ s.last_name }} ni guruhga qo\'shishni tasdiqlaysizmi?')"><i class="fas fa-plus"></i></a>{% endif %}
               {% endif %}
             </td>
           </tr>
@@ -379,7 +385,7 @@ document.addEventListener('click', function(e) {
               </div>
             </td>
             <td style="padding:8px 12px;text-align:right;">
-              <a href="{% url 'add_student_to_group' group_pk=group.pk student_pk=s.pk %}" class="student-add-btn" onclick="return confirm('{{ s.first_name }} {{ s.last_name }} ni guruhga qo\'shishni tasdiqlaysizmi?')"><i class="fas fa-plus"></i></a>
+              {% if 'group.settings' in permissions %}<a href="{% url 'add_student_to_group' group_pk=group.pk student_pk=s.pk %}" class="student-add-btn" onclick="return confirm('{{ s.first_name }} {{ s.last_name }} ni guruhga qo\'shishni tasdiqlaysizmi?')"><i class="fas fa-plus"></i></a>{% endif %}
             </td>
           </tr>
           {% empty %}
@@ -490,7 +496,7 @@ function closeRemoveModal() {
         <input type="hidden" id="removeStudentPk" value="">
         <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
           <button type="button" onclick="closeRemoveModal()" class="btn btn-secondary">Bekor qilish</button>
-          <button type="submit" class="btn btn-danger"><i class="fas fa-user-minus"></i> Chiqarish</button>
+          {% if 'student.update' in permissions %}<button type="submit" class="btn btn-danger"><i class="fas fa-user-minus"></i> Chiqarish</button>{% endif %}
         </div>
       </div>
     </form>
@@ -703,7 +709,7 @@ function updateRemovedCount() {
       </div>
       <div style="display:flex;gap:6px;">
         <button onclick="closeAttendanceModal()" style="padding:8px 16px;border-radius:8px;border:1px solid #d1d5db;background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:#374151;transition:all .15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">Bekor qilish</button>
-        <button onclick="saveAttendance()" style="padding:8px 16px;border-radius:8px;border:none;background:#2001ff;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;box-shadow:0 2px 8px rgba(32,1,255,0.25);" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">Saqlash</button>
+        {% if 'group.settings' in permissions %}<button onclick="saveAttendance()" style="padding:8px 16px;border-radius:8px;border:none;background:#2001ff;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;box-shadow:0 2px 8px rgba(32,1,255,0.25);" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">Saqlash</button>{% endif %}
       </div>
     </div>
     <div style="overflow-y:auto;max-height:50vh;padding:4px 0;" id="attendanceBody">

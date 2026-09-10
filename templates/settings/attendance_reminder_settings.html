@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Davomat eslatmasi sozlamalari | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+  .ss-body { max-width: 700px; margin: 0 auto; padding: 24px; }
+  .ss-card { background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }
+  .ss-card-header { padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
+  .ss-card-header i { color: #ea580c; font-size: 18px; }
+  .ss-card-header h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
+  .ss-card-body { padding: 20px 24px; }
+  .ss-field { margin-bottom: 16px; }
+  .ss-field:last-child { margin-bottom: 0; }
+  .ss-field label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+  .ss-field .help { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .ss-input { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 13px; outline: none; transition: all .15s; background: #fff; color: #0f172a; }
+  .ss-input:focus { border-color: #ea580c; box-shadow: 0 0 0 3px rgba(234,88,12,0.1); }
+  .ss-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+  .ss-btn-primary { background: #ea580c; color: white; }
+  .ss-btn-primary:hover { background: #c2410c; }
+  .ss-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .ss-info { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .ss-info h4 { font-size: 13px; font-weight: 700; color: #9a3412; margin: 0 0 8px; }
+  .ss-info p { font-size: 12px; color: #7c2d12; margin: 0; line-height: 1.6; }
+  .ss-toggle { display: flex; align-items: center; gap: 10px; }
+  .ss-toggle input { width: 18px; height: 18px; accent-color: #ea580c; }
+  .ss-log-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+  .ss-log-row:last-child { border-bottom: none; }
+  .ss-badge { background: #dcfce7; color: #166534; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ss-body">
+  {% if messages %}
+    {% for msg in messages %}
+      <div style="padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px;font-weight:500;
+        {% if msg.tags == 'success' %}background:#dcfce7;color:#166534;{% else %}background:#fef2f2;color:#dc2626;{% endif %}">
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="ss-card">
+    <div class="ss-card-header">
+      <i class="fas fa-clock"></i>
+      <h3>Davomat eslatmasi sozlamalari</h3>
+    </div>
+    <div class="ss-card-body">
+      <div class="ss-info">
+        <h4><i class="fas fa-info-circle"></i> Qanday ishlaydi?</h4>
+        <p>
+          Funksiya yoqilgan bo'lsa, dars kuni bo'lgan "aktiv" guruhlarda dars boshlangandan
+          so'ng belgilangan daqiqadan keyin hali ham davomat to'ldirilmagan bo'lsa —
+          guruh o'qituvchisiga <b>telegram + push</b> orqali
+          avtomatik eslatma yuboriladi.
+          Har bir guruh+sana uchun faqat <b>bir marta</b> yuboriladi (dublikat bo'lmaydi).
+          <br><br>
+          Avto-eslatma <b>dars boshlangan vaqtdan boshlab</b> hisoblanadi — o'qituvchi darsni
+          boshlashga kechiksa, eslatma shunga yarasha kechroq keladi.
+        </p>
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="ss-field">
+          <div class="ss-toggle">
+            <input type="checkbox" id="enabled" name="enabled" {% if setting.enabled %}checked{% endif %}>
+            <label for="enabled" style="margin:0">Davomat eslatmasi yoqilgan</label>
+          </div>
+          <div class="help">O'chirilgan bo'lsa, hech qanday avto-eslatma yuborilmaydi.</div>
+        </div>
+        <div class="ss-field">
+          <label for="delay_minutes">Necha daqiqadan keyin eslatish</label>
+          <input type="number" class="ss-input" id="delay_minutes" name="delay_minutes"
+                 min="0" max="1440" value="{{ setting.delay_minutes }}" style="max-width:200px">
+          <div class="help">Dars boshlanganidan keyin shu vaqtdan so'ng eslatma yuboriladi (masalan 60 = dars boshlanib 1 soat o'tgach).</div>
+        </div>
+        <div class="ss-actions">
+          <button type="submit" class="ss-btn ss-btn-primary"><i class="fas fa-save"></i> Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="ss-card">
+    <div class="ss-card-header">
+      <i class="fas fa-paper-plane"></i>
+      <h3>Bugun yuborilgan eslatmalar ({{ today|date:"d.m.Y" }})</h3>
+    </div>
+    <div class="ss-card-body">
+      {% if sent_today %}
+        {% for log in sent_today %}
+        <div class="ss-log-row">
+          <span><i class="fas fa-users" style="color:#64748b"></i> {{ log.group.name }}</span>
+          <span style="color:#94a3b8">{{ log.created_at|date:"H:i" }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="color:#94a3b8;font-size:13px;text-align:center;padding:12px 0">Bugun hali eslatma yuborilmagan</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

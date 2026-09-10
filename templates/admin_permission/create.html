@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Yangi admin | Edu Tizim{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .form-input {
+    height: 46px; padding: 0 14px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+    font-size: 0.9rem; color: #0f172a; background: #fff; transition: all 0.2s;
+    outline: none; width: 100%; font-family: inherit;
+  }
+  .form-input:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
+  .form-input::placeholder { color: #94a3b8; }
+  .form-label { display: block; font-size: 0.82rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  .form-label .required { color: #ef4444; }
+  .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+  .toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+  .toggle-switch input:checked + .toggle-slider { background: #2563eb; }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-xl font-bold text-[#0f172a]">Yangi admin qo'shish</h2>
+      <p class="text-sm text-[#64748b] mt-0.5">Admin hisobini yarating va huquqlarni belgilang</p>
+    </div>
+    <a href="{% url 'admin_list' %}" class="px-5 py-2.5 border border-[#e2e8f0] rounded-lg text-sm font-semibold text-[#64748b] hover:bg-[#f8fafc] transition-all">Orqaga</a>
+  </div>
+
+  {% if error %}<div class="mb-4 px-4 py-3 bg-[#fee2e2] text-[#b91c1c] rounded-lg text-sm font-medium">{{ error }}</div>{% endif %}
+
+  <form method="post" class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-6 md:p-8">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 gap-5">
+      <div>
+        <label class="form-label">Ism / Familiya <span class="required">*</span></label>
+        <input type="text" name="name" class="form-input" placeholder="Masalan: Ali Valiyev" required>
+      </div>
+      <div>
+        <label class="form-label">Login (telefon) <span class="required">*</span></label>
+        <input type="text" name="username" class="form-input" placeholder="Masalan: 998901234567" required>
+      </div>
+      <div>
+        <label class="form-label">Parol <span class="required">*</span></label>
+        <input type="password" name="password" class="form-input" placeholder="Kamida 4 belgi" required>
+      </div>
+      <div class="flex items-center justify-between bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-4 py-3">
+        <div>
+          <div class="font-semibold text-sm text-[#0f172a]">Faol holat</div>
+          <div class="text-xs text-[#64748b]">Admin tizimga kirishi mumkin bo'lsin</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" name="is_active" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="flex items-center justify-between bg-[#eff6ff] border border-[#dbeafe] rounded-lg px-4 py-3">
+        <div>
+          <div class="font-semibold text-sm text-[#0f172a]">Barcha huquqlarni berish</div>
+          <div class="text-xs text-[#64748b]">Yaratilganda barcha permissionlar yoqiladi</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" name="grant_all">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="mt-6 flex justify-end gap-3">
+      <a href="{% url 'admin_list' %}" class="px-5 py-2.5 border border-[#e2e8f0] rounded-lg text-sm font-semibold text-[#64748b] hover:bg-[#f8fafc] transition-all">Bekor qilish</a>
+      <button type="submit" class="px-5 py-2.5 bg-[#2563eb] text-white rounded-lg text-sm font-semibold hover:bg-[#1d4ed8] transition-all shadow-sm flex items-center gap-2">
+        <i class="fas fa-save"></i> Yaratish
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

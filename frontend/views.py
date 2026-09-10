@@ -2,7 +2,9 @@ import json
 import base64
 import mimetypes
 import logging
+import re
 from django.shortcuts import render, redirect, get_object_or_404
+from django.conf import settings as django_settings
 from django.template.loader import render_to_string
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login, logout
@@ -10,14 +12,16 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db.models import Count, Q, Sum
+from django.db import IntegrityError
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.utils import timezone
 from datetime import date, timedelta, datetime, timezone as dt_timezone
 import calendar
 from decimal import Decimal
-from .models import Course, CourseLevel, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, SavedReceipt, Kassa, KassaTransaction, PaymentMethod, SmsHistory
-from .forms import LoginForm, CourseForm, CourseLevelForm, GroupForm, StudentCreateForm, StudentEditForm, MarketingSurveyForm, FreezeForm, RemoveFromGroupForm, AddToGroupForm, LessonTimeForm, BranchForm, RoomForm, PositionForm, EmployeeForm
+from .models import Course, CourseLevel, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Task, Reminder, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, SavedReceipt, Kassa, KassaTransaction, KassaTransfer, PaymentMethod, ExpenseCategory, SmsHistory, TeacherBalance, TeacherTransaction, GroupTeacherAssignment, LessonTeacherSalary, IncomeCategory, EslatmaReminderSetting
+from .forms import LoginForm, CourseForm, CourseLevelForm, GroupForm, StudentCreateForm, StudentEditForm, MarketingSurveyForm, FreezeForm, RemoveFromGroupForm, AddToGroupForm, LessonTimeForm, BranchForm, RoomForm, PositionForm, EmployeeForm, TaskForm, ReminderForm
 from .sms_service import send_absence_sms, send_payment_received_sms, send_bulk_debt_reminders
+from .student_api import send_telegram_message
 
 logger = logging.getLogger(__name__)
 
@@ -100,10 +104,15 @@ def add_balance_transaction(student, amount, transaction_type, group=None, atten
 
 
 def should_deduct_for_status(status, group=None):
-    """Davomat holatiga qarab pul yechish kerakmi yoki yo'qmi.
-    Qoida: faqat 'Keldi' (present) belgilangan dars uchun pul yechiladi.
-    Kemagan (absent) va sababli kelmagan (excused) darslardan pul YECHILMAYDI."""
-    return status == "present"
+    """GlobalConfig sozlamalariga qarab pul yechish kerakmi."""
+    config = GlobalConfig.get_instance()
+    if status == "present":
+        return config.deduct_present
+    if status == "absent":
+        return config.deduct_absent
+    if status == "excused":
+        return config.deduct_excused
+    return False
 
 
 def sync_attendance_balance(student, group, attendance, new_status, created_by=""):
@@ -162,11 +171,206 @@ def sync_attendance_balance(student, group, attendance, new_status, created_by="
         )
     # else: hech narsa qilish shart emas
 
+    # O'qituvchi oylik yozuvini sinxronlash (faqat present darslar uchun)
+    sync_lesson_teacher_salary(student, group, attendance, new_status, created_by=created_by)
+
+
+# ===== O'QITUVCHI OYLIGI (DAVOMAT ASOSIDA — PENDING/PAID) =====
+
+def resolve_attendance_teacher(group, on_date, recorded_teacher=None):
+    """Guruh uchun berilgan sanadagi o'qituvchini aniqlaydi.
+
+    Prioritet:
+    1. Guruhning 'O'qituvchi biriktiruvi' — sanani qamragan eng yaqin biriktiruv.
+    2. Davomatni yozgan o'qituvchi (faqat haqiqiy o'qituvchi bo'lsa).
+    3. Guruhning joriy o'qituvchisi.
+    """
+    assignment = GroupTeacherAssignment.objects.filter(
+        group=group, start_date__lte=on_date
+    ).filter(Q(end_date__isnull=True) | Q(end_date__gte=on_date)).order_by("-start_date").first()
+    if assignment:
+        return assignment.teacher or group.teacher
+    if recorded_teacher:
+        if recorded_teacher == group.teacher:
+            return recorded_teacher
+        if recorded_teacher.teacher_groups.filter(pk=group.pk).exists():
+            return recorded_teacher
+        role_name = recorded_teacher.role.name if recorded_teacher.role else ""
+        if role_name in ("O'qituvchi", "Support Teacher"):
+            return recorded_teacher
+    return group.teacher
+
+
+def get_teacher_percent(employee):
+    """O'qituvchi foizini qaytaradi. Foiz o'rnatilmagan bo'lsa 30%."""
+    if employee and employee.percent and employee.percent > 0:
+        return employee.percent
+    return Decimal('30.00')
+
+
+def add_teacher_balance_transaction(employee, amount, transaction_type, payment_transaction=None, student=None,
+                                    group=None, percent=None, description="", created_by="", payment_method="",
+                                    salary_date=None, salary_type="", avans_amount=None, affect_balance=True):
+    """O'qituvchi balansini tranzaksiya orqali yangilaydi (balans qo'lda o'zgartirilmaydi).
+
+    - odatda: oylik balansiga `amount` qo'shiladi.
+    - avans berishda: `affect_balance=False`, `avans_amount=amount` → oylik balansi o'zgarmaydi,
+      avans qarzi oshadi.
+    - avans yopishda: `amount=-summa`, `avans_amount=-summa` → oylik balansi ham, avans qarzi ham kamayadi.
+    """
+    balance = get_or_create_teacher_balance(employee)
+    if affect_balance:
+        balance.balance += amount
+    if avans_amount is not None:
+        balance.avans_balance += avans_amount
+    balance.save()
+    TeacherTransaction.objects.create(
+        employee=employee,
+        amount=amount,
+        balance_after=balance.balance,
+        avans_balance_after=balance.avans_balance,
+        transaction_type=transaction_type,
+        salary_type=salary_type,
+        payment_transaction=payment_transaction,
+        student=student,
+        group=group,
+        percent=percent or Decimal('0.00'),
+        salary_date=salary_date,
+        payment_method=payment_method,
+        description=description,
+        created_by=created_by,
+    )
+    return balance
+
+
+def mark_salary_paid(salary, payment_transaction=None, payment_date=None, created_by="", payment_method=""):
+    """O'qituvchi oylik yozuvini Paid qiladi va o'qituvchi balansiga yozadi."""
+    if salary.status == LessonTeacherSalary.Status.PAID:
+        return salary
+    salary.status = LessonTeacherSalary.Status.PAID
+    salary.payment_date = payment_date or salary.date
+    if payment_transaction:
+        salary.paid_by_transaction = payment_transaction
+    salary.save(update_fields=["status", "payment_date", "paid_by_transaction"])
+    if salary.teacher:
+        add_teacher_balance_transaction(
+            salary.teacher,
+            salary.teacher_amount,
+            TeacherTransaction.Type.INCOME,
+            payment_transaction=payment_transaction,
+            student=salary.student,
+            group=salary.group,
+            percent=salary.teacher_percent,
+            salary_date=salary.date,
+            description=f"{salary.student.first_name} {salary.student.last_name} — {salary.group.name} {salary.date} dars",
+            created_by=created_by,
+            payment_method=payment_method,
+        )
+    return salary
+
+
+def sync_lesson_teacher_salary(student, group, attendance, new_status, created_by=""):
+    """Davomat bo'yicha o'qituvchi oylik yozuvini yaratadi/yangilaydi/o'chiradi.
+
+    Qoida:
+    - 'present' dars uchun yozuv yaratiladi. Balans (yechimdan keyin) musbat bo'lsa → Paid,
+      manfiy bo'lsa → Pending.
+    - 'present' bo'lmagan holatda yozuv o'chiriladi (agar to'langan bo'lsa o'qituvchi balansi qaytariladi).
+    """
+    if new_status != "present":
+        existing = LessonTeacherSalary.objects.filter(attendance=attendance).first()
+        if existing:
+            reverse_salary_teacher_credit(
+                existing, created_by=created_by,
+                reason=f"{group.name} {attendance.date} dars bekor qilindi"
+            )
+            existing.delete()
+        return
+
+    price = get_student_lesson_price(student, group)
+    if not price or price <= 0:
+        return
+
+    salary = LessonTeacherSalary.objects.filter(attendance=attendance).first()
+    if salary and salary.status == LessonTeacherSalary.Status.PAID:
+        return
+
+    if salary is None:
+        teacher = resolve_attendance_teacher(group, attendance.date, attendance.teacher)
+        percent = get_teacher_percent(teacher)
+        amount = (Decimal(price) * percent / Decimal('100')).quantize(Decimal('1'))
+        salary = LessonTeacherSalary.objects.create(
+            student=student,
+            group=group,
+            teacher=teacher,
+            attendance=attendance,
+            date=attendance.date,
+            lesson_price=price,
+            teacher_percent=percent,
+            teacher_amount=amount,
+            status=LessonTeacherSalary.Status.PENDING,
+        )
+    elif salary.teacher_id is None:
+        # Muzlatish qoidasi: mavjud yozuvning narx/foiz/summasi qayta hisoblanmaydi.
+        # Faqat o'qituvchi noma'lum bo'lsa, guruhning o'qituvchisi tayinlanadi.
+        teacher = resolve_attendance_teacher(group, attendance.date, attendance.teacher)
+        salary.teacher = teacher
+        salary.save(update_fields=["teacher"])
+
+    if salary.status == LessonTeacherSalary.Status.PENDING:
+        balance = get_or_create_balance(student)
+        if balance.balance >= 0:
+            mark_salary_paid(salary, payment_date=attendance.date, created_by=created_by)
+
+
+def reverse_salary_teacher_credit(salary, created_by="", reason=""):
+    """Paid yozuvning o'qituvchi kreditini qaytaradi va yozuvni Pending holatiga qaytaradi."""
+    if salary.status == LessonTeacherSalary.Status.PAID and salary.teacher:
+        add_teacher_balance_transaction(
+            salary.teacher,
+            -salary.teacher_amount,
+            TeacherTransaction.Type.REFUND,
+            student=salary.student,
+            group=salary.group,
+            percent=salary.teacher_percent,
+            salary_date=salary.date,
+            description="Qaytarildi: " + (reason or f"{salary.group.name} {salary.date} dars"),
+            created_by=created_by,
+        )
+    salary.status = LessonTeacherSalary.Status.PENDING
+    salary.payment_date = None
+    salary.paid_by_transaction = None
+    salary.save(update_fields=["status", "payment_date", "paid_by_transaction"])
+
+
+def release_pending_salaries(student, amount, payment_transaction=None, created_by="", payment_method=""):
+    """To'lovdan keyin eng eski Pending oyliklarni (FIFO) Paid holatiga o'tkazadi.
+
+    Qoida: to'lov miqdori qarorni eng eski o'tilgan darslardan boshlab yopadi.
+    Har bir darsning 30% ulushi aynan o'sha darsni o'tgan o'qituvchiga yoziladi.
+    """
+    running = amount
+    released = []
+    salaries = LessonTeacherSalary.objects.filter(
+        student=student, status=LessonTeacherSalary.Status.PENDING
+    ).order_by("date", "id")
+    for salary in salaries:
+        if running < salary.lesson_price:
+            break
+        running -= salary.lesson_price
+        mark_salary_paid(
+            salary, payment_transaction=payment_transaction,
+            payment_date=date.today(), created_by=created_by, payment_method=payment_method,
+        )
+        released.append(salary)
+    return released
+
 
 def process_payment(student, amount, description="", created_by="", payment_method=""):
     """
     To'lovni amalga oshiradi. Avval qarzni (minus balans) qoplaydi,
-    qolgan summa balansga qo'shiladi.
+    qolgan summa balansga qo'shiladi. Qarzni qoplash FIFO tartibida
+    Pending o'qituvchi oyliklarini Paid holatiga o'tkazadi.
     """
     balance = get_or_create_balance(student)
     balance.balance += amount
@@ -180,7 +384,52 @@ def process_payment(student, amount, description="", created_by="", payment_meth
         description=description,
         created_by=created_by,
     )
+    # Eng eski Pending o'qituvchi oyliklari FIFO bo'yicha to'lanadi
+    release_pending_salaries(student, amount, payment_transaction=transaction, created_by=created_by, payment_method=payment_method)
     return balance, transaction
+
+
+# ===== O'QITUVCHI OYLIGI (FOIZ TIZIMI) =====
+
+def get_or_create_teacher_balance(employee):
+    balance, _ = TeacherBalance.objects.get_or_create(employee=employee, defaults={"balance": Decimal('0.00')})
+    return balance
+
+
+def reverse_payment_teacher_share(payment_transaction, created_by="", reason=""):
+    """To'lov bekor qilinsa/qaytarilsa, shu to'lovdan Paid bo'lgan oylik yozuvlarini
+    Pending holatiga qaytaradi va o'qituvchi balansidan qaytarib oladi."""
+    salaries = LessonTeacherSalary.objects.filter(
+        paid_by_transaction=payment_transaction,
+        status=LessonTeacherSalary.Status.PAID,
+    )
+    for salary in salaries:
+        reverse_salary_teacher_credit(
+            salary, created_by=created_by,
+            reason=reason or "to'lov bekor qilindi"
+        )
+
+
+def reverse_teacher_share_for_student(student, amount, created_by="", reason=""):
+    """O'quvchidan pul qaytarilganda/yechilganda o'qituvchi oyliklarini qaytaradi.
+
+    Eng oxirgi to'langan (Paid) darslardan boshlab LIFO tartibida Pending holatiga
+    o'tkaziladi va o'qituvchi balansidan summa qaytarib olinadi.
+    """
+    remaining = amount
+    salaries = LessonTeacherSalary.objects.filter(
+        student=student, status=LessonTeacherSalary.Status.PAID
+    ).order_by("-payment_date", "-id")
+    reversed_count = 0
+    for salary in salaries:
+        if remaining <= 0:
+            break
+        reverse_salary_teacher_credit(
+            salary, created_by=created_by, reason=reason or "pul qaytarildi"
+        )
+        remaining -= salary.lesson_price
+        reversed_count += 1
+    return reversed_count
 
 
 def calculate_remaining_month_payment(student):
@@ -711,6 +960,7 @@ def take_attendance(request):
         return JsonResponse({"error": "POST required"}, status=405)
     import json
     from datetime import datetime, time as dt_time
+    from .permissions import attendance_write_check, has_permission
     try:
         data = json.loads(request.body)
     except:
@@ -792,6 +1042,20 @@ def take_attendance(request):
         if group.end_date and rec_date > group.end_date:
             return JsonResponse({"error": "Guruh muddati tugagan, davomatni o'zgartirish mumkin emas"}, status=403)
 
+        # Granular huquq: admin yangi qator uchun attendance.create, mavjud
+        # qatorni o'zgartirish uchun attendance.update kerak (teacherlar o'tib ketadi).
+        if is_admin:
+            existing = Attendance.objects.filter(
+                group=group, student_id=student_id, date=rec_date
+            ).exists()
+            ok, required = attendance_write_check(request.user, True, existing)
+            if not ok:
+                return JsonResponse({
+                    "error": ("Sizga davomatni o'zgartirishga ruxsat berilmagan."
+                              if required == "attendance.update"
+                              else "Sizga davomat qilishga ruxsat berilmagan.")
+                }, status=403)
+
         if status == "none":
             old_att = Attendance.objects.filter(
                 group=group, student_id=student_id, date=rec_date
@@ -827,6 +1091,8 @@ def take_attendance(request):
 
     # Tegilmagan o'quvchilarni "Keldi" qilib saqlash
     if not allow_dated:
+        if is_admin and not has_permission(request.user, "attendance.create"):
+            return JsonResponse({"error": "Sizga davomat qilishga ruxsat berilmagan."}, status=403)
         for student in group.students.all():
             if student.id not in student_ids_in_records:
                 attendance, _ = Attendance.objects.update_or_create(
@@ -1289,7 +1555,8 @@ def group_create(request):
         if form.is_valid():
             group = form.save()
             teacher_name = str(group.teacher) if group.teacher else "Belgilanmagan"
-            _log_group_action(group, "created", f"{group.name} (O'qituvchi: {teacher_name}, Kurs: {group.course.name})", request)
+            course_name = str(group.course) if group.course else "Kurs tanlanmagan"
+            _log_group_action(group, "created", f"{group.name} (O'qituvchi: {teacher_name}, Kurs: {course_name})", request)
             messages.success(request, "Guruh muvaffaqiyatli qo'shildi")
             return redirect("group_list")
     return render(request, "group/form.html", {"form": form, "title": "Guruh qo'shish"})
@@ -1544,6 +1811,9 @@ def student_filter(request):
         students = students.filter(Q(telegram_chat_id__isnull=True) | Q(telegram_chat_id=""))
 
     today = date.today()
+    month_start = today.replace(day=1)
+    month_end = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+
     if age_from:
         try:
             af = int(age_from)
@@ -1736,9 +2006,15 @@ def student_export_excel(request):
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from django.http import HttpResponse
 
+    is_boss = request.user.is_superuser
+    employee = getattr(request.user, 'employee_profile', None)
+
     students = Student.objects.prefetch_related("groups", "marketing_survey").annotate(
         group_count=Count("groups")
     ).order_by("-created_at")
+
+    if not is_boss and employee:
+        students = students.filter(groups__teacher=employee).distinct()
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1817,9 +2093,15 @@ def student_export_csv(request):
     import csv
     from django.http import HttpResponse
 
+    is_boss = request.user.is_superuser
+    employee = getattr(request.user, 'employee_profile', None)
+
     students = Student.objects.prefetch_related("groups", "marketing_survey").annotate(
         group_count=Count("groups")
     ).order_by("-created_at")
+
+    if not is_boss and employee:
+        students = students.filter(groups__teacher=employee).distinct()
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="oquvchilar.csv"'
@@ -1868,7 +2150,11 @@ def _write_csv(response, headers, rows):
 def group_export_excel(request):
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    is_boss = request.user.is_superuser
+    employee = getattr(request.user, 'employee_profile', None)
     groups = Group.objects.select_related("course", "teacher", "room").prefetch_related("lesson_times").annotate(student_count=Count("students"))
+    if not is_boss and employee:
+        groups = groups.filter(teacher=employee)
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Guruhlar"
     headers = ["#","Nomi","Kurs","O'qituvchi","Xona","Kunlar","Vaqt","Talabalar","Holat","Boshlanish","Tugash"]
     hf = Font(bold=True,color="FFFFFF",size=11); hfl = PatternFill(start_color="2563EB",end_color="2563EB",fill_type="solid")
@@ -1886,7 +2172,11 @@ def group_export_excel(request):
 
 @login_required(login_url="login")
 def group_export_csv(request):
+    is_boss = request.user.is_superuser
+    employee = getattr(request.user, 'employee_profile', None)
     groups = Group.objects.select_related("course","teacher","room").prefetch_related("lesson_times").annotate(student_count=Count("students"))
+    if not is_boss and employee:
+        groups = groups.filter(teacher=employee)
     headers = ["#","Nomi","Kurs","O'qituvchi","Xona","Kunlar","Vaqt","Talabalar","Holat","Boshlanish","Tugash"]
     rows = []
     for i,g in enumerate(groups,1):
@@ -1901,7 +2191,11 @@ def group_export_csv(request):
 def employee_export_excel(request):
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    is_boss = request.user.is_superuser
+    employee = getattr(request.user, 'employee_profile', None)
     employees = Employee.objects.prefetch_related("branches").select_related("position","role").all().order_by("-created_at")
+    if not is_boss and employee:
+        employees = employees.filter(pk=employee.pk)
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Xodimlar"
     headers = ["#","Ism","Familya","Telefon","Lavozim","Rol","Filiallar","Qo'shilgan sana"]
     hf = Font(bold=True,color="FFFFFF",size=11); hfl = PatternFill(start_color="2563EB",end_color="2563EB",fill_type="solid")
@@ -1917,7 +2211,11 @@ def employee_export_excel(request):
 
 @login_required(login_url="login")
 def employee_export_csv(request):
+    is_boss = request.user.is_superuser
+    employee = getattr(request.user, 'employee_profile', None)
     employees = Employee.objects.prefetch_related("branches").select_related("position","role").all().order_by("-created_at")
+    if not is_boss and employee:
+        employees = employees.filter(pk=employee.pk)
     headers = ["#","Ism","Familya","Telefon","Lavozim","Rol","Filiallar","Qo'shilgan sana"]
     rows = []
     for i,e in enumerate(employees,1):
@@ -1958,7 +2256,11 @@ def pending_export_csv(request):
 def graduated_export_excel(request):
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    is_boss = request.user.is_superuser
+    employee = getattr(request.user, 'employee_profile', None)
     students = Student.objects.filter(graduated_groups__isnull=False).prefetch_related("graduated_groups","groups").distinct().order_by("-created_at")
+    if not is_boss and employee:
+        students = students.filter(graduated_groups__teacher=employee).distinct()
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Bitirilganlar"
     headers = ["#","Ism","Familya","Telefon","Bitirgan guruhlari","Hozirgi guruhlari","Qo'shilgan sana"]
     hf = Font(bold=True,color="FFFFFF",size=11); hfl = PatternFill(start_color="2563EB",end_color="2563EB",fill_type="solid")
@@ -1975,7 +2277,11 @@ def graduated_export_excel(request):
 
 @login_required(login_url="login")
 def graduated_export_csv(request):
+    is_boss = request.user.is_superuser
+    employee = getattr(request.user, 'employee_profile', None)
     students = Student.objects.filter(graduated_groups__isnull=False).prefetch_related("graduated_groups","groups").distinct().order_by("-created_at")
+    if not is_boss and employee:
+        students = students.filter(graduated_groups__teacher=employee).distinct()
     headers = ["#","Ism","Familya","Telefon","Bitirgan guruhlari","Hozirgi guruhlari","Qo'shilgan sana"]
     rows = []
     for i,s in enumerate(students,1):
@@ -2567,6 +2873,7 @@ def group_davom(request, pk):
 
     if request.method == "POST":
         import json
+        from .permissions import attendance_write_check, has_permission
         try:
             data = json.loads(request.body)
         except:
@@ -2619,6 +2926,19 @@ def group_davom(request, pk):
             # Guruh tugash sanasidan keyingi davomatni saqlash mumkin emas
             if group.end_date and rec_date > group.end_date:
                 return JsonResponse({"error": "Guruh muddati tugagan, davomatni o'zgartirish mumkin emas"}, status=403)
+            # Granular huquq: admin yangi qator uchun attendance.create, mavjud
+            # qatorni o'zgartirish uchun attendance.update kerak (teacherlar o'tib ketadi).
+            if is_admin:
+                existing = Attendance.objects.filter(
+                    group=group, student_id=student_id, date=rec_date
+                ).exists()
+                ok, required = attendance_write_check(request.user, True, existing)
+                if not ok:
+                    return JsonResponse({
+                        "error": ("Sizga davomatni o'zgartirishga ruxsat berilmagan."
+                                  if required == "attendance.update"
+                                  else "Sizga davomat qilishga ruxsat berilmagan.")
+                    }, status=403)
             if status == "none":
                 old_att = Attendance.objects.filter(
                     group=group, student_id=student_id, date=rec_date
@@ -2649,6 +2969,8 @@ def group_davom(request, pk):
                 pass
         # Tegilmagan o'quvchilarni "Keldi" qilib saqlash (faqat allow_dated=False bo'lsa)
         if not allow_dated:
+            if is_admin and not has_permission(request.user, "attendance.create"):
+                return JsonResponse({"error": "Sizga davomat qilishga ruxsat berilmagan."}, status=403)
             for student in group.students.all():
                 if student.id not in student_ids_in_records:
                     attendance, _ = Attendance.objects.update_or_create(
@@ -3469,12 +3791,115 @@ def group_settings(request, pk):
 
 
 @login_required(login_url="login")
+def group_teacher_assignments(request, pk):
+    """Guruhga sanalar bo'yicha o'qituvchi biriktiruvi (Humoyun → Feruza holati)."""
+    group = get_object_or_404(Group, pk=pk)
+    employees = Employee.objects.select_related("role").filter(
+        is_active=True, is_deleted=False
+    ).order_by("first_name", "last_name")
+
+    if request.method == "POST":
+        teacher_id = request.POST.get("teacher_id") or ""
+        start_date = request.POST.get("start_date", "")
+        end_date = request.POST.get("end_date", "") or None
+        try:
+            start = date.fromisoformat(start_date)
+        except (ValueError, TypeError):
+            messages.error(request, "Boshlanish sanasini to'g'ri kiriting!")
+            return redirect("group_teacher_assignments", pk=group.pk)
+        teacher = Employee.objects.filter(pk=teacher_id).first() if teacher_id else None
+        if teacher_id and not teacher:
+            messages.error(request, "O'qituvchi topilmadi!")
+            return redirect("group_teacher_assignments", pk=group.pk)
+        end = None
+        if end_date:
+            try:
+                end = date.fromisoformat(end_date)
+            except (ValueError, TypeError):
+                messages.error(request, "Tugash sanasini to'g'ri kiriting!")
+                return redirect("group_teacher_assignments", pk=group.pk)
+            if end < start:
+                messages.error(request, "Tugash sanasi boshlanish sanasidan oldin bo'lishi mumkin emas!")
+                return redirect("group_teacher_assignments", pk=group.pk)
+        GroupTeacherAssignment.objects.create(
+            group=group, teacher=teacher, start_date=start, end_date=end
+        )
+        _log_group_action(
+            group, "teacher_assignment",
+            "O'qituvchi biriktirildi: {} ({} - {})".format(
+                str(teacher) if teacher else "Yo'q", start, end or "hozirgacha"
+            ),
+            request
+        )
+        messages.success(request, "O'qituvchi biriktiruvi qo'shildi")
+        return redirect("group_teacher_assignments", pk=group.pk)
+
+    assignments = group.teacher_assignments.all().select_related("teacher")
+    return render(request, "group/teacher_assignments.html", {
+        "group": group,
+        "assignments": assignments,
+        "employees": employees,
+    })
+
+
+@login_required(login_url="login")
+def group_teacher_assignment_delete(request, pk):
+    assignment = get_object_or_404(GroupTeacherAssignment, pk=pk)
+    if request.method == "POST":
+        _log_group_action(
+            assignment.group, "teacher_assignment_deleted",
+            "O'qituvchi biriktiruvi o'chirildi: {} ({} - {})".format(
+                str(assignment.teacher) if assignment.teacher else "Yo'q",
+                assignment.start_date, assignment.end_date or "hozirgacha"
+            ),
+            request
+        )
+        assignment.delete()
+        messages.success(request, "Biriktiruv o'chirildi")
+        return redirect("group_teacher_assignments", pk=assignment.group.pk)
+    return render(request, "group/assignment_delete.html", {"assignment": assignment})
+
+
+@login_required(login_url="login")
 @login_required(login_url="login")
 def employee_list(request):
+    from .teacher_salary_api import _salary_stats_batch
     employees = Employee.all_objects.filter(is_deleted=False).select_related("position", "role").annotate(
         group_count=Count("teacher_groups")
     ).all().order_by("-is_active", "-created_at")
-    return render(request, "employee/list.html", {"employees": employees})
+
+    kasab_id = request.GET.get("kasab")
+    rol_id = request.GET.get("rol")
+    filial_id = request.GET.get("filial")
+    if kasab_id:
+        employees = employees.filter(position_id=kasab_id)
+    if rol_id:
+        employees = employees.filter(role_id=rol_id)
+    if filial_id and request.user.is_superuser:
+        employees = employees.filter(branches__id=filial_id).distinct()
+
+    salary_stats = _salary_stats_batch(employees)
+    salary_json = json.dumps({
+        e.id: {
+            "balance": str(salary_stats[e.id]["balance"]),
+            "month_earned": str(salary_stats[e.id]["month_earned"]),
+            "paid_total": str(salary_stats[e.id]["paid_total"]),
+            "salary_type": e.salary_type,
+            "percent": str(e.percent),
+            "monthly_salary": str(e.monthly_salary or 0),
+            "avans_balance": str(salary_stats[e.id]["avans_balance"]),
+        }
+        for e in employees
+    })
+    return render(request, "employee/list.html", {
+        "employees": employees,
+        "salary_stats": salary_stats,
+        "salary_json": salary_json,
+        "payment_methods": PaymentMethod.objects.filter(is_active=True),
+        "positions": Position.objects.filter(is_active=True),
+        "roles": Role.objects.filter(is_active=True),
+        "branches": Branch.objects.filter(is_active=True),
+    })
 
 
 @login_required(login_url="login")
@@ -3486,12 +3911,16 @@ def employee_create(request):
             employee = form.save(commit=False)
             password = form.cleaned_data.get("password")
             if password:
-                user = User.objects.create_user(
-                    username=employee.phone,
-                    password=password,
-                    first_name=employee.first_name,
-                    last_name=employee.last_name,
-                )
+                try:
+                    user = User.objects.create_user(
+                        username=re.sub(r"\D", "", employee.phone),
+                        password=password,
+                        first_name=employee.first_name,
+                        last_name=employee.last_name,
+                    )
+                except IntegrityError:
+                    form.add_error("phone", "Bu telefon raqam bilan foydalanuvchi allaqachon mavjud.")
+                    return render(request, "employee/create.html", {"form": form})
                 employee.user = user
             employee.save()
             form.save_m2m()
@@ -3502,6 +3931,8 @@ def employee_create(request):
 
 @login_required(login_url="login")
 def employee_profile(request, pk):
+    from .teacher_salary_api import _salary_stats
+    from django.db.models import Max
     employee = get_object_or_404(
         Employee.all_objects.select_related("position", "role", "user").prefetch_related("branches"),
         pk=pk
@@ -3512,10 +3943,71 @@ def employee_profile(request, pk):
     receipts = SavedReceipt.objects.none()
     if employee.user:
         receipts = SavedReceipt.objects.filter(created_by=employee.user).order_by("-created_at")[:20]
+    salary = _salary_stats(employee, include_transactions=True)
+
+    # Dashboard uchun qo'shimcha statistika
+    today = timezone.localdate()
+    lesson_qs = LessonTeacherSalary.objects.filter(teacher=employee)
+    total_lessons = lesson_qs.count()
+    month_lessons = lesson_qs.filter(date__year=today.year, date__month=today.month).count()
+    att_qs = Attendance.objects.filter(salary_records__teacher=employee)
+    att_total = att_qs.count()
+    att_present = att_qs.filter(status="present").count()
+    attendance_rate = round(att_present / att_total * 100) if att_total else 0
+    lessons = list(
+        lesson_qs.select_related("student", "group").order_by("-date", "-id")[:60]
+    )
+    salary["transactions"] = salary.get("transactions") or []
+    payout_transactions = [t for t in salary["transactions"] if t.get("transaction_type") in ("payout", "advance", "advance_close")]
+    salary_payout_transactions = [t for t in payout_transactions if t.get("salary_type") in ("salary", "")]
+    advance_payout_transactions = [t for t in payout_transactions if t.get("salary_type") == "advance"]
+    filter_students = sorted({t["student_name"] for t in salary["transactions"] if t.get("student_name")})
+    filter_groups = sorted({t["group_name"] for t in salary["transactions"] if t.get("group_name")})
+    group_courses = []
+    for g in groups:
+        c = (g.course.name if g.course else "").strip()
+        if c and c not in group_courses:
+            group_courses.append(c)
+    percent_history = list(
+        lesson_qs.values("teacher_percent")
+        .annotate(lessons_count=Count("id"), last_date=Max("date"))
+        .order_by("-last_date")
+    )
+    days_in_month = calendar.monthrange(today.year, today.month)[1]
+
+    # Panel progress bars (nisbiy o'lchov, xavfsiz bo'lish uchun view'da hisoblanadi)
+    def _bar_pct(v):
+        try:
+            cap = max(Decimal(str(salary["balance"])), Decimal(str(salary["month_earned"])), Decimal(str(salary["pending_amount"])), Decimal("1000000"))
+            return min(100, int(Decimal(str(v)) / cap * 100))
+        except Exception:
+            return 0
+
     return render(request, "employee/profile.html", {
         "employee": employee,
         "groups": groups,
         "receipts": receipts,
+        "salary": salary,
+        "payment_methods": PaymentMethod.objects.filter(is_active=True),
+        "total_lessons": total_lessons,
+        "month_lessons": month_lessons,
+        "attendance_rate": attendance_rate,
+        "att_total": att_total,
+        "att_present": att_present,
+        "filter_students": filter_students,
+        "filter_groups": filter_groups,
+        "group_courses": group_courses,
+        "payout_transactions": payout_transactions,
+        "salary_payout_transactions": salary_payout_transactions,
+        "advance_payout_transactions": advance_payout_transactions,
+        "employee_balance": salary.get("balance", 0),
+        "avans_balance": salary.get("avans_balance", 0),
+        "lessons": lessons,
+        "percent_history": percent_history,
+        "month_progress": round(today.day / days_in_month * 100),
+        "salary_bar": _bar_pct(salary["balance"]),
+        "income_bar": _bar_pct(salary["month_earned"]),
+        "pending_bar": _bar_pct(salary["pending_amount"]),
     })
 
 
@@ -3533,13 +4025,31 @@ def employee_update(request, pk):
                     employee.user.set_password(password)
                     employee.user.save()
                 else:
-                    user = User.objects.create_user(
-                        username=employee.phone,
-                        password=password,
-                        first_name=employee.first_name,
-                        last_name=employee.last_name,
-                    )
+                    try:
+                        user = User.objects.create_user(
+                            username=re.sub(r"\D", "", employee.phone),
+                            password=password,
+                            first_name=employee.first_name,
+                            last_name=employee.last_name,
+                        )
+                    except IntegrityError:
+                        form.add_error("phone", "Bu telefon raqam bilan foydalanuvchi allaqachon mavjud.")
+                        return render(request, "employee/create.html", {"form": form})
                     employee.user = user
+            # Telefon o'zgargan bo'lsa: login raqami ham yangilanadi, barcha
+            # qurilmalardagi eski sessiyalar va eski SMS-kodlar bekor qilinadi.
+            # Akkaunt va ichidagi ma'lumotlar o'zgarmaydi.
+            if employee.user:
+                from .employee_api import sync_employee_username, norm_phone
+                new_uname = norm_phone(employee.phone)
+                if new_uname and new_uname != employee.user.username:
+                    if User.objects.exclude(pk=employee.user.pk).filter(username=new_uname).exists():
+                        form.add_error("phone", "Bu telefon raqam bilan boshqa foydalanuvchi mavjud.")
+                        return render(request, "employee/create.html", {"form": form})
+                try:
+                    sync_employee_username(employee)
+                except Exception:
+                    logger.exception("Xodim loginini sinxronlashda xatolik")
             employee.save()
             form.save_m2m()
             messages.success(request, "Xodim muvaffaqiyatli yangilandi")
@@ -3558,6 +4068,566 @@ def employee_delete(request, pk):
         messages.success(request, "Xodim muvaffaqiyatli o'chirildi (faolligi bekor qilindi)")
         return redirect("employee_list")
     return render(request, "employee/delete.html", {"object": employee, "title": "Xodimni o'chirish"})
+
+
+# ===== TOPShIRIQLAR (VAZIFALAR) =====
+
+def _current_user_name(request):
+    try:
+        emp = request.user.employee_profile
+        name = f"{emp.first_name} {emp.last_name or ''}".strip()
+        if name and not name.replace('+', '').replace(' ', '').isdigit():
+            return name
+    except Exception:
+        pass
+    full = request.user.get_full_name()
+    if full:
+        return full
+    return request.user.username
+
+
+def _is_task_admin(request):
+    """Topshiriq/eslatma bera oladiganmi? 'task.manage' huquqiga bog'liq.
+
+    Super admin (superuser) avtomatik barcha huquqlarga ega. Huquqi yo'q
+    xodim faqat o'ziga berilgan topshiriq/eslatmalarni ko'radi.
+    """
+    from .permissions import has_permission
+    return has_permission(request.user, "task.manage")
+
+
+def send_reminder_telegram(reminder, emp=None):
+    """Eslatma xabarini xodimga alohida eslatma boti (@ithouseeslatma_bot) va push orqali yuboradi.
+
+    emm None bo'lsa reminder.employee ishlatiladi — «hammaga» rejimida har bir
+    xodim uchun bittadan chaqiriladi. Yuborish background thread'da bajariladi —
+    sahifa Telegram'ni kutmaydi (sekin tarmoq tufayli dublikat yaratilmasligi uchun).
+    """
+    emp = emp or reminder.employee
+    if not emp:
+        return False
+
+    def worker():
+        from django.db import close_old_connections
+        close_old_connections()
+        try:
+            if emp.telegram_eslatma_chat_id:
+                from .student_api import send_telegram_inline, reminder_telegram_text, reminder_buttons, REMINDER_BOT_TOKEN
+                send_telegram_inline(
+                    emp.telegram_eslatma_chat_id,
+                    reminder_telegram_text(reminder),
+                    reminder_buttons(reminder),
+                    token=REMINDER_BOT_TOKEN,
+                )
+        except Exception:
+            logger.exception("Telegramga eslatma yuborishda xatolik")
+        try:
+            from .webpush_utils import send_employee_web_push
+            send_employee_web_push(emp, "🔔 Yangi eslatma", reminder.message)
+        except Exception:
+            logger.exception("Push eslatma yuborishda xatolik")
+        close_old_connections()
+
+    import threading
+    threading.Thread(target=worker, daemon=True).start()
+    return True
+
+
+def send_task_telegram(task, action="created", old_status=None):
+    """Topshiriq xabarini xodimga alohida eslatma boti (@ithouseeslatma_bot) va push orqali yuboradi.
+
+    Xodim eslatma botiga (telegram_eslatma_chat_id) o'z raqamini ulagan bo'lsagina
+    yuboriladi, push esa sayt yopiq bo'lsa ham keladi. Xabarda «✅ Bajardim» / «❌ Bajarilmadi»
+    tugmalari bor — bosing, holat sayt va ilovada ham bir xil o'zgaradi.
+
+    Yuborish background thread'da bajariladi — sahifa Telegram'ni kutmaydi
+    (sekin tarmoq tufayli dublikat yaratilmasligi uchun).
+    """
+    emp = task.assigned_to
+    if not emp:
+        return False
+
+    def worker():
+        from django.db import close_old_connections
+        close_old_connections()
+        try:
+            if emp.telegram_eslatma_chat_id:
+                from .student_api import send_telegram_inline, task_telegram_text, task_buttons, REMINDER_BOT_TOKEN
+                send_telegram_inline(
+                    emp.telegram_eslatma_chat_id,
+                    task_telegram_text(task, action, old_status),
+                    task_buttons(task),
+                    token=REMINDER_BOT_TOKEN,
+                )
+        except Exception:
+            logger.exception("Telegramga topshiriq yuborishda xatolik")
+        head = {
+            "created": "📋 Yangi topshiriq",
+            "status": "🔁 Topshiriq holati o'zgardi",
+            "reassigned": "📥 Topshiriq sizga biriktirildi",
+            "updated": "✏️ Topshiriq yangilandi",
+            "cancelled": "🗑 Topshiriq bekor qilindi",
+            "overdue": "⏰ Muddati o'tdi",
+        }.get(action, "📋 Topshiriq")
+        try:
+            from .webpush_utils import send_employee_web_push
+            send_employee_web_push(emp, head, f"📌 {task.title} — {task.get_status_display()}")
+        except Exception:
+            logger.exception("Push topshiriq yuborishda xatolik")
+        close_old_connections()
+
+    import threading
+    threading.Thread(target=worker, daemon=True).start()
+    return True
+
+
+def mark_overdue_tasks_and_notify():
+    """Muddati o'tgan topshiriqlarni avtomatik «Bajarilmadi» qiladi va eslatma yuboradi.
+
+    Yangi/Jarayonda topshiriqlardan muddati o'tganlarini «Bajarilmadi» deb belgilaydi
+    va ular bir marta eslatma bilan xabar qilinadi (bot + push). Solo yoki
+    `poll_telegram` ichida chaqiriladi.
+    """
+    now = timezone.now()
+    overdue = Task.objects.filter(
+        status__in=(Task.Status.NEW, Task.Status.IN_PROGRESS),
+        deadline__lt=now,
+        is_active=True,
+    )
+    flipped = 0
+    for task in overdue:
+        task.status = Task.Status.NOT_DONE
+        task.save(update_fields=["status", "updated_at"])
+        flipped += 1
+        try:
+            send_task_telegram(task, action="overdue")
+        except Exception:
+            logger.exception("Muddati o'tgan topshiriq eslatmasini yuborishda xatolik")
+    return flipped
+
+
+def _send_attendance_reminder(emp, message):
+    """Davomat eslatmasini o'qituvchiga telegram + push orqali yuboradi (background)."""
+
+    def worker():
+        from django.db import close_old_connections
+        close_old_connections()
+        try:
+            if emp.telegram_eslatma_chat_id:
+                from .student_api import send_telegram_message, REMINDER_BOT_TOKEN
+                send_telegram_message(emp.telegram_eslatma_chat_id, message, token=REMINDER_BOT_TOKEN)
+        except Exception:
+            logger.exception("Davomat eslatmasini telegramga yuborishda xatolik")
+        try:
+            from .webpush_utils import send_employee_web_push
+            send_employee_web_push(emp, "⏰ Davomat eslatmasi", message)
+        except Exception:
+            logger.exception("Davomat eslatmasi push yuborishda xatolik")
+        close_old_connections()
+
+    import threading
+    threading.Thread(target=worker).start()
+
+
+def check_attendance_reminders(now=None):
+    """Davomat eslatmasi: dars kuni bo'lib, o'qituvchi davomatni to'ldirmagan
+    guruhlar uchun o'qituvchiga telegram + push eslatma yuboradi.
+
+    EslatmaReminderSetting.enabled=True bo'lsa, dars (eng erta start) boshlangandan
+    keyin delay_minutes o'tib hali Attendance yozilmagan aktiv guruhlar uchun
+    bir marta eslatma yuboriladi. AttendanceReminderLog(guruh, sana) dublikat oldini
+    oladi. Solo (management command), poll_telegram ichidan yoki web-server
+    (gunicorn) background scheduler'ida chaqiriladi.
+    """
+    from .models import Attendance, AttendanceReminderLog, EslatmaReminderSetting, Group
+    setting = EslatmaReminderSetting.get()
+    if not setting.enabled:
+        return 0
+    now = now or timezone.now()
+    local_now = timezone.localtime(now)
+    delay = timezone.timedelta(minutes=setting.delay_minutes or 0)
+    weekday_uz = {0: "dushanba", 1: "seshanba", 2: "chorshanba", 3: "payshanba", 4: "juma", 5: "shanba", 6: "yakshanba"}
+    today_uz = weekday_uz[local_now.weekday()]
+    groups = Group.objects.filter(
+        is_active=True, status=Group.Status.ACTIVE, teacher__isnull=False
+    ).prefetch_related("lesson_times")
+    sent = 0
+    for group in groups:
+        lessons_today = []
+        for lt in group.lesson_times.all():
+            days = {d.strip().lower() for d in lt.days.split(",")}
+            if today_uz in days:
+                lessons_today.append(lt)
+        if not lessons_today:
+            continue
+        earliest_start = min(lt.start_time for lt in lessons_today)
+        lesson_start = local_now.replace(hour=earliest_start.hour, minute=earliest_start.minute, second=0, microsecond=0)
+        if local_now < lesson_start + delay:
+            continue
+        if Attendance.objects.filter(group=group, date=local_now.date()).exists():
+            continue
+        if AttendanceReminderLog.objects.filter(group=group, date=local_now.date()).exists():
+            continue
+        base_url = getattr(django_settings, "WEBHOOK_BASE_URL", None) or "https://edutizim.ithouse.academy"
+        message = (
+            "⏰ Davomat eslatmasi\n\n"
+            f"«{group.name}» guruhida bugun dars bor ({today_uz}, {earliest_start.strftime('%H:%M')} dan).\n"
+            f"Davomat hali to'ldirilmagan. Iltimos, davomatni kiritib qo'ying 👇\n"
+            f"{base_url}/groups/{group.pk}/davomat/"
+        )
+        _send_attendance_reminder(group.teacher, message)
+        AttendanceReminderLog.objects.get_or_create(group=group, date=local_now.date())
+        sent += 1
+    return sent
+
+
+@login_required(login_url="login")
+def task_list(request):
+    is_admin = _is_task_admin(request)
+    employee = None
+    if not is_admin:
+        try:
+            employee = request.user.employee_profile
+        except Exception:
+            employee = None
+
+    base = Task.objects.select_related("assigned_to", "assigned_to__position")
+    if not is_admin and employee:
+        base = base.filter(assigned_to=employee)
+
+    status_filter = request.GET.get("status", "")
+    if status_filter:
+        tasks = base.filter(status=status_filter)
+    else:
+        tasks = base
+    tasks = tasks.order_by("-created_at")
+
+    counts = {
+        "all": base.count(),
+        "yangi": base.filter(status=Task.Status.NEW).count(),
+        "jarayonda": base.filter(status=Task.Status.IN_PROGRESS).count(),
+        "bajarildi": base.filter(status=Task.Status.DONE).count(),
+        "bajarilmadi": base.filter(status=Task.Status.NOT_DONE).count(),
+        "bekor_qilindi": base.filter(status=Task.Status.CANCELLED).count(),
+    }
+    employees = Employee.objects.filter(is_active=True, is_deleted=False).order_by("first_name", "last_name") if is_admin else Employee.objects.none()
+
+    try:
+        emp = request.user.employee_profile
+        emp.notifications_seen_at = timezone.now()
+        emp.save(update_fields=["notifications_seen_at"])
+    except Exception:
+        pass
+
+    return render(request, "task/list.html", {
+        "tasks": tasks,
+        "employees": employees,
+        "counts": counts,
+        "status_filter": status_filter,
+        "is_admin": is_admin,
+    })
+
+
+@login_required(login_url="login")
+def task_create(request):
+    if not _is_task_admin(request):
+        messages.error(request, "Sizga topshiriq yaratishga ruxsat yo'q")
+        return redirect("task_list")
+    form = TaskForm()
+    if request.method == "POST":
+        form = TaskForm(request.POST)
+        if form.is_valid():
+            task = form.save(commit=False)
+            task.created_by = _current_user_name(request)
+            task.save()
+            try:
+                send_task_telegram(task, action="created")
+            except Exception:
+                logger.exception("Telegramga topshiriq yuborishda xatolik")
+            messages.success(request, "Topshiriq yuborildi")
+            return redirect("task_list")
+    return render(request, "task/form.html", {"form": form, "title": "Yangi topshiriq"})
+
+
+@login_required(login_url="login")
+def task_update(request, pk):
+    if not _is_task_admin(request):
+        messages.error(request, "Sizga topshiriqni tahrirlashga ruxsat yo'q")
+        return redirect("task_list")
+    task = get_object_or_404(Task.objects, pk=pk)
+    old_status = task.get_status_display()
+    old_assigned_id = task.assigned_to_id
+    form = TaskForm(instance=task)
+    if request.method == "POST":
+        form = TaskForm(request.POST, instance=task)
+        if form.is_valid():
+            task = form.save()
+            send_action = "updated"
+            if task.assigned_to_id != old_assigned_id:
+                send_action = "reassigned"
+            elif task.status != old_status:
+                send_action = "status"
+            try:
+                send_task_telegram(task, action=send_action, old_status=old_status)
+            except Exception:
+                logger.exception("Telegramga topshiriq yuborishda xatolik")
+            messages.success(request, "Topshiriq yangilandi")
+            return redirect("task_list")
+    return render(request, "task/form.html", {"form": form, "title": "Topshiriqni tahrirlash"})
+
+
+@login_required(login_url="login")
+def task_delete(request, pk):
+    if not _is_task_admin(request):
+        messages.error(request, "Sizga topshiriqni o'chirishga ruxsat yo'q")
+        return redirect("task_list")
+    task = get_object_or_404(Task.objects, pk=pk)
+    if request.method == "POST":
+        try:
+            send_task_telegram(task, action="cancelled")
+        except Exception:
+            logger.exception("Telegramga topshiriq yuborishda xatolik")
+        task.delete()
+        messages.success(request, "Topshiriq o'chirildi")
+        return redirect("task_list")
+    return render(request, "task/delete.html", {"object": task, "title": "Topshiriqni o'chirish", "cancel_url": "task_list"})
+
+
+@login_required(login_url="login")
+def task_status_ajax(request):
+    """Xodim o'z topshirig'i holatini o'zgartirishi uchun AJAX endpoint."""
+    if request.method != "POST":
+        return JsonResponse({"error": "POST so'rovi kerak"}, status=405)
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({"error": "Noto'g'ri JSON"}, status=400)
+    task = get_object_or_404(Task.objects, pk=data.get("task_id"))
+    try:
+        employee = request.user.employee_profile
+    except Exception:
+        employee = None
+    is_admin = _is_task_admin(request)
+    if not is_admin and (not employee or task.assigned_to_id != employee.id):
+        return JsonResponse({"error": "Ruxsat yo'q"}, status=403)
+    if not is_admin and task.status not in (Task.Status.NEW, Task.Status.IN_PROGRESS):
+        return JsonResponse({"error": "Bu topshiriq yopilgan. Holatni faqat admin o'zgartira oladi."}, status=403)
+    old_status = task.get_status_display()
+    new_status = data.get("status", "")
+    valid = {s for s, _ in Task.Status.choices}
+    if new_status not in valid:
+        return JsonResponse({"error": "Noto'g'ri holat"}, status=400)
+    task.status = new_status
+    task.save(update_fields=["status", "updated_at"])
+    try:
+        send_task_telegram(task, action="status", old_status=old_status)
+    except Exception:
+        logger.exception("Telegramga topshiriq yuborishda xatolik")
+    return JsonResponse({"ok": True, "status": task.status, "status_display": task.get_status_display()})
+
+
+@login_required(login_url="login")
+def reminder_list(request):
+    """Eslatmalar bo'limi: Eslatma yuborish (xodim yoki barchaga) va tarixni ko'rish."""
+    is_admin = _is_task_admin(request)
+    form = ReminderForm()
+    if request.method == "POST":
+        if not is_admin:
+            messages.error(request, "Sizga eslatma yuborishga ruxsat yo'q")
+            return redirect("reminder_list")
+        form = ReminderForm(request.POST)
+        if form.is_valid():
+            reminder = form.save(commit=False)
+            reminder.created_by = _current_user_name(request)
+            reminder.save()
+            try:
+                if reminder.send_to_all:
+                    targets = Employee.objects.filter(is_active=True, is_deleted=False)
+                    for target in targets:
+                        send_reminder_telegram(reminder, emp=target)
+                else:
+                    send_reminder_telegram(reminder)
+            except Exception:
+                logger.exception("Telegramga eslatma yuborishda xatolik")
+            if reminder.send_to_all:
+                messages.success(request, "Eslatma barchaga yuborildi")
+            else:
+                messages.success(request, "Eslatma yuborildi")
+            return redirect("reminder_list")
+    from django.db.models import Count, Prefetch, Q
+    reminders = Reminder.objects.select_related("employee", "employee__position").order_by("-created_at")
+    if not is_admin:
+        try:
+            emp = request.user.employee_profile
+            reminders = reminders.filter(Q(employee=emp) | Q(employee__isnull=True))
+        except Exception:
+            reminders = Reminder.objects.none()
+    from frontend.models import ReminderRead
+    viewer_states = Prefetch(
+        "read_states",
+        queryset=ReminderRead.objects.filter(user=request.user),
+        to_attr="viewer_states",
+    )
+    reminders = reminders.annotate(
+        reader_count=Count("read_states", filter=Q(read_states__is_read=True))
+    ).prefetch_related(viewer_states)
+    if is_admin:
+        reminders = reminders.prefetch_related("read_states__employee")
+    from django.utils import timezone
+    reader_employees = Employee.objects.filter(is_active=True, is_deleted=False)
+    viewer_read = {}
+    unread_pks = []
+    for r in reminders:
+        if r.send_to_all:
+            is_read = bool(getattr(r, "viewer_states", None))
+        else:
+            is_read = r.is_read
+        r.viewer_is_read = is_read
+        viewer_read[r.id] = is_read
+        if not is_read:
+            unread_pks.append(r.id)
+        if is_admin and r.send_to_all:
+            states = list(r.read_states.all())
+            read_names = []
+            for s in states:
+                if s.is_read:
+                    who = s.employee or s.user
+                    if who is None:
+                        continue
+                    name = f"{who.first_name} {who.last_name}".strip() if getattr(who, "first_name", None) else str(who)
+                    local = timezone.localtime(s.read_at).strftime("%d.%m %H:%M") if s.read_at else "—"
+                    read_names.append(f"{name} ({local})")
+            reader_ids = {s.employee_id for s in states if s.is_read and s.employee_id is not None}
+            reader_user_ids = {s.user_id for s in states if s.is_read and s.user_id is not None}
+            r.readers_list = sorted(read_names)
+            r.unreaders_list = sorted(
+                f"{e.first_name} {e.last_name}".strip()
+                for e in reader_employees if e.id not in reader_ids and e.user_id not in reader_user_ids
+            )
+            r.reader_total = reader_employees.count()
+    return render(request, "task/eslatmalar.html", {
+        "form": form,
+        "reminders": reminders,
+        "is_admin": is_admin,
+        "unread_count": len(unread_pks),
+    })
+
+
+@login_required(login_url="login")
+def reminder_readers(request, pk):
+    """«Hammaga» eslatmaning kim o'qigan / kim o'qimagan ro'yxati (alohida sahifa).
+
+    Faqat admin ko'radi: har bir o'qigan kimligi va qachon o'qigani, hamda
+    faol xodimlardan hali o'qimaganlari ko'rinadi.
+    """
+    if not _is_task_admin(request):
+        return redirect("reminder_list")
+    from django.utils import timezone
+    reminder = get_object_or_404(Reminder.objects.select_related("employee", "employee__position"), pk=pk)
+    from frontend.models import ReminderRead
+    states = list(ReminderRead.objects.filter(reminder=reminder, is_read=True).select_related("employee", "user"))
+    read_names = []
+    for s in states:
+        who = s.employee or s.user
+        if who is None:
+            continue
+        name = f"{who.first_name} {who.last_name}".strip() if getattr(who, "first_name", None) else str(who)
+        local = timezone.localtime(s.read_at).strftime("%d.%m %H:%M") if s.read_at else "—"
+        read_names.append({"name": name, "time": local})
+    active_employees = Employee.objects.filter(is_active=True, is_deleted=False)
+    reader_ids = {s.employee_id for s in states if s.employee_id is not None}
+    reader_user_ids = {s.user_id for s in states if s.user_id is not None}
+    unreaders = [
+        {"name": f"{e.first_name} {e.last_name}".strip(), "phone": e.phone or ""}
+        for e in active_employees
+        if e.id not in reader_ids and e.user_id not in reader_user_ids
+    ]
+    return render(request, "task/eslatmalar_holati.html", {
+        "reminder": reminder,
+        "readers": read_names,
+        "unreaders": unreaders,
+        "reader_total": active_employees.count(),
+        "is_admin": True,
+    })
+
+
+@login_required(login_url="login")
+def reminder_mark_read(request, pk):
+    """Eslatmani «O'qidim» deb belgilaydi (POST).
+
+    Shaxsiy eslatma — faqat egasi (yoki admin); «hammaga» eslatma esa har bir
+    xodim uchun alohida (ReminderRead) — biri o'qisa boshqasi uchun o'zgarmaydi.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "POST so'rovi kerak"}, status=405)
+    reminder = get_object_or_404(Reminder.objects, pk=pk)
+    try:
+        emp = request.user.employee_profile
+    except Exception:
+        emp = None
+    if not _is_task_admin(request):
+        if not (emp or request.user.is_authenticated) or (
+            reminder.employee_id is not None and not emp
+        ) or (reminder.employee_id is not None and emp and reminder.employee_id != emp.id):
+            return JsonResponse({"error": "Ruxsat yo'q"}, status=403)
+    is_admin = _is_task_admin(request)
+    from .reminder_state import mark_read_for
+    mark_read_for(request.user, emp, reminder, admin=is_admin)
+    return JsonResponse({"ok": True, "is_read": True})
+
+
+@login_required(login_url="login")
+def reminder_mark_all_read(request):
+    """Joriy foydalanuvchi uchun barcha eslatmalarni «O'qilgan» deb belgilaydi (POST).
+
+    Har kim o'z o'qiydi: o'ziga yuborilganlar + «hammaga» eslatmalar shu
+    foydalanuvchi uchun alohida qayd etiladi (boshqalarning holatiga tegmaydi).
+    Employee_profile bo'lmasa ham — admin/manager ham o'zini o'qilgan deb
+    belgilay oladi.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "POST so'rovi kerak"}, status=405)
+    try:
+        emp = request.user.employee_profile
+    except Exception:
+        emp = None
+    now = timezone.now()
+    own = 0
+    if emp:
+        own = Reminder.objects.filter(employee=emp, is_active=True, is_read=False).update(is_read=True, read_at=now)
+    from .reminder_state import mark_read_for
+    marked = 0
+    for rem in Reminder.objects.filter(employee__isnull=True, is_active=True):
+        if mark_read_for(request.user, emp, rem):
+            marked += 1
+    return JsonResponse({"ok": True, "updated": own, "marked": marked})
+
+
+@login_required(login_url="login")
+def notifications_badge(request):
+    """Badge hisoblari (session sahifalar uchun): yangi topshiriqlar + o'qilmagan eslatmalar.
+
+    JS har 30 soniyada chaqirib sidebar va qo'ng'iroq icon badge'larini yangilaydi.
+    Umumiy eslatmalar employee_profile'siz ham hisoblanadi — badge har doim to'g'ri.
+    """
+    from .reminder_state import unread_count_for
+    try:
+        emp = request.user.employee_profile
+    except Exception:
+        emp = None
+    new_tasks = 0
+    if emp:
+        seen = emp.notifications_seen_at
+        base = Task.objects.filter(assigned_to=emp, is_active=True)
+        if seen:
+            base = base.filter(created_at__gt=seen)
+        new_tasks = base.count()
+    unread = unread_count_for(request.user, emp)
+    return JsonResponse({
+        "tasks": new_tasks,
+        "reminders": unread,
+        "total": new_tasks + unread,
+    })
 
 
 @login_required(login_url="login")
@@ -3845,13 +4915,212 @@ def absence_reason_delete(request, pk):
 # ===== BALANCE & PAYMENT VIEWS =====
 
 @login_required(login_url="login")
+@login_required(login_url="login")
+def payment_transfer_ajax(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "POST kerak"})
+    user = request.user
+    is_boss = user.is_superuser
+    if is_boss:
+        user_kassalar = Kassa.objects.filter(is_active=True)
+    else:
+        user_kassalar = Kassa.objects.filter(owner=user, is_active=True)
+    if not user_kassalar.exists():
+        return JsonResponse({"success": False, "error": "Kassa yo'q"})
+    from_kassa_id = request.POST.get("from_kassa")
+    if from_kassa_id:
+        if is_boss:
+            from_kassa = user_kassalar.filter(pk=from_kassa_id).first()
+        else:
+            from_kassa = user_kassalar.filter(pk=from_kassa_id).first()
+    else:
+        from_kassa = user_kassalar.first()
+    to_kassa_id = request.POST.get("to_kassa")
+    amount_str = request.POST.get("amount", "0")
+    payment_method = request.POST.get("payment_method", "").strip()
+    to_payment_method = request.POST.get("to_payment_method", "").strip()
+    description = request.POST.get("description", "").strip() or f"O'tkazma: {from_kassa.name}"
+    try:
+        to_kassa = Kassa.objects.get(pk=to_kassa_id, is_active=True)
+    except (Kassa.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({"success": False, "error": "Qabul qiluvchi kassa topilmadi"})
+    try:
+        amount = Decimal(amount_str)
+    except:
+        return JsonResponse({"success": False, "error": "Noto'g'ri summa"})
+    if amount <= 0:
+        return JsonResponse({"success": False, "error": "Summa 0 dan katta bo'lishi kerak"})
+    if payment_method:
+        k_tx = KassaTransaction.objects.filter(kassa=from_kassa)
+        pm_inc = k_tx.filter(transaction_type__in=["payment", "income", "transfer_in"], payment_method__iexact=payment_method).aggregate(s=Sum("amount"))["s"] or 0
+        pm_exp = k_tx.filter(transaction_type__in=["expense", "transfer_out"], payment_method__iexact=payment_method).aggregate(s=Sum("amount"))["s"] or 0
+        pm_balance = pm_inc - pm_exp
+        if pm_balance < amount:
+            return JsonResponse({"success": False, "error": f"'{payment_method}' turida {float(pm_balance):,.0f} so'm bor, {float(amount):,.0f} so'm yetarli emas!"})
+    else:
+        if from_kassa.balance < amount:
+            return JsonResponse({"success": False, "error": f"Kassada yetarli mablag' yo'q! Balans: {float(from_kassa.balance):,.0f} so'm"})
+    bal_before_from = from_kassa.balance
+    bal_before_to = to_kassa.balance
+    KassaTransaction.objects.create(
+        kassa=from_kassa, transaction_type=KassaTransaction.TransactionType.TRANSFER_OUT,
+        amount=amount, balance_before=bal_before_from, balance_after=bal_before_from - amount,
+        description=description, payment_method=payment_method, created_by=f"{request.user.first_name} {request.user.last_name}".strip(),
+        created_by_user=request.user,
+    )
+    KassaTransaction.objects.create(
+        kassa=to_kassa, transaction_type=KassaTransaction.TransactionType.TRANSFER_IN,
+        amount=amount, balance_before=bal_before_to, balance_after=bal_before_to + amount,
+        description=description, payment_method=to_payment_method or payment_method,
+        created_by=f"{request.user.first_name} {request.user.last_name}".strip(),
+        created_by_user=request.user,
+    )
+    KassaTransfer.objects.create(
+        from_kassa=from_kassa, to_kassa=to_kassa, amount=amount, description=description,
+        created_by=f"{request.user.first_name} {request.user.last_name}".strip(),
+        created_by_user=request.user,
+    )
+    return JsonResponse({"success": True, "message": f"{float(amount):,.0f} so'm '{to_kassa.name}' ga o'tkazildi"})
+
+
+@login_required(login_url="login")
+def payment_expense_ajax(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "POST kerak"})
+    user = request.user
+    is_boss = user.is_superuser
+    if is_boss:
+        user_kassalar = Kassa.objects.filter(is_active=True)
+    else:
+        user_kassalar = Kassa.objects.filter(owner=user, is_active=True)
+    if not user_kassalar.exists():
+        return JsonResponse({"success": False, "error": "Kassa yo'q"})
+    kassa_id = request.POST.get("kassa_id")
+    if kassa_id:
+        kassa = user_kassalar.filter(pk=kassa_id).first()
+    else:
+        kassa = user_kassalar.first()
+    amount_str = request.POST.get("amount", "0")
+    description = request.POST.get("description", "").strip()
+    expense_category = request.POST.get("expense_category", "").strip()
+    custom_category = request.POST.get("custom_category", "").strip()
+    payment_method = request.POST.get("payment_method", "").strip()
+    try:
+        amount = Decimal(amount_str)
+    except:
+        return JsonResponse({"success": False, "error": "Noto'g'ri summa"})
+    if amount <= 0:
+        return JsonResponse({"success": False, "error": "Summa 0 dan katta bo'lishi kerak"})
+    if kassa.balance < amount:
+        return JsonResponse({"success": False, "error": f"Kassada yetarli mablag' yo'q! Balans: {float(kassa.balance):,.0f} so'm"})
+    final_category = ""
+    if expense_category == "boshqa" and custom_category:
+        final_category = custom_category
+    elif expense_category:
+        final_category = expense_category
+    bal_before = kassa.balance
+    KassaTransaction.objects.create(
+        kassa=kassa, transaction_type=KassaTransaction.TransactionType.EXPENSE,
+        amount=amount, balance_before=bal_before, balance_after=bal_before - amount,
+        expense_category=final_category, payment_method=payment_method,
+        description=description, created_by=f"{request.user.first_name} {request.user.last_name}".strip(),
+        created_by_user=request.user,
+    )
+    return JsonResponse({"success": True, "message": f"{float(amount):,.0f} so'm chiqim qilindi"})
+
+
+@login_required(login_url="login")
+def payment_student_refund(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "POST kerak"})
+    user = request.user
+    from .permissions import has_permission
+    if not has_permission(user, "expense.refund"):
+        return JsonResponse({"success": False, "error": "Sizga o'quvchiga pul qaytarishga ruxsat berilmagan."})
+    is_boss = user.is_superuser
+    if is_boss:
+        user_kassalar = Kassa.objects.filter(is_active=True)
+    else:
+        user_kassalar = Kassa.objects.filter(owner=user, is_active=True)
+    if not user_kassalar.exists():
+        return JsonResponse({"success": False, "error": "Kassa yo'q"})
+    kassa_id = request.POST.get("kassa_id")
+    if kassa_id:
+        kassa = user_kassalar.filter(pk=kassa_id).first()
+    else:
+        kassa = user_kassalar.first()
+    if not kassa:
+        return JsonResponse({"success": False, "error": "Kassa topilmadi"})
+    student_id = request.POST.get("student_id")
+    amount_str = request.POST.get("amount", "0")
+    description = request.POST.get("description", "").strip()
+    payment_method = request.POST.get("payment_method", "").strip()
+    if not student_id:
+        return JsonResponse({"success": False, "error": "O'quvchini tanlang!"})
+    try:
+        amount = Decimal(amount_str)
+    except Exception:
+        return JsonResponse({"success": False, "error": "Noto'g'ri summa"})
+    if amount <= 0:
+        return JsonResponse({"success": False, "error": "Summa 0 dan katta bo'lishi kerak"})
+    student = get_object_or_404(Student, pk=student_id)
+    balance = get_or_create_balance(student)
+    if balance.balance < amount:
+        return JsonResponse({"success": False, "error": f"Balansda yetarli mablag' yo'q! Balans: {float(balance.balance):,.0f} so'm"})
+    if kassa.balance < amount:
+        return JsonResponse({"success": False, "error": f"Kassada yetarli mablag' yo'q! Balans: {float(kassa.balance):,.0f} so'm"})
+    employee = getattr(request.user, 'employee_profile', None)
+    created_by = "Admin"
+    if employee:
+        created_by = f"{employee.first_name} {employee.last_name or ''}".strip()
+    balance.balance -= amount
+    balance.save()
+    Transaction.objects.create(
+        student=student,
+        amount=-amount,
+        balance_after=balance.balance,
+        transaction_type=Transaction.Type.WITHDRAWAL,
+        description=description or f"Balansdan pul qaytarildi — kassa: {kassa.name}",
+        created_by=created_by,
+    )
+    reverse_teacher_share_for_student(student, amount, created_by=created_by, reason=description or "Balansdan pul qaytarildi")
+    student_info = f"{student.first_name} {student.last_name}"
+    bal_before = kassa.balance
+    KassaTransaction.objects.create(
+        kassa=kassa,
+        transaction_type=KassaTransaction.TransactionType.EXPENSE,
+        amount=amount,
+        balance_before=bal_before,
+        balance_after=bal_before - amount,
+        expense_category="O'quvchiga qaytarilgan pul",
+        payment_method=payment_method,
+        description=description or f"{student_info} balansidan pul qaytarildi",
+        student=student,
+        created_by=created_by,
+        created_by_user=request.user,
+    )
+    return JsonResponse({
+        "success": True,
+        "message": f"{float(amount):,.0f} so'm {student_info} balansidan qaytarildi",
+        "new_balance": float(balance.balance),
+    })
+
+
+@login_required(login_url="login")
 def payment_create(request):
     if request.method == "POST":
         kassa_id = request.POST.get("kassa_id")
+        is_boss = request.user.is_superuser
         if kassa_id:
-            user_kassa = Kassa.objects.filter(pk=kassa_id, owner=request.user, is_active=True).first()
+            if is_boss:
+                user_kassa = Kassa.objects.filter(pk=kassa_id, is_active=True).first()
+            else:
+                user_kassa = Kassa.objects.filter(pk=kassa_id, owner=request.user, is_active=True).first()
         else:
-            user_kassa = Kassa.objects.filter(owner=request.user, is_active=True).first()
+            if is_boss:
+                user_kassa = Kassa.objects.filter(is_active=True).first()
+            else:
+                user_kassa = Kassa.objects.filter(owner=request.user, is_active=True).first()
         if not user_kassa:
             return JsonResponse({"success": False, "error": "Sizga kassa biriktirilmagan! To'lov qabul qilish uchun avval kassangiz bo'lishi kerak. Administrator bilan bog'laning."})
         student_id = request.POST.get("student_id")
@@ -3976,7 +5245,7 @@ def payment_create(request):
         receipt_html = render_to_string("receipt/print.html", {
             "transaction": transaction,
             "settings": settings,
-            "inline": True,
+            "inline": False,
         }, request=request)
         SavedReceipt.objects.update_or_create(
             transaction=transaction,
@@ -4003,11 +5272,92 @@ def payment_create(request):
             "sms_note": sms_note,
         }
         return JsonResponse(response_data)
-    user_kassalar = Kassa.objects.filter(owner=request.user, is_active=True)
+    is_boss_admin = request.user.is_superuser
+    if is_boss_admin:
+        user_kassalar = Kassa.objects.filter(is_active=True)
+    else:
+        user_kassalar = Kassa.objects.filter(owner=request.user, is_active=True)
     if not user_kassalar.exists():
         messages.error(request, "Sizga kassa biriktirilmagan! To'lov qabul qilish uchun avval kassangiz bo'lishi kerak. Administrator bilan bog'laning.")
         return redirect("kassa_dashboard")
+    kassa_param = request.GET.get("kassa", "").strip()
+    if kassa_param:
+        main_kassa = user_kassalar.filter(pk=kassa_param).first() or user_kassalar.first()
+    else:
+        main_kassa = user_kassalar.first()
+    current_employee = getattr(request.user, 'employee_profile', None)
+    my_created_by = ""
+    if not is_boss_admin:
+        if current_employee:
+            my_created_by = f"{current_employee.first_name} {current_employee.last_name or ''}".strip()
+        else:
+            my_created_by = (request.user.get_full_name() or request.user.username).strip()
+    filter_date = request.GET.get("date", "").strip()
+    filter_tx_type = request.GET.get("tx_type", "").strip()
+    filter_payment_method = request.GET.get("payment_method", "").strip()
+    filter_teacher = request.GET.get("teacher", "").strip()
+    today = timezone.localdate()
+    stats_date = today
+    if filter_date:
+        try:
+            stats_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            stats_date = today
+    pm_breakdown = {}
+    for pm_obj in PaymentMethod.objects.filter(is_active=True):
+        total_in = KassaTransaction.objects.filter(
+            kassa=main_kassa, payment_method__iexact=pm_obj.name,
+            created_at__date=stats_date,
+            transaction_type__in=[KassaTransaction.TransactionType.PAYMENT, KassaTransaction.TransactionType.INCOME],
+        ).aggregate(t=Sum('amount'))['t'] or 0
+        total_out = KassaTransaction.objects.filter(
+            kassa=main_kassa, payment_method__iexact=pm_obj.name,
+            created_at__date=stats_date,
+            transaction_type__in=[KassaTransaction.TransactionType.EXPENSE, KassaTransaction.TransactionType.REFUND],
+        ).aggregate(t=Sum('amount'))['t'] or 0
+        pm_breakdown[pm_obj.name] = float(total_in) - float(total_out)
+    kirim_total = KassaTransaction.objects.filter(
+        kassa__in=user_kassalar,
+        created_at__date=stats_date,
+        transaction_type__in=[KassaTransaction.TransactionType.PAYMENT, KassaTransaction.TransactionType.INCOME],
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    chiqim_total = KassaTransaction.objects.filter(
+        kassa__in=user_kassalar,
+        created_at__date=stats_date,
+        transaction_type__in=[KassaTransaction.TransactionType.EXPENSE, KassaTransaction.TransactionType.REFUND],
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    teachers_list = Employee.objects.filter(is_active=True).values('pk', 'first_name', 'last_name')
     students = Student.objects.all().prefetch_related('groups').order_by("first_name", "last_name").distinct()
+    if filter_date:
+        try:
+            fd = datetime.strptime(filter_date, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            fd = today
+    else:
+        fd = today
+    paid_tx_qs = Transaction.objects.filter(
+        created_at__date=fd,
+        transaction_type=Transaction.Type.PAYMENT,
+    )
+    if my_created_by:
+        paid_tx_qs = paid_tx_qs.filter(created_by=my_created_by)
+    paid_student_ids = paid_tx_qs.values_list("student_id", flat=True).distinct()
+    students = students.filter(pk__in=paid_student_ids)
+    if filter_payment_method:
+        paid_pm_ids = Transaction.objects.filter(
+            payment_method__iexact=filter_payment_method,
+            transaction_type=Transaction.Type.PAYMENT,
+        ).values_list("student_id", flat=True).distinct()
+        students = students.filter(pk__in=paid_pm_ids)
+    if filter_teacher:
+        teacher_group_ids = Group.objects.filter(teacher_id=filter_teacher, status='aktiv').values_list('pk', flat=True)
+        students = students.filter(groups__in=teacher_group_ids).distinct()
+    if main_kassa:
+        kassa_student_ids = KassaTransaction.objects.filter(
+            kassa=main_kassa,
+            created_at__date=fd,
+        ).exclude(student__isnull=True).values_list('student_id', flat=True).distinct()
+        students = students.filter(pk__in=kassa_student_ids)
     student_data = []
     for s in students:
         try:
@@ -4048,6 +5398,36 @@ def payment_create(request):
             })
         total_owed_val = rem_val
         deferred_data = [{"month": d["month"], "reason": d.get("reason", ""), "label": d.get("label", d["month"]), "debt": d.get("debt", 0)} for d in deferred]
+        if main_kassa:
+            day_payments = KassaTransaction.objects.filter(
+                kassa=main_kassa, student=s,
+                transaction_type__in=[KassaTransaction.TransactionType.PAYMENT, KassaTransaction.TransactionType.INCOME],
+                created_at__date=fd,
+            ).order_by('-created_at')
+        else:
+            day_payments = Transaction.objects.filter(student=s, transaction_type=Transaction.Type.PAYMENT, created_at__date=fd).order_by('-created_at')
+        if my_created_by:
+            day_payments = day_payments.filter(created_by=my_created_by)
+        if filter_payment_method:
+            day_payments = day_payments.filter(payment_method__iexact=filter_payment_method)
+        if not day_payments.exists():
+            day_payments_list = []
+            last_pay_amount = 0
+            last_pay_id = 0
+            last_pay_date = ""
+        else:
+            day_payments_list = []
+            for dp in day_payments:
+                day_payments_list.append({
+                    'amount': float(dp.amount),
+                    'id': dp.pk,
+                    'date': dp.created_at.strftime("%d.%m.%Y %H:%M"),
+                    'payment_method': dp.payment_method or '',
+                    'created_by': dp.created_by or '',
+                })
+            last_pay_amount = day_payments_list[0]['amount']
+            last_pay_id = day_payments_list[0]['id']
+            last_pay_date = day_payments_list[0]['date']
         student_data.append({
             'id': s.pk,
             'first_name': s.first_name,
@@ -4062,12 +5442,108 @@ def payment_create(request):
             'monthly_debts': monthly_debts_data,
             'deferred_payments': deferred_data,
             'groups': groups_info,
+            'last_pay_amount': last_pay_amount,
+            'last_pay_id': last_pay_id,
+            'last_pay_date': last_pay_date,
+            'day_payments': day_payments_list,
+        })
+    all_students_for_income = Student.objects.all().prefetch_related('groups').order_by("first_name", "last_name")
+    all_income_data = []
+    for s in all_students_for_income:
+        try:
+            bal = float(get_or_create_balance(s).balance)
+        except Exception:
+            bal = 0.0
+        groups_info_inc = []
+        for g in s.groups.filter(status='aktiv'):
+            try:
+                price = float(get_student_lesson_price(s, g))
+            except Exception:
+                price = 0.0
+            groups_info_inc.append({'name': g.name, 'price': price, 'id': g.pk})
+        try:
+            remaining = float(calculate_remaining_month_payment(s))
+        except Exception:
+            remaining = 0.0
+        try:
+            monthly, deferred = _calc_monthly_debts(s)
+            monthly_debts_data_inc = [{"label": m["label"], "debt": float(m["debt"]), "month": m["month_start"].strftime("%Y-%m")} for m in monthly]
+            deferred_data_inc = [{"month": d["month"], "reason": d.get("reason", ""), "label": d.get("label", d["month"]), "debt": d.get("debt", 0)} for d in deferred]
+        except Exception:
+            monthly_debts_data_inc = []
+            deferred_data_inc = []
+        try:
+            exp_val = float(calculate_expected_payment_up_to_today(s))
+        except Exception:
+            exp_val = 0.0
+        try:
+            prev_debt_val = float(calculate_previous_debt(s))
+        except Exception:
+            prev_debt_val = 0.0
+        all_income_data.append({
+            'id': s.pk,
+            'first_name': s.first_name,
+            'last_name': s.last_name,
+            'phone': s.phone,
+            'balance': bal,
+            'remaining_month_payment': remaining,
+            'expected_up_to_today': exp_val,
+            'total_owed': remaining,
+            'oy_oxirigacha': remaining,
+            'previous_debt': prev_debt_val,
+            'monthly_debts': monthly_debts_data_inc,
+            'deferred_payments': deferred_data_inc,
+            'groups': groups_info_inc,
+        })
+    all_kassalar = Kassa.objects.filter(is_active=True).exclude(pk=main_kassa.pk)
+    all_kassa_pm_balances = {}
+    for k in all_kassalar:
+        k_tx = KassaTransaction.objects.filter(kassa=k)
+        k_inc = k_tx.filter(transaction_type__in=["payment", "income", "transfer_in"]).aggregate(s=Sum("amount"))["s"] or 0
+        k_exp = k_tx.filter(transaction_type__in=["expense", "transfer_out"]).aggregate(s=Sum("amount"))["s"] or 0
+        all_kassa_pm_balances[k.pk] = float(k_inc) - float(k_exp)
+    employees_data = []
+    for emp in Employee.objects.filter(is_deleted=False, is_active=True).order_by("first_name", "last_name"):
+        tb = get_or_create_teacher_balance(emp)
+        monthly = (emp.monthly_salary or Decimal('0.00')) > 0
+        percent = (emp.percent or Decimal('0.00')) > 0
+        is_monthly_emp = emp.salary_type == Employee.SalaryType.MONTHLY
+        if is_monthly_emp:
+            advance_limit = float(emp.monthly_salary or 0) if monthly else None
+        else:
+            advance_limit = float(max(tb.balance, Decimal('0.00'))) if percent else None
+        employees_data.append({
+            "id": emp.pk,
+            "name": f"{emp.first_name} {emp.last_name}".strip(),
+            "balance": float(tb.balance),
+            "avans_balance": float(tb.avans_balance),
+            "salary_type": emp.salary_type,
+            "monthly_salary": float(emp.monthly_salary or 0),
+            "percent": float(emp.percent or 0),
+            "has_income": is_monthly_emp or percent,
+            "advance_limit": advance_limit,
         })
     return render(request, "payment/create.html", {
         "students_json": json.dumps(student_data, ensure_ascii=False),
+        "all_students_json": json.dumps(all_income_data, ensure_ascii=False),
         "student_data": student_data,
+        "is_boss_admin": is_boss_admin,
+        "main_kassa": main_kassa,
+        "employees_json": json.dumps(employees_data),
         "user_kassalar": user_kassalar,
+        "all_kassalar": all_kassalar,
+        "all_kassa_pm_balances": json.dumps(all_kassa_pm_balances),
         "payment_methods": PaymentMethod.objects.filter(is_active=True),
+        "filter_date": filter_date or today.strftime("%Y-%m-%d"),
+        "filter_tx_type": filter_tx_type,
+        "filter_payment_method": filter_payment_method,
+        "filter_teacher": filter_teacher,
+        "kirim_total": float(kirim_total),
+        "chiqim_total": float(chiqim_total),
+        "teachers_list": list(teachers_list),
+        "pm_breakdown": pm_breakdown,
+        "income_categories": list(IncomeCategory.objects.filter(is_active=True).values('pk', 'name')),
+        "expense_categories": list(ExpenseCategory.objects.filter(is_active=True).values('pk', 'name')),
         "paper_width": ReceiptSettings.get_instance().paper_width,
         "paper_height": ReceiptSettings.get_instance().paper_height,
         "paper_padding": ReceiptSettings.get_instance().paper_padding,
@@ -4090,6 +5566,14 @@ def payment_history(request):
     search = request.GET.get("search", "").strip()
     page = request.GET.get("page", 1)
     transactions = Transaction.objects.all().select_related("student", "group").order_by("-created_at")
+    current_employee = getattr(request.user, 'employee_profile', None)
+    is_boss_admin = request.user.is_superuser
+    if not is_boss_admin:
+        if current_employee:
+            my_created_by = f"{current_employee.first_name} {current_employee.last_name or ''}".strip()
+        else:
+            my_created_by = (request.user.get_full_name() or request.user.username).strip()
+        transactions = transactions.filter(created_by=my_created_by)
     if search:
         q = Q(student__first_name__icontains=search) | Q(student__last_name__icontains=search)
         digits = "".join(c for c in search if c.isdigit())
@@ -4109,6 +5593,85 @@ def payment_history(request):
         "transactions": tx_list,
         "page_obj": page_obj,
         "search_query": search,
+        "students": Student.objects.all().order_by("first_name", "last_name"),
+        "payment_methods": PaymentMethod.objects.filter(is_active=True),
+    })
+
+
+@login_required(login_url="login")
+def payments_all(request):
+    from django.db.models import Sum, Q
+    from django.utils import timezone
+
+    search = request.GET.get("search", "").strip()
+    page = request.GET.get("page", 1)
+    payment_method = request.GET.get("payment_method", "")
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
+
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+    month_start = today.replace(day=1)
+
+    today_income = Transaction.objects.filter(
+        transaction_type="payment", created_at__date=today
+    ).aggregate(total=Sum("amount"))["total"] or 0
+    today_expense = Transaction.objects.filter(
+        transaction_type__in=["lesson", "withdrawal", "wrong"],
+        created_at__date=today
+    ).aggregate(total=Sum("amount"))["total"] or 0
+
+    month_income = Transaction.objects.filter(
+        transaction_type="payment", created_at__date__gte=month_start, created_at__date__lte=today
+    ).aggregate(total=Sum("amount"))["total"] or 0
+    month_expense = Transaction.objects.filter(
+        transaction_type__in=["lesson", "withdrawal", "wrong"],
+        created_at__date__gte=month_start, created_at__date__lte=today
+    ).aggregate(total=Sum("amount"))["total"] or 0
+
+    transactions = Transaction.objects.filter(transaction_type="payment").select_related("student", "group").order_by("-created_at")
+    if search:
+        q = Q(student__first_name__icontains=search) | Q(student__last_name__icontains=search)
+        digits = "".join(c for c in search if c.isdigit())
+        if digits:
+            q |= Q(student__phone__icontains=digits)
+        transactions = transactions.filter(q)
+    if payment_method:
+        transactions = transactions.filter(payment_method=payment_method)
+    if date_from:
+        try:
+            df = date.fromisoformat(date_from)
+            transactions = transactions.filter(created_at__date__gte=df)
+        except (ValueError, TypeError):
+            pass
+    if date_to:
+        try:
+            dt_d = date.fromisoformat(date_to)
+            transactions = transactions.filter(created_at__date__lte=dt_d)
+        except (ValueError, TypeError):
+            pass
+    total_count = transactions.count()
+    paginator = Paginator(transactions, 50)
+    page_obj = paginator.get_page(page)
+    tx_list = []
+    last_date = None
+    for t in page_obj:
+        d = t.created_at.strftime("%d.%m.%Y")
+        show_date = d != last_date
+        last_date = d
+        tx_list.append({"t": t, "show_date": show_date, "date_str": d})
+    return render(request, "payment/payments_all.html", {
+        "transactions": tx_list,
+        "page_obj": page_obj,
+        "search_query": search,
+        "payment_method": payment_method,
+        "date_from": date_from,
+        "date_to": date_to,
+        "total_count": total_count,
+        "today_income": today_income,
+        "today_expense": today_expense,
+        "month_income": month_income,
+        "month_expense": month_expense,
         "students": Student.objects.all().order_by("first_name", "last_name"),
         "payment_methods": PaymentMethod.objects.filter(is_active=True),
     })
@@ -4505,6 +6068,8 @@ def balance_withdraw(request):
             description=description or "Balansdan pul yechildi",
             created_by=created_by,
         )
+        # O'qituvchi ulushidan ham qaytarilgan summa ayriladi
+        reverse_teacher_share_for_student(student, amount, created_by=created_by, reason=description or "Balansdan pul yechildi")
         receipt_settings = ReceiptSettings.get_instance()
         settings = {
             "academy_name": receipt_settings.academy_name,
@@ -4545,7 +6110,7 @@ def balance_withdraw(request):
         receipt_html = render_to_string("receipt/print.html", {
             "transaction": transaction,
             "settings": settings,
-            "inline": True,
+            "inline": False,
         }, request=request)
         SavedReceipt.objects.update_or_create(
             transaction=transaction,
@@ -4608,6 +6173,8 @@ def balance_transfer(request):
             description=f"{to_student.first_name} {to_student.last_name} ga o'tkazildi. {description}".strip(),
             created_by=created_by,
         )
+        # O'qituvchi ulushi: jo'natuvchidan ayriladi, qabul qiluvchiga hisoblanadi
+        reverse_teacher_share_for_student(from_student, amount, created_by=created_by, reason=f"{to_student.first_name} {to_student.last_name} ga o'tkazildi")
         to_balance.balance += amount
         to_balance.save()
         new_txn = Transaction.objects.create(
@@ -4618,6 +6185,7 @@ def balance_transfer(request):
             description=f"{from_student.first_name} {from_student.last_name} dan o'tkazildi. {description}".strip(),
             created_by=created_by,
         )
+        release_pending_salaries(to_student, amount, payment_transaction=new_txn, created_by=created_by)
         return JsonResponse({
             "success": True,
             "balance": float(from_balance.balance),
@@ -4658,6 +6226,8 @@ def transfer_wrong_payment(request, pk):
             description=f"Xato to'lov: {to_student.first_name} {to_student.last_name} ga o'tkazildi. {description}",
             created_by=created_by,
         )
+        # Xato to'lovdan hisoblangan o'qituvchi ulushi qaytariladi
+        reverse_payment_teacher_share(transaction, created_by=created_by, reason=f"{to_student.first_name} {to_student.last_name} ga o'tkazildi")
         to_balance.balance += amount
         to_balance.save()
         new_transaction = Transaction.objects.create(
@@ -4668,6 +6238,8 @@ def transfer_wrong_payment(request, pk):
             description=f"Xato to'lov: {from_student.first_name} {from_student.last_name} dan o'tkazildi. {description}",
             created_by=created_by,
         )
+        # Yangi o'quvchining o'qituvchilariga ulush hisoblanadi
+        release_pending_salaries(to_student, amount, payment_transaction=new_transaction, created_by=created_by)
         messages.success(request, f"Xato to'lov {from_student.first_name} {from_student.last_name} dan {to_student.first_name} {to_student.last_name} ga o'tkazildi!")
         return JsonResponse({
             "success": True,
@@ -4684,6 +6256,9 @@ def transfer_wrong_payment(request, pk):
 def global_config(request):
     config = GlobalConfig.get_instance()
     if request.method == "POST":
+        config.deduct_present = True
+        config.deduct_absent = request.POST.get("deduct_absent") == "1"
+        config.deduct_excused = request.POST.get("deduct_excused") == "1"
         config.save()
         messages.success(request, "Sozlamalar saqlandi")
         return redirect("global_config")
@@ -4749,6 +6324,35 @@ def sms_settings(request):
         messages.success(request, "SMS sozlamalari saqlandi")
         return redirect("sms_settings")
     return render(request, "settings/sms_settings.html", {"settings": settings})
+
+
+@login_required(login_url="login")
+def attendance_reminder_settings(request):
+    """Davomat eslatmasi sozlamasi: yoqish/o'chirish + necha daqiqadan keyin eslatish.
+
+    Funksiya yoqilsa, dars boshlangandan keyin belgilangan vaqt o'tib, hali davomat
+    to'ldirilmagan guruh o'qituvchisiga telegram + push orqali eslatma yuboriladi
+    (har guruh+sanaga bir marta — AttendanceReminderLog).
+    """
+    from .models import AttendanceReminderLog, Group
+    setting = EslatmaReminderSetting.get()
+    if request.method == "POST":
+        setting.enabled = request.POST.get("enabled") == "on"
+        try:
+            delay = int(request.POST.get("delay_minutes", "60") or 60)
+            setting.delay_minutes = max(0, min(delay, 1440))
+        except ValueError:
+            pass
+        setting.save()
+        messages.success(request, "Davomat eslatmasi sozlamalari saqlandi")
+        return redirect("attendance_reminder_settings")
+    today = timezone.localdate()
+    sent_today = AttendanceReminderLog.objects.filter(date=today).select_related("group").order_by("-created_at")[:20]
+    return render(request, "settings/attendance_reminder_settings.html", {
+        "setting": setting,
+        "sent_today": sent_today,
+        "today": today,
+    })
 
 
 @login_required(login_url="login")
@@ -4899,7 +6503,67 @@ def receipt_print(request, transaction_id):
 
 @login_required(login_url="login")
 def api_receipt_html(request, transaction_id):
-    transaction = get_object_or_404(Transaction, pk=transaction_id)
+    transaction = Transaction.objects.filter(pk=transaction_id).first()
+    if not transaction:
+        ktx = KassaTransaction.objects.filter(pk=transaction_id).select_related('student').first()
+        if ktx and ktx.student:
+            receipt_settings = ReceiptSettings.get_instance()
+            stg = {
+                "academy_name": receipt_settings.academy_name,
+                "tagline": receipt_settings.tagline,
+                "accent_color": receipt_settings.accent_color,
+                "receipt_title": receipt_settings.receipt_title,
+                "receipt_prefix": receipt_settings.receipt_prefix,
+                "receipt_format": receipt_settings.receipt_format,
+                "footer_text": receipt_settings.footer_text,
+                "thank_you_text": receipt_settings.thank_you_text,
+                "payment_text": receipt_settings.payment_text,
+                "extra_notes": receipt_settings.extra_notes,
+                "message_text": receipt_settings.message_text,
+                "qr_link": receipt_settings.qr_link,
+                "phone": receipt_settings.phone,
+                "telegram": receipt_settings.telegram,
+                "instagram": receipt_settings.instagram,
+                "website": receipt_settings.website,
+                "address": receipt_settings.address,
+                "paper_width": receipt_settings.paper_width,
+                "paper_height": receipt_settings.paper_height,
+                "paper_padding": receipt_settings.paper_padding,
+                "font_name": receipt_settings.font_name,
+                "font_tagline": receipt_settings.font_tagline,
+                "font_title": receipt_settings.font_title,
+                "font_row": receipt_settings.font_row,
+                "font_amount_label": receipt_settings.font_amount_label,
+                "font_amount": receipt_settings.font_amount,
+                "font_balance": receipt_settings.font_balance,
+                "font_thanks": receipt_settings.font_thanks,
+                "font_footer": receipt_settings.font_footer,
+                "font_contact": receipt_settings.font_contact,
+                "font_notes": receipt_settings.font_notes,
+                "logo_url": _logo_data_uri(receipt_settings),
+                "logo_height": receipt_settings.logo_height,
+                "logo_width": receipt_settings.logo_width,
+            }
+            class _FakeTx:
+                pass
+            fake = _FakeTx()
+            fake.pk = ktx.pk
+            fake.amount = ktx.amount
+            fake.created_at = ktx.created_at
+            fake.payment_method = ktx.payment_method or ''
+            fake.created_by = ktx.created_by or ''
+            fake.student = ktx.student
+            fake.balance_after = ktx.balance_after
+            fake.description = ktx.description or ''
+            html = render_to_string("receipt/print.html", {
+                "transaction": fake,
+                "settings": stg,
+                "inline": False,
+            })
+            if request.GET.get("raw"):
+                return HttpResponse(html)
+            return JsonResponse({"html": html})
+        return JsonResponse({"html": ""})
     receipt_settings = ReceiptSettings.get_instance()
     settings = {
         "academy_name": receipt_settings.academy_name,
@@ -4946,6 +6610,8 @@ def api_receipt_html(request, transaction_id):
         transaction=transaction,
         defaults={"receipt_html": html, "settings_snapshot": settings}
     )
+    if request.GET.get("raw"):
+        return HttpResponse(html)
     return JsonResponse({"html": html})
 
 
@@ -5164,5 +6830,27 @@ def api_update_deferred_reason(request):
     tx.description = '|'.join(new_parts)
     tx.save(update_fields=['description'])
     return JsonResponse({"success": True})
+
+
+def additional_functions(request):
+    functions = [
+        {"title": "Kirim kategoriyalari", "description": "Kirim kategoriyalarini boshqarish: qo'shish, tahrirlash va o'chirish", "url": "income_category_list", "icon": "fa-arrow-up", "color": "#059669"},
+        {"title": "Chiqim kategoriyalari", "description": "Chiqim kategoriyalarini boshqarish: qo'shish, tahrirlash va o'chirish", "url": "expense_category_list", "icon": "fa-tags", "color": "#dc2626"},
+        {"title": "Filiallar", "description": "Filiallar ro'yxatini boshqarish: qo'shish, tahrirlash va o'chirish", "url": "branch_list", "icon": "fa-building", "color": "#0891b2"},
+        {"title": "Xonalar", "description": "Xonalar ro'yxatini boshqarish: qo'shish, tahrirlash va o'chirish", "url": "room_list", "icon": "fa-door-open", "color": "#ca8a04"},
+        {"title": "Davomat sabablari", "description": "Davomat sabablarini boshqarish: qo'shish, tahrirlash va o'chirish", "url": "absence_reason_list", "icon": "fa-question-circle", "color": "#ea580c"},
+        {"title": "To'lov usullari", "description": "To'lov usullarini boshqarish: naqd, karta, click va boshqalar", "url": "payment_method_list", "icon": "fa-credit-card", "color": "#059669"},
+        {"title": "Kurslar", "description": "Kurslar ro'yxatini boshqarish: qo'shish, tahrirlash va o'chirish", "url": "course_list", "icon": "fa-book", "color": "#2563eb"},
+        {"title": "Kurs darajalari", "description": "Kurs darajalarini boshqarish: qo'shish, tahrirlash va o'chirish", "url": "course_level_list", "icon": "fa-layer-group", "color": "#7c3aed"},
+        {"title": "So'rovnomalar", "description": "Marketing so'rovnomalarini boshqarish va natijalarni ko'rish", "url": "survey_list", "icon": "fa-clipboard-list", "color": "#0891b2"},
+        {"title": "Hisobotlar", "description": "Umumiy statistika va hisobotlarni ko'rish", "url": "statistics", "icon": "fa-chart-bar", "color": "#ca8a04"},
+        {"title": "Chek sozlamalari", "description": "Chek chiqarish sozlamalarini boshqarish", "url": "receipt_settings", "icon": "fa-cog", "color": "#64748b"},
+        {"title": "SMS sozlamalari", "description": "SMS xabarlar yuborish sozlamalarini boshqarish", "url": "sms_settings", "icon": "fa-sms", "color": "#2563eb"},
+        {"title": "Davomat eslatmasi", "description": "Davomat to'ldirilmagan guruhlar uchun avto eslatmani yoqish va sozlash", "url": "attendance_reminder_settings", "icon": "fa-clock", "color": "#ea580c"},
+        {"title": "Pul yechish sozlamalari", "description": "Pul yechish va to'lov sozlamalarini boshqarish", "url": "global_config", "icon": "fa-sliders-h", "color": "#7c3aed"},
+        {"title": "Tranzaksiyalar", "description": "Barcha to'lov tranzaksiyalarini tarixini ko'rish", "url": "payment_history", "icon": "fa-history", "color": "#6366f1"},
+        {"title": "To'lov filtri", "description": "To'lovlarni sana, summa va holat bo'yicha filtrlash", "url": "payment_filter", "icon": "fa-filter", "color": "#0891b2"},
+    ]
+    return render(request, "additional_functions.html", {"functions": functions})
 
 

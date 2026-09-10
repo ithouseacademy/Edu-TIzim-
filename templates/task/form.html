@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | Edu Tizim{% endblock %}
+{% block content %}
+<div class="card form-card">
+    <div class="card-header">
+        <h3><i class="fas {% if 'Yangi' in title %}fa-plus-circle{% else %}fa-edit{% endif %}"></i> {{ title }}</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" id="task-form">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <div class="field-error">{{ field.errors.0 }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <div class="form-actions">
+                <a href="{% url 'task_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Bekor qilish</a>
+                <button type="submit" class="btn btn-primary" id="task-form-submit"><i class="fas fa-save"></i> Saqlash</button>
+            </div>
+            <div class="form-hint" style="font-size:12px;color:var(--text-light);margin-top:10px">
+                <i class="fas fa-info-circle"></i>
+                Eslatma kiritilganda Muddat (sana) majburiy bo'ladi. Eslatma bo'lmasa, muddat ham talab qilinmaydi.
+            </div>
+        </form>
+        <script>
+            var f = document.getElementById('task-form');
+            var submitBtn = document.getElementById('task-form-submit');
+            if (f && submitBtn) {
+                f.addEventListener('submit', function () {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yuborilmoqda...';
+                });
+            }
+            (function () {
+                var reminder = document.querySelector('[name="reminder"]');
+                var deadline = document.querySelector('[name="deadline"]');
+                if (!reminder || !deadline) return;
+                function sync() {
+                    if (reminder.value.trim() === '') {
+                        deadline.disabled = true;
+                        deadline.value = '';
+                    } else {
+                        deadline.disabled = false;
+                    }
+                }
+                reminder.addEventListener('input', sync);
+                sync();
+            })();
+        </script>
+        {% if form.instance.pk and form.instance.assigned_to.telegram_chat_id %}
+        <div class="alert alert-info" style="margin-top:16px">
+            <i class="fas fa-paper-plane"></i>
+            Xabarlar <strong>{{ form.instance.assigned_to.first_name }} {{ form.instance.assigned_to.last_name }}</strong> telegramiga avtomatik yuboriladi.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -9,6 +9,9 @@
 <div style="max-width:500px;background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);padding:32px;text-align:center;">
   <i class="fas fa-exclamation-triangle" style="font-size:48px;color:#f59e0b;margin-bottom:16px;"></i>
   <h3 style="margin-bottom:8px;">{{ object }} kassasini o'chirmoqchimisiz?</h3>
+  {% if object_balance is not None %}
+  <p style="color:var(--text-muted);margin-bottom:8px;">Joriy balans: <strong style="color:var(--text);">{{ object_balance|floatformat:0 }} so'm</strong></p>
+  {% endif %}
   <p style="color:var(--text-muted);margin-bottom:24px;">Bu kassa faolligi bekor qilinadi. Tranzaksiyalar tarixi saqlanib qolinadi.</p>
   <form method="post">
     {% csrf_token %}

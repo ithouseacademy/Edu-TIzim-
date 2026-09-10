@@ -13,6 +13,9 @@
             <div class="form-group">
                 <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
+                {% if field.help_text %}
+                <small class="form-text">{{ field.help_text }}</small>
+                {% endif %}
                 {% if field.errors %}
                 <div class="field-error">{{ field.errors.0 }}</div>
                 {% endif %}
@@ -25,4 +28,65 @@
         </form>
     </div>
 </div>
+
+<div class="card form-card" style="margin-top:20px;">
+    <div class="card-header">
+        <h3><i class="fas fa-calculator"></i> Bo'lib to'lash hisoblagichi</h3>
+    </div>
+    <div class="card-body">
+        <p style="font-size:.82rem;color:#64748b;margin-bottom:16px;">
+            Jami summani kiriting va nechi bo'lakga bo'linishini tanlang — har bir to'lov miqdori avtomatik hisoblanadi.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:end;margin-bottom:16px;">
+            <div class="form-group">
+                <label for="calcTotal">Jami summa (so'm)</label>
+                <input type="text" class="form-control" id="calcTotal" placeholder="Masalan: 1 150 000" inputmode="numeric" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="calcParts">Nechi bo'lakga bo'linadi</label>
+                <input type="number" class="form-control" id="calcParts" min="1" placeholder="Masalan: 3">
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-primary" onclick="calcSplit()"><i class="fas fa-calculator"></i> Hisoblash</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('calcResult').innerHTML='';document.getElementById('calcTotal').value='';document.getElementById('calcParts').value='';">Tozalash</button>
+        </div>
+        <div id="calcResult"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function parseNum(s){
+    s = String(s||'').replace(/[^\d.,]/g,'').replace(/\s/g,'');
+    s = s.replace(',', '.');
+    return parseFloat(s) || 0;
+}
+function fmtNum(n){
+    return Math.round(n).toLocaleString('ru-RU');
+}
+function calcSplit(){
+    var total = parseNum(document.getElementById('calcTotal').value);
+    var parts = parseInt(document.getElementById('calcParts').value, 10);
+    var out = document.getElementById('calcResult');
+    if (!(total > 0) || !(parts > 0)) {
+        out.innerHTML = '<div class="field-error" style="margin-top:14px;">Jami summa va bo\'laklar sonini to\'g\'ri kiriting!</div>';
+        return;
+    }
+    var base = Math.floor(total / parts);
+    var rem = total - base * parts;
+    var html = '<div style="margin-top:16px;padding:16px;background:#f8fafc;border:1px solid #eef2f7;border-radius:12px;">';
+    for (var i = 1; i <= parts; i++) {
+        var val = (i === parts) ? (base + rem) : base;
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px solid #eef2f7;font-size:.85rem;">'
+              + '<span style="color:#475569;">' + i + '-to\'lov</span>'
+              + '<strong style="font-weight:700;font-variant-numeric:tabular-nums;">' + fmtNum(val) + ' so\'m</strong></div>';
+    }
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 4px 0;font-size:.9rem;font-weight:800;color:#2001ff;">'
+          + '<span>Jami</span><span style="font-variant-numeric:tabular-nums;">' + fmtNum(total) + ' so\'m</span></div>';
+    html += '</div>';
+    out.innerHTML = html;
+}
+</script>
 {% endblock %}

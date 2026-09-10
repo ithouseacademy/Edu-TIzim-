@@ -2,7 +2,7 @@
 {% block title %}{{ kassa.name }} | Kassa tafsilotlari{% endblock %}
 {% block extra_css %}
 <style>
-  :root{--k-primary:#2001FF;--k-primary-hover:#1800cc;--k-text:#111827;--k-muted:#4b5563;--k-border:#e5e7eb;--k-bg:#f9fafb;--k-green:#059669;--k-green-bg:#ecfdf5;--k-red:#dc2626;--k-red-bg:#fef2f2;--k-blue:#2563eb;--k-blue-bg:#eff6ff;}
+  :root{--k-primary:#2001FF;--k-primary-hover:#1800cc;--k-text:#111827;--k-muted:#4b5563;--k-border:#e5e7eb;--k-bg:#f9fafb;--k-green:#059669;--k-green-bg:#ecfdf5;--k-red:#dc2626;--k-red-bg:#fef2f2;--k-blue:#2563eb;--k-blue-bg:#eff6ff;--k-amber:#d97706;--k-amber-bg:#fffbeb;}
 
   .k-detail-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
   .k-detail-head-left{display:flex;align-items:center;gap:14px;}
@@ -141,6 +141,55 @@
   .k-modal-foot .k-submit-red{background:var(--k-red);color:#fff;}
   .k-modal-foot .k-submit-blue{background:var(--k-primary);color:#fff;}
 
+  /* ===== Xodimga oylik / avans berish flow ===== */
+  .k-exp-type-wrap{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:6px;}
+  .k-exp-type{border:1.5px solid var(--k-border);border-radius:12px;padding:14px 10px;text-align:center;cursor:pointer;transition:all .15s;background:#fff;}
+  .k-exp-type i{font-size:1.2rem;display:block;margin-bottom:8px;}
+  .k-exp-type span{font-size:.78rem;font-weight:600;color:var(--k-text);}
+  .k-exp-type small{display:block;font-size:.68rem;color:var(--k-muted);margin-top:3px;font-weight:400;}
+  .k-exp-type:hover{border-color:var(--k-primary);background:var(--k-blue-bg);}
+  .k-exp-type.on{border-color:var(--k-primary);background:var(--k-blue-bg);box-shadow:0 0 0 3px rgba(32,1,255,.08);}
+  .k-exp-type.on span{color:var(--k-primary);}
+  .k-exp-type-on{color:var(--k-primary);}
+
+  .k-exp-section{display:none;border-top:1px solid var(--k-border);padding-top:14px;}
+  .k-exp-section.show{display:block;}
+
+  .k-bal-box{background:var(--k-bg);border:1px solid var(--k-border);border-radius:10px;padding:12px 14px;margin-bottom:12px;}
+  .k-bal-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;}
+  .k-bal-row + .k-bal-row{border-top:1px dashed var(--k-border);}
+  .k-bal-label{font-size:.75rem;color:var(--k-muted);font-weight:500;}
+  .k-bal-value{font-size:.9rem;font-weight:600;color:var(--k-text);font-variant-numeric:tabular-nums;}
+  .k-bal-value.primary{color:var(--k-primary);}
+.k-bal-value.green{color:var(--k-green);}
+.k-bal-value.red{color:var(--k-red);}
+.k-bal-value.amber{color:var(--k-amber);}
+
+  .k-warn{display:none;background:var(--k-red-bg);border:1px solid #fecaca;color:var(--k-red);border-radius:8px;padding:9px 12px;font-size:.78rem;font-weight:500;margin-bottom:12px;}
+  .k-warn.show{display:block;}
+  .k-warn i{margin-right:6px;}
+
+  .k-confirm-box{background:var(--k-blue-bg);border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;margin-bottom:12px;}
+  .k-confirm-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:.82rem;}
+  .k-confirm-row + .k-confirm-row{border-top:1px dashed #bfdbfe;}
+  .k-confirm-label{color:var(--k-muted);font-weight:500;}
+  .k-confirm-value{font-weight:600;color:var(--k-text);}
+
+  .k-sel-warn{background:var(--k-red-bg);border:1px solid #fecaca;color:var(--k-red);border-radius:8px;padding:9px 12px;font-size:.78rem;font-weight:500;margin-bottom:12px;display:none;}
+  .k-sel-warn.show{display:block;}
+
+  .k-deduct-wrap{background:var(--k-blue-bg);border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:none;}
+  .k-deduct-wrap.show{display:block;}
+  .k-deduct-check{display:flex;align-items:center;gap:10px;cursor:pointer;margin:0!important;}
+  .k-deduct-check input{display:none;}
+  .k-deduct-box{width:20px;height:20px;border:2px solid var(--k-border);border-radius:5px;background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.6rem;flex-shrink:0;transition:all .15s;}
+  .k-deduct-check input:checked + .k-deduct-box{background:var(--k-primary);border-color:var(--k-primary);}
+  .k-deduct-text{display:flex;flex-direction:column;line-height:1.25;}
+  .k-deduct-text strong{font-size:.8rem;color:var(--k-text);}
+  .k-deduct-text small{font-size:.7rem;color:var(--k-muted);margin:0;}
+
+  @media(max-width:480px){.k-exp-type-wrap{grid-template-columns:1fr;}.k-exp-type{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;}.k-exp-type i{margin:0;}}
+
   @media(max-width:768px){.k-stats{grid-template-columns:repeat(2,1fr);}.k-detail-head{flex-direction:column;align-items:flex-start;gap:10px;}.k-filter form{flex-direction:column;}.k-fi{width:100%;min-width:100%!important;}.k-filter-btn,.k-filter-reset{width:100%;justify-content:center;}.k-pm-cards{grid-template-columns:1fr 1fr;}.k-monthly-stats{flex-wrap:wrap;gap:8px;}}
   @media(max-width:480px){.k-stats{grid-template-columns:1fr 1fr;gap:8px;}.k-summary{grid-template-columns:1fr;}.k-actions{gap:6px;}.k-act{flex:1;justify-content:center;}.k-pm-cards{grid-template-columns:1fr;}}
 </style>
@@ -219,12 +268,20 @@
 {% endif %}
 
 <div class="k-actions">
+  {% if 'cashbox.create' in permissions %}
   <button class="k-act k-act-green" onclick="openKModal('incomeModal')"><i class="fas fa-plus"></i> Kirim</button>
+  {% endif %}
+  {% if 'expense.regular' in permissions or 'expense.salary' in permissions or 'expense.advance' in permissions or 'expense.advance_close' in permissions %}
   <button class="k-act k-act-red" onclick="openKModal('expenseModal')"><i class="fas fa-minus"></i> Chiqim</button>
+  {% endif %}
+  {% if 'cashbox.transfer' in permissions %}
   <button class="k-act k-act-blue" onclick="openKModal('transferModal')"><i class="fas fa-exchange-alt"></i> O'tkazma</button>
+  {% endif %}
   <a href="{% url 'kassa_history' %}?kassa={{ kassa.pk }}" class="k-act"><i class="fas fa-history"></i> Tarix</a>
+  {% if 'cashbox.report' in permissions %}
   <a href="{% url 'kassa_detail_export_excel' kassa.pk %}?{{ request.GET.urlencode }}" class="k-act k-act-orange"><i class="fas fa-file-excel"></i> Excel</a>
-  {% if is_superadmin %}
+  {% endif %}
+  {% if 'cashbox.delete' in permissions %}
   <a href="{% url 'kassa_delete' kassa.pk %}" class="k-act k-act-red" onclick="return confirm('Haqiqatan o\'chirmoqchimisiz?')"><i class="fas fa-trash"></i> O'chirish</a>
   {% endif %}
 </div>
@@ -322,6 +379,7 @@
           <th>Yangi balans</th>
           <th>Izoh</th>
           <th>O'quvchi</th>
+          <th>Xodim</th>
           <th>Bajaruvchi</th>
         </tr>
       </thead>
@@ -333,7 +391,10 @@
           <td>
             {% if tx.transaction_type == 'payment' %}<span class="k-op k-op-payment">To'lov</span>
             {% elif tx.transaction_type == 'income' %}<span class="k-op k-op-income">Kirim</span>
-            {% elif tx.transaction_type == 'expense' %}<span class="k-op k-op-expense">Chiqim</span>
+            {% elif tx.transaction_type == 'expense' %}
+              {% if tx.salary_type == 'salary' %}<span class="k-op k-op-payment"><i class="fas fa-money-bill-wave"></i> Xodimga oylik</span>
+              {% elif tx.salary_type == 'advance' %}<span class="k-op k-op-transfer_out"><i class="fas fa-hand-holding-usd"></i> Xodimga avans</span>
+              {% else %}<span class="k-op k-op-expense">Chiqim</span>{% endif %}
             {% elif tx.transaction_type == 'transfer_in' %}<span class="k-op k-op-transfer_in">O'tkazma (k)</span>
             {% elif tx.transaction_type == 'transfer_out' %}<span class="k-op k-op-transfer_out">O'tkazma (ch)</span>
             {% elif tx.transaction_type == 'refund' %}<span class="k-op k-op-refund">Qaytarish</span>
@@ -351,10 +412,11 @@
           <td class="k-tx-old">{{ tx.balance_after|floatformat:0 }}</td>
           <td class="k-tx-desc" title="{{ tx.description }}">{% if tx.expense_category %}<span style="display:inline-block;background:var(--k-red-bg);color:var(--k-red);padding:1px 6px;border-radius:4px;font-size:.68rem;margin-right:4px;">{{ tx.get_expense_category_display }}</span>{% endif %}{{ tx.description|default:"-" }}</td>
           <td>{% if tx.student %}{{ tx.student.first_name }} {{ tx.student.last_name }}{% else %}<span style="color:var(--k-muted);">-</span>{% endif %}</td>
+          <td>{% if tx.employee %}{{ tx.employee.first_name }} {{ tx.employee.last_name }}{% else %}<span style="color:var(--k-muted);">-</span>{% endif %}</td>
           <td>{{ tx.created_by|default:"-" }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="10" class="k-empty"><i class="fas fa-inbox"></i><p>Operatsiyalar topilmadi</p></td></tr>
+        <tr><td colspan="11" class="k-empty"><i class="fas fa-inbox"></i><p>Operatsiyalar topilmadi</p></td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -400,7 +462,7 @@
       </div>
       <div class="k-modal-foot">
         <button type="button" class="k-cancel" onclick="closeKModal('incomeModal')">Bekor</button>
-        <button type="submit" class="k-submit-green"><i class="fas fa-check"></i> Kirim</button>
+        {% if 'cashbox.create' in permissions %}<button type="submit" class="k-submit-green"><i class="fas fa-check"></i> Kirim</button>{% endif %}
       </div>
     </form>
   </div>
@@ -409,11 +471,48 @@
 <!-- Expense Modal -->
 <div id="expenseModal" class="k-modal" style="display:none;">
   <div class="k-modal-bg" onclick="closeKModal('expenseModal')"></div>
-  <div class="k-modal-box">
+  <div class="k-modal-box" style="max-width:520px;">
     <div class="k-modal-top"><h3><i class="fas fa-minus-circle" style="color:var(--k-red);"></i> Chiqim qilish</h3><button class="k-modal-close" onclick="closeKModal('expenseModal')">&times;</button></div>
-    <form method="post" action="{% url 'kassa_add_expense' kassa.pk %}">
+
+    <!-- STEP 1: Chiqim turini tanlash -->
+    <div class="k-modal-body" id="expStepType">
+      <label>Chiqim turini tanlang</label>
+      <div class="k-exp-type-wrap">
+        {% if 'expense.regular' in permissions %}
+        <div class="k-exp-type on" id="expTypeOddiy" onclick="expSelectType('oddiy')">
+          <i class="fas fa-receipt"></i>
+          <span>Oddiy chiqim</span>
+          <small>Kantselyariya, arenda va boshqa</small>
+        </div>
+        {% endif %}
+        {% if 'expense.salary' in permissions %}
+        <div class="k-exp-type" id="expTypeSalary" onclick="expSelectType('salary')">
+          <i class="fas fa-money-bill-wave"></i>
+          <span>Xodimga oylik</span>
+          <small>Oylik balansidan ayriladi</small>
+        </div>
+        {% endif %}
+        {% if 'expense.advance' in permissions %}
+        <div class="k-exp-type" id="expTypeAdvance" onclick="expSelectType('advance')">
+          <i class="fas fa-hand-holding-usd"></i>
+          <span>Xodimga avans</span>
+          <small>Avans qarzi hisobga o'sadi</small>
+        </div>
+        {% endif %}
+        {% if 'expense.advance_close' in permissions %}
+        <div class="k-exp-type" id="expTypeClose" onclick="expSelectType('close')">
+          <i class="fas fa-check-double"></i>
+          <span>Avans yopish</span>
+          <small>Oylik balansidan qarz yopiladi</small>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- STEP 2: Oddiy chiqim -->
+    <form id="expOddiyForm" method="post" action="{% url 'kassa_add_expense' kassa.pk %}">
       {% csrf_token %}
-      <div class="k-modal-body">
+      <div class="k-modal-body k-exp-section" id="expSectionOddiy">
         <label>Summa (so'm)</label>
         <input type="number" name="amount" placeholder="0" min="1" required>
         <small>Mavjud balans: {{ balance|floatformat:0 }} so'm</small>
@@ -434,9 +533,103 @@
         <label>Sabab</label>
         <textarea name="description" rows="3" placeholder="Chiqim sababini kiriting" required></textarea>
       </div>
-      <div class="k-modal-foot">
-        <button type="button" class="k-cancel" onclick="closeKModal('expenseModal')">Bekor</button>
-        <button type="submit" class="k-submit-red"><i class="fas fa-check"></i> Chiqim</button>
+      <div class="k-modal-foot" id="expFootOddiy">
+        <button type="button" class="k-cancel" onclick="expBackToType()"><i class="fas fa-arrow-left"></i> Orqaga</button>
+        {% if 'expense.regular' in permissions %}<button type="submit" class="k-submit-red"><i class="fas fa-check"></i> Chiqim</button>{% endif %}
+      </div>
+    </form>
+
+    <!-- STEP 2: Xodimga oylik / avans / avans yopish -->
+    <form id="expXodimForm" method="post" action="{% url 'kassa_add_employee_payout' kassa.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="salary_type" id="expSalaryType" value="salary">
+      <input type="hidden" id="expActionPayout" value="{% url 'kassa_add_employee_payout' kassa.pk %}">
+      <input type="hidden" id="expActionClose" value="{% url 'kassa_advance_close' kassa.pk %}">
+      <div class="k-modal-body k-exp-section" id="expSectionXodim">
+        <label>Xodimni tanlang</label>
+        <select name="employee_id" id="expEmployeeSelect" onchange="expEmployeeChanged()" required>
+          <option value="">Xodimni tanlang...</option>
+        </select>
+        <div class="k-sel-warn" id="expEmpWarn"><i class="fas fa-exclamation-triangle"></i> <span id="expEmpWarnText">Xodim oylik balansi 0 yoki manfiy.</span></div>
+
+        <div class="k-bal-box" id="expBalBox" style="display:none;">
+          <div class="k-bal-row" id="expRowMonthly" style="display:none;">
+            <span class="k-bal-label">Belgilangan oylik</span>
+            <span class="k-bal-value primary" id="expEmpMonthly">0 so'm</span>
+          </div>
+          <div class="k-bal-row" id="expRowBalance">
+            <span class="k-bal-label">Oylik balansi</span>
+            <span class="k-bal-value primary" id="expEmpBalance">0 so'm</span>
+          </div>
+          <div class="k-bal-row" id="expRowAvans">
+            <span class="k-bal-label">Avans qarzi</span>
+            <span class="k-bal-value amber" id="expEmpAvans">0 so'm</span>
+          </div>
+          <div class="k-bal-row" id="expRowGiven">
+            <span class="k-bal-label" id="expLblGiven">Berilmoqda</span>
+            <span class="k-bal-value" id="expGiven">0 so'm</span>
+          </div>
+          <div class="k-bal-row" id="expRowDeducted" style="display:none;">
+            <span class="k-bal-label">Avans yopiladi</span>
+            <span class="k-bal-value green" id="expDeducted">0 so'm</span>
+          </div>
+          <div class="k-bal-row" id="expRowRemain">
+            <span class="k-bal-label" id="expLblRemain">Qoladigan oylik balansi</span>
+            <span class="k-bal-value green" id="expRemain">0 so'm</span>
+          </div>
+          <div class="k-bal-row" id="expRowAvansAfter">
+            <span class="k-bal-label" id="expLblAvansAfter">Yangi avans qarzi</span>
+            <span class="k-bal-value amber" id="expAvansAfter">0 so'm</span>
+          </div>
+        </div>
+
+        <div class="k-deduct-wrap" id="expDeductWrap">
+          <label class="k-deduct-check">
+            <input type="checkbox" name="deduct_avans" id="expDeductAvans" checked onchange="expAmountInput()">
+            <span class="k-deduct-box"><i class="fas fa-check"></i></span>
+            <span class="k-deduct-text"><strong>Avansni oylikdan ushlab qolish</strong><small>Avans qarzi oylikdan ayirilib yopiladi</small></span>
+          </label>
+        </div>
+
+        <label id="expAmountLbl">Beriladigan summa (so'm)</label>
+        <input type="text" name="amount" id="expAmount" placeholder="Masalan: 1 000 000" inputmode="numeric" oninput="expAmountInput()" required>
+        <small id="expAmountHint">Xodim oylik balansidan shu summa ayriladi va kassa chiqimi yaratiladi.</small>
+
+        <div class="k-warn" id="expInsufficient"><i class="fas fa-exclamation-triangle"></i> <span id="expInsufficientText">...</span></div>
+
+        <div id="expPmWrap">
+          <label>To'lov usuli</label>
+          <select name="payment_method" id="expXodimPM">
+            <option value="">Tanlang</option>
+            {% for pm in payment_methods %}
+            <option value="{{ pm.name }}">{{ pm.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <label>Izoh</label>
+        <input type="text" name="description" id="expXodimDesc" placeholder="Masalan: Iyul oyligi / Avans">
+      </div>
+      <div class="k-modal-foot" id="expFootXodim">
+        <button type="button" class="k-cancel" onclick="expBackToType()"><i class="fas fa-arrow-left"></i> Orqaga</button>
+        {% if 'expense.salary' in permissions or 'expense.advance' in permissions or 'expense.advance_close' in permissions %}<button type="button" class="k-submit-blue" id="expXodimConfirmBtn" onclick="expShowConfirm()"><i class="fas fa-check"></i> Oylik berish</button>{% endif %}
+      </div>
+
+      <!-- STEP 3: Tasdiqlash -->
+      <div class="k-modal-body k-exp-section" id="expConfirm" style="display:none;">
+        <div class="k-confirm-box">
+          <div class="k-confirm-row"><span class="k-confirm-label">Xodim</span><span class="k-confirm-value" id="expCEmployee">—</span></div>
+          <div class="k-confirm-row"><span class="k-confirm-label">Turi</span><span class="k-confirm-value" id="expCType">—</span></div>
+          <div class="k-confirm-row"><span class="k-confirm-label">Summa</span><span class="k-confirm-value" id="expCAmount">—</span></div>
+          <div class="k-confirm-row" id="expCRow1"><span class="k-confirm-label" id="expCLbl1">Oylik balansi</span><span class="k-confirm-value" id="expCVal1">—</span></div>
+          <div class="k-confirm-row" id="expCRow2"><span class="k-confirm-label" id="expCLbl2">Qoladigan balans</span><span class="k-confirm-value" id="expCVal2">—</span></div>
+          <div class="k-confirm-row" id="expCRow3" style="display:none;"><span class="k-confirm-label" id="expCLbl3">Qolgan oylik balansi</span><span class="k-confirm-value" id="expCVal3">—</span></div>
+          <div class="k-confirm-row" id="expCRow4" style="display:none;"><span class="k-confirm-label" id="expCLbl4">Qolgan avans qarzi</span><span class="k-confirm-value" id="expCVal4">—</span></div>
+        </div>
+        <div class="k-warn" id="expCInsufficient" style="display:none;"><i class="fas fa-exclamation-triangle"></i> <span id="expCInsufficientText">...</span></div>
+      </div>
+      <div class="k-modal-foot" id="expFootConfirm" style="display:none;">
+        <button type="button" class="k-cancel" onclick="expBackToForm()"><i class="fas fa-arrow-left"></i> Orqaga</button>
+        {% if 'expense.salary' in permissions or 'expense.advance' in permissions or 'expense.advance_close' in permissions %}<button type="submit" class="k-submit-blue" id="expXodimSubmitBtn"><i class="fas fa-check"></i> Tasdiqlash</button>{% endif %}
       </div>
     </form>
   </div>
@@ -483,7 +676,7 @@
       </div>
       <div class="k-modal-foot">
         <button type="button" class="k-cancel" onclick="closeKModal('transferModal')">Bekor</button>
-        <button type="submit" class="k-submit-blue"><i class="fas fa-check"></i> O'tkazish</button>
+        {% if 'cashbox.transfer' in permissions %}<button type="submit" class="k-submit-blue"><i class="fas fa-check"></i> O'tkazish</button>{% endif %}
       </div>
     </form>
   </div>
@@ -491,10 +684,441 @@
 
 <script>
 var ALL_PM_BALANCES = {{ all_kassa_pm_balances|safe }};
+var EMPLOYEES = {{ employees_json|safe }};
 
-function openKModal(id){document.getElementById(id).style.display='flex';document.body.style.overflow='hidden';}
+function openKModal(id){
+  if(id === 'expenseModal'){ expReset(); }
+  document.getElementById(id).style.display='flex';document.body.style.overflow='hidden';
+}
 function closeKModal(id){document.getElementById(id).style.display='none';document.body.style.overflow='';}
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){document.querySelectorAll('.k-modal').forEach(function(m){m.style.display='none';});document.body.style.overflow='';}});
+
+function fmtSum(n){
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+// ===== Chiqim flow (Oddiy / Xodimga oylik / Xodimga avans) =====
+var EXP_SALARY_TYPE = 'salary';
+var EXP_EMPLOYEES = {};
+EMPLOYEES.forEach(function(e){ EXP_EMPLOYEES[e.id] = e; });
+
+function expIsMonthly(e){
+  return e && e.salary_type === 'monthly' && (Number(e.monthly_salary) || 0) > 0;
+}
+
+function expBuildEmployees(){
+  var sel = document.getElementById('expEmployeeSelect');
+  sel.innerHTML = '<option value="">Xodimni tanlang...</option>';
+  EMPLOYEES.forEach(function(e){
+    var o = document.createElement('option');
+    o.value = e.id;
+    var info;
+    if(e.salary_type === 'monthly'){
+      info = (Number(e.monthly_salary) > 0)
+        ? "Maosh: " + fmtSum(e.monthly_salary) + " so'm"
+        : "Oylik (avans cheksiz)";
+    }else{
+      info = "Balans: " + fmtSum(e.balance) + " so'm";
+    }
+    if(e.avans_balance > 0){ info += " / Qarz: " + fmtSum(e.avans_balance) + " so'm"; }
+    o.textContent = e.name + ' (' + info + ')';
+    sel.appendChild(o);
+  });
+}
+
+function expReset(){
+  EXP_SALARY_TYPE = 'salary';
+  document.getElementById('expStepType').style.display = '';
+  ['expSectionOddiy','expSectionXodim','expConfirm'].forEach(function(s){
+    var el = document.getElementById(s); if(el) el.classList.remove('show');
+  });
+  ['expFootOddiy','expFootXodim','expFootConfirm'].forEach(function(id){
+    document.getElementById(id).style.display = 'none';
+  });
+  ['expTypeOddiy','expTypeSalary','expTypeAdvance','expTypeClose'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.classList.remove('on');
+  });
+  var firstTypes = ['oddiy','salary','advance','close'];
+  for(var ti = 0; ti < firstTypes.length; ti++){
+    var tEl = document.getElementById('expType' + firstTypes[ti].charAt(0).toUpperCase() + firstTypes[ti].slice(1));
+    if(tEl){ tEl.classList.add('on'); break; }
+  }
+  var head = document.querySelector('#expenseModal .k-modal-top h3');
+  if(head){ head.innerHTML = '<i class="fas fa-minus-circle" style="color:var(--k-red);"></i> Chiqim qilish'; }
+  var sel = document.getElementById('expEmployeeSelect');
+  if(sel){ sel.innerHTML = '<option value="">Xodimni tanlang...</option>'; }
+  var balBox = document.getElementById('expBalBox');
+  if(balBox){ balBox.style.display = 'none'; }
+  var ins = document.getElementById('expInsufficient');
+  if(ins){ ins.classList.remove('show'); }
+  var ew = document.getElementById('expEmpWarn');
+  if(ew){ ew.classList.remove('show'); }
+  var amt = document.getElementById('expAmount');
+  if(amt){ amt.value = ''; amt.readOnly = false; }
+  var dWrap = document.getElementById('expDeductWrap');
+  if(dWrap){ dWrap.classList.remove('show'); }
+  var dRow = document.getElementById('expRowDeducted');
+  if(dRow){ dRow.style.display = 'none'; }
+  var mRow = document.getElementById('expRowMonthly');
+  if(mRow){ mRow.style.display = 'none'; }
+  var pm = document.getElementById('expPmWrap');
+  if(pm){ pm.style.display = ''; }
+  var c3 = document.getElementById('expCRow3');
+  if(c3){ c3.style.display = 'none'; }
+  var c4 = document.getElementById('expCRow4');
+  if(c4){ c4.style.display = 'none'; }
+  document.getElementById('expXodimForm').action = document.getElementById('expActionPayout').value;
+}
+
+function expApplyTypeLabels(){
+  var type = EXP_SALARY_TYPE;
+  var rowBalance = document.getElementById('expRowBalance');
+  var rowAvans = document.getElementById('expRowAvans');
+  var rowGiven = document.getElementById('expRowGiven');
+  var rowRemain = document.getElementById('expRowRemain');
+  var rowAvansAfter = document.getElementById('expRowAvansAfter');
+  var lblGiven = document.getElementById('expLblGiven');
+  var lblRemain = document.getElementById('expLblRemain');
+  var lblAvansAfter = document.getElementById('expLblAvansAfter');
+  var amountLbl = document.getElementById('expAmountLbl');
+  var hint = document.getElementById('expAmountHint');
+  var pm = document.getElementById('expPmWrap');
+  var warnText = document.getElementById('expEmpWarnText');
+  var deductWrap = document.getElementById('expDeductWrap');
+  deductWrap.classList.remove('show');
+  document.getElementById('expRowMonthly').style.display = 'none';
+  document.getElementById('expRowDeducted').style.display = 'none';
+  rowBalance.style.display = '';
+  rowAvans.style.display = '';
+  rowGiven.style.display = '';
+  if(type === 'advance'){
+    rowRemain.style.display = 'none'; rowAvansAfter.style.display = '';
+    lblGiven.textContent = 'Berilmoqda';
+    lblAvansAfter.textContent = 'Yangi avans qarzi';
+    amountLbl.textContent = "Beriladigan avans (so'm)";
+    hint.textContent = "Avans oylik balansiga ta'sir qilmaydi, avans qarzi hisobga o'sadi. Kassa chiqimi yaratiladi.";
+    pm.style.display = '';
+    warnText.textContent = "Avans berilishi uchun xodimda oylik yoki foiz belgilangan bo'lishi kerak.";
+  }else if(type === 'close'){
+    rowRemain.style.display = ''; rowAvansAfter.style.display = '';
+    lblGiven.textContent = 'Yopilmoqda';
+    lblRemain.textContent = 'Qolgan oylik balansi';
+    lblAvansAfter.textContent = 'Qolgan avans qarzi';
+    amountLbl.textContent = "Yopiladigan summa (so'm)";
+    hint.textContent = "Avans qarzi oylik balansidan ayirilib yopiladi. Kassa chiqimi yaratilmaydi.";
+    pm.style.display = 'none';
+    warnText.textContent = "Avans qarzi oylik balansidan yopiladi.";
+  }else{ // salary
+    rowRemain.style.display = ''; rowAvansAfter.style.display = 'none';
+    lblGiven.textContent = 'Berilmoqda';
+    lblRemain.textContent = 'Qoladigan oylik balansi';
+    amountLbl.textContent = "Beriladigan summa (so'm)";
+    hint.textContent = "Xodim oylik balansidan shu summa ayriladi va kassa chiqimi yaratiladi.";
+    pm.style.display = '';
+    warnText.textContent = "Xodim oylik balansi yetarli bo'lishi kerak.";
+  }
+}
+
+function expSelectType(type){
+  var typeLabels = { oddiy:'Oddiy chiqim', salary:'Xodimga oylik', advance:'Xodimga avans', close:'Avans yopish' };
+  document.getElementById('expStepType').style.display = 'none';
+  document.getElementById('expSectionOddiy').classList.remove('show');
+  document.getElementById('expSectionXodim').classList.remove('show');
+  document.getElementById('expConfirm').classList.remove('show');
+  document.getElementById('expFootOddiy').style.display = 'none';
+  document.getElementById('expFootXodim').style.display = 'none';
+  document.getElementById('expFootConfirm').style.display = 'none';
+
+  var title;
+  if(type === 'oddiy'){
+    document.getElementById('expSectionOddiy').classList.add('show');
+    document.getElementById('expFootOddiy').style.display = '';
+    title = 'Oddiy chiqim';
+  }else{
+    EXP_SALARY_TYPE = type;
+    document.getElementById('expSalaryType').value = type;
+    document.getElementById('expXodimForm').action = (type === 'close')
+      ? document.getElementById('expActionClose').value
+      : document.getElementById('expActionPayout').value;
+    document.getElementById('expSectionXodim').classList.add('show');
+    document.getElementById('expFootXodim').style.display = '';
+    var label = type === 'salary' ? 'Oylik berish' : type === 'advance' ? 'Avans berish' : 'Avans yopish';
+    document.getElementById('expXodimConfirmBtn').innerHTML = '<i class="fas fa-check"></i> ' + label;
+    title = typeLabels[type];
+    expApplyTypeLabels();
+    expBuildEmployees();
+    expEmployeeChanged();
+  }
+  var head = document.querySelector('#expenseModal .k-modal-top h3');
+  if(head){ head.innerHTML = '<i class="fas fa-minus-circle" style="color:var(--k-red);"></i> ' + title; }
+}
+
+function expEmployeeChanged(){
+  var id = document.getElementById('expEmployeeSelect').value;
+  var balBox = document.getElementById('expBalBox');
+  var warn = document.getElementById('expEmpWarn');
+  var amount = document.getElementById('expAmount');
+  if(!id){
+    balBox.style.display = 'none';
+    warn.classList.remove('show');
+    document.getElementById('expRowMonthly').style.display = 'none';
+    document.getElementById('expRowDeducted').style.display = 'none';
+    document.getElementById('expDeductWrap').classList.remove('show');
+    amount.value = '';
+    amount.readOnly = false;
+    expAmountInput();
+    return;
+  }
+  var e = EXP_EMPLOYEES[id];
+  if(!e){ return; }
+  var isMonthly = expIsMonthly(e);
+  document.getElementById('expEmpMonthly').textContent = fmtSum(e.monthly_salary) + " so'm";
+  document.getElementById('expEmpBalance').textContent = fmtSum(e.balance) + " so'm";
+  document.getElementById('expEmpAvans').textContent = fmtSum(e.avans_balance || 0) + " so'm";
+  document.getElementById('expRowMonthly').style.display = isMonthly ? '' : 'none';
+  balBox.style.display = 'block';
+
+  if(EXP_SALARY_TYPE === 'advance'){
+    var noIncome = !e.has_income;
+    warn.classList.toggle('show', noIncome);
+    document.getElementById('expEmpWarnText').textContent = "Xodimga oylik yoki foiz belgilanmagan. Avans berish mumkin emas.";
+    amount.readOnly = false;
+  }else if(EXP_SALARY_TYPE === 'close'){
+    warn.classList.toggle('show', isMonthly);
+    document.getElementById('expEmpWarnText').textContent = "Avans faqat oylik berish vaqtida (Avansni oylikdan ushlab qolish) yopiladi.";
+    amount.readOnly = false;
+  }else{ // salary
+    warn.classList.remove('show');
+    if(isMonthly){
+      document.getElementById('expDeductWrap').classList.add('show');
+      amount.readOnly = true;
+    }else{
+      document.getElementById('expDeductWrap').classList.remove('show');
+      amount.readOnly = false;
+    }
+  }
+  amount.value = '';
+  expAmountInput();
+}
+
+function expParseAmount(){
+  var raw = document.getElementById('expAmount').value;
+  var num = parseFloat(raw.replace(/[\s' ]/g, '').replace(/,/g, ''));
+  return isNaN(num) ? 0 : num;
+}
+
+function expAmountInput(){
+  var id = document.getElementById('expEmployeeSelect').value;
+  var amount = expParseAmount();
+  var e = EXP_EMPLOYEES[id] || { balance: 0, avans_balance: 0, salary_type: 'percent', monthly_salary: 0, has_income: true };
+  var isMonthly = expIsMonthly(e);
+  var balance = e.balance;
+  var avans = e.avans_balance || 0;
+  var type = EXP_SALARY_TYPE;
+  var given = document.getElementById('expGiven');
+  var remainEl = document.getElementById('expRemain');
+  var avansEl = document.getElementById('expAvansAfter');
+  var deductedEl = document.getElementById('expDeducted');
+  var warn = document.getElementById('expInsufficient');
+  var amountInput = document.getElementById('expAmount');
+  var hint = document.getElementById('expAmountHint');
+  var insufficient = false;
+  var msg = '';
+
+  given.classList.remove('red','green');
+  remainEl.classList.remove('red','green');
+  avansEl.classList.remove('red','green','amber');
+  deductedEl.classList.remove('red','green');
+
+  if(type === 'advance'){
+    var newAvans = avans + amount;
+    var limit = (e.advance_limit === undefined || e.advance_limit === null) ? null : Number(e.advance_limit);
+    var remaining = (limit === null) ? null : limit - avans;
+    document.getElementById('expRowDeducted').style.display = 'none';
+    given.textContent = fmtSum(amount) + " so'm";
+    avansEl.textContent = fmtSum(newAvans) + " so'm";
+    avansEl.classList.toggle('amber', newAvans > 0);
+    insufficient = !e.has_income;
+    if(insufficient){
+      msg = "Xodimga oylik yoki foiz belgilanmagan. Avans berish mumkin emas.";
+    }else if(limit !== null && remaining < 0){
+      insufficient = true;
+      msg = "Avans qarzi limitdan oshgan (qarz: " + fmtSum(avans) + " so'm, limit: " + fmtSum(limit) + " so'm).";
+    }else if(limit !== null && amount > remaining){
+      insufficient = true;
+      msg = "Avans limiti oshib ketdi. Berish mumkin: " + fmtSum(remaining) + " so'm (umumiy limit: " + fmtSum(limit) + " so'm, qarz: " + fmtSum(avans) + " so'm).";
+    }
+    if(limit === null){
+      hint.textContent = "Avans oylik balansiga ta'sir qilmaydi, cheksiz berish mumkin. Kassa chiqimi yaratiladi.";
+    }else{
+      hint.textContent = "Avans limiti: " + fmtSum(limit) + " so'm (qarz: " + fmtSum(avans) + " so'm, qolgan: " + fmtSum(Math.max(remaining, 0)) + " so'm). Kassa chiqimi yaratiladi.";
+    }
+  }else if(type === 'close'){
+    var remainC = balance - amount;
+    var newAvansC = avans - amount;
+    document.getElementById('expRowDeducted').style.display = 'none';
+    given.textContent = fmtSum(amount) + " so'm";
+    remainEl.textContent = fmtSum(remainC) + " so'm";
+    remainEl.classList.toggle('red', remainC < 0);
+    remainEl.classList.toggle('green', remainC >= 0);
+    avansEl.textContent = fmtSum(newAvansC) + " so'm";
+    avansEl.classList.toggle('amber', newAvansC > 0);
+    avansEl.classList.toggle('green', newAvansC <= 0);
+    if(isMonthly){
+      insufficient = true;
+      msg = "Avans faqat oylik berish vaqtida (Avansni oylikdan ushlab qolish) yopiladi.";
+    }else{
+      insufficient = amount > 0 && (amount > avans || amount > balance);
+      if(insufficient){
+        if(amount > avans){
+          msg = 'Avans qarzdan ortiq summa yopish mumkin emas. Mavjud qarz: ' + fmtSum(avans) + " so'm.";
+        }else{
+          msg = 'Oylik balansi yetarli emas. Mavjud oylik balansi: ' + fmtSum(balance) + " so'm.";
+        }
+      }
+    }
+  }else{ // salary
+    if(isMonthly){
+      var monthly = Number(e.monthly_salary) || 0;
+      var deduct = document.getElementById('expDeductAvans').checked;
+      var deduction = (deduct && avans > 0) ? Math.min(avans, monthly) : 0;
+      var payable = monthly - deduction;
+      amountInput.value = payable > 0 ? payable : '';
+      amount = payable;
+      document.getElementById('expRowDeducted').style.display = (deduct && deduction > 0) ? '' : 'none';
+      deductedEl.textContent = fmtSum(deduction) + " so'm";
+      given.textContent = fmtSum(payable) + " so'm";
+      remainEl.textContent = fmtSum(deduction) + " so'm";
+      remainEl.classList.toggle('green', deduction >= 0);
+      avansEl.textContent = fmtSum(avans - deduction) + " so'm";
+      avansEl.classList.toggle('green', (avans - deduction) <= 0);
+      avansEl.classList.toggle('amber', (avans - deduction) > 0);
+      hint.textContent = "Oylik: " + fmtSum(monthly) + " so'm, avans: " + fmtSum(avans) + " so'm. Avans ushlansa: " + fmtSum(monthly - deduction) + " so'm beriladi.";
+      insufficient = payable <= 0;
+      if(insufficient){
+        msg = "Beriladigan oylik 0 so'm. Avans qarzi oylikdan katta yoki teng. Qolgan qarz keyingi davrga o'tadi.";
+      }
+    }else{
+      var remainS = balance - amount;
+      document.getElementById('expRowDeducted').style.display = 'none';
+      given.textContent = fmtSum(amount) + " so'm";
+      remainEl.textContent = fmtSum(remainS) + " so'm";
+      remainEl.classList.toggle('red', remainS < 0);
+      remainEl.classList.toggle('green', remainS >= 0);
+      insufficient = amount > 0 && amount > balance;
+      if(insufficient){
+        msg = 'Oylik balansi yetarli emas. Mavjud oylik balansi: ' + fmtSum(balance) + " so'm.";
+      }
+    }
+  }
+
+  if(insufficient && msg){
+    warn.classList.add('show');
+    document.getElementById('expInsufficientText').textContent = msg;
+  }else{
+    warn.classList.remove('show');
+  }
+  document.getElementById('expXodimConfirmBtn').disabled = insufficient || amount <= 0 || !id;
+}
+
+function expShowConfirm(){
+  var id = document.getElementById('expEmployeeSelect').value;
+  if(!id){ return; }
+  var e = EXP_EMPLOYEES[id];
+  var amount = expParseAmount();
+  var type = EXP_SALARY_TYPE;
+  var avans = e.avans_balance || 0;
+  var isMonthly = expIsMonthly(e);
+  var monthly = Number(e.monthly_salary) || 0;
+  var deduct = document.getElementById('expDeductAvans').checked;
+  var deduction = 0;
+
+  if(type === 'advance'){
+    if(amount <= 0 || !e.has_income){ return; }
+    var aLimit = (e.advance_limit === undefined || e.advance_limit === null) ? null : Number(e.advance_limit);
+    if(aLimit !== null && amount > aLimit - avans){ return; }
+  }else if(type === 'close'){
+    if(amount <= 0 || amount > avans || amount > e.balance || isMonthly){ return; }
+  }else{ // salary
+    if(isMonthly){
+      deduction = (deduct && avans > 0) ? Math.min(avans, monthly) : 0;
+      amount = monthly - deduction;
+      if(amount <= 0){ return; }
+    }else{
+      if(amount <= 0 || amount > e.balance){ return; }
+    }
+  }
+
+  var typeLabel = type === 'salary' ? 'Xodimga oylik' : type === 'advance' ? 'Xodimga avans' : 'Avans yopish';
+  document.getElementById('expCEmployee').textContent = e.name;
+  document.getElementById('expCType').textContent = typeLabel;
+  document.getElementById('expCAmount').textContent = fmtSum(amount) + " so'm";
+
+  var row1 = document.getElementById('expCRow1');
+  var row2 = document.getElementById('expCRow2');
+  var row3 = document.getElementById('expCRow3');
+  var row4 = document.getElementById('expCRow4');
+  var lbl1 = document.getElementById('expCLbl1');
+  var lbl2 = document.getElementById('expCLbl2');
+  var lbl3 = document.getElementById('expCLbl3');
+  var lbl4 = document.getElementById('expCLbl4');
+  row1.style.display = '';
+  row2.style.display = '';
+  row3.style.display = 'none';
+  row4.style.display = 'none';
+
+  if(type === 'advance'){
+    lbl1.textContent = 'Avans qarzi (hozir)';
+    document.getElementById('expCVal1').textContent = fmtSum(avans) + " so'm";
+    lbl2.textContent = 'Yangi avans qarzi';
+    document.getElementById('expCVal2').textContent = fmtSum(avans + amount) + " so'm";
+  }else if(type === 'close'){
+    row3.style.display = '';
+    lbl1.textContent = 'Avans qarzi (hozir)';
+    document.getElementById('expCVal1').textContent = fmtSum(avans) + " so'm";
+    lbl2.textContent = 'Qolgan avans qarzi';
+    document.getElementById('expCVal2').textContent = fmtSum(avans - amount) + " so'm";
+    lbl3.textContent = 'Qolgan oylik balansi';
+    document.getElementById('expCVal3').textContent = fmtSum(e.balance - amount) + " so'm";
+  }else{ // salary
+    if(isMonthly){
+      row3.style.display = '';
+      row4.style.display = '';
+      lbl1.textContent = 'Belgilangan oylik';
+      document.getElementById('expCVal1').textContent = fmtSum(monthly) + " so'm";
+      lbl2.textContent = 'Avans qarzi (hozir)';
+      document.getElementById('expCVal2').textContent = fmtSum(avans) + " so'm";
+      lbl3.textContent = 'Avansdan yopiladi';
+      document.getElementById('expCVal3').textContent = fmtSum(deduction) + " so'm";
+      lbl4.textContent = 'Qolgan avans qarzi';
+      document.getElementById('expCVal4').textContent = fmtSum(avans - deduction) + " so'm";
+    }else{
+      lbl1.textContent = 'Oylik balansi';
+      document.getElementById('expCVal1').textContent = fmtSum(e.balance) + " so'm";
+      lbl2.textContent = 'Qoladigan oylik balansi';
+      document.getElementById('expCVal2').textContent = fmtSum(e.balance - amount) + " so'm";
+    }
+  }
+
+  document.getElementById('expCInsufficient').style.display = 'none';
+  document.getElementById('expSectionXodim').classList.remove('show');
+  document.getElementById('expFootXodim').style.display = 'none';
+  document.getElementById('expConfirm').classList.add('show');
+  document.getElementById('expFootConfirm').style.display = '';
+  document.getElementById('expXodimSubmitBtn').innerHTML = '<i class="fas fa-check"></i> Tasdiqlash';
+}
+
+function expBackToType(){
+  expReset();
+}
+
+function expBackToForm(){
+  document.getElementById('expConfirm').classList.remove('show');
+  document.getElementById('expFootConfirm').style.display = 'none';
+  document.getElementById('expSectionXodim').classList.add('show');
+  document.getElementById('expFootXodim').style.display = '';
+  expEmployeeChanged();
+}
 
 function toggleMonth(n){
   var days=document.getElementById('mdays-'+n);

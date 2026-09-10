@@ -2,7 +2,9 @@ from django.urls import path, include
 from . import views
 from . import student_api
 from . import employee_api
+from . import teacher_salary_api
 from . import kassa_urls
+from . import admin_permission_views
 
 urlpatterns = [
     path("", views.login_view, name="login"),
@@ -60,6 +62,8 @@ urlpatterns = [
     path("groups/<int:pk>/freeze/", views.group_freeze, name="group_freeze"),
     path("groups/<int:pk>/archive/", views.group_archive, name="group_archive"),
     path("groups/<int:pk>/settings/", views.group_settings, name="group_settings"),
+    path("groups/<int:pk>/teacher-assignments/", views.group_teacher_assignments, name="group_teacher_assignments"),
+    path("teacher-assignments/<int:pk>/delete/", views.group_teacher_assignment_delete, name="group_teacher_assignment_delete"),
     path("groups/<int:group_pk>/add-student/<int:student_pk>/", views.add_student_to_group, name="add_student_to_group"),
     path("groups/<int:group_pk>/add-pending/<int:course_pk>/", views.add_pending_to_group, name="add_pending_to_group"),
     path("groups/<int:group_pk>/remove-student/<int:student_pk>/", views.remove_student_from_group, name="remove_student_from_group"),
@@ -75,6 +79,16 @@ urlpatterns = [
     path("positions/create/", views.position_create, name="position_create"),
     path("positions/<int:pk>/update/", views.position_update, name="position_update"),
     path("positions/<int:pk>/delete/", views.position_delete, name="position_delete"),
+    path("tasks/", views.task_list, name="task_list"),
+    path("tasks/create/", views.task_create, name="task_create"),
+    path("tasks/<int:pk>/update/", views.task_update, name="task_update"),
+    path("tasks/<int:pk>/delete/", views.task_delete, name="task_delete"),
+    path("tasks/status-ajax/", views.task_status_ajax, name="task_status_ajax"),
+    path("tasks/eslatmalar/", views.reminder_list, name="reminder_list"),
+    path("tasks/eslatmalar/<int:pk>/oqidim/", views.reminder_mark_read, name="reminder_mark_read"),
+    path("tasks/eslatmalar/<int:pk>/oqiganlar/", views.reminder_readers, name="reminder_readers"),
+    path("tasks/eslatmalar/oqilgan/", views.reminder_mark_all_read, name="reminder_mark_all_read"),
+    path("api/site/notifications-badge/", views.notifications_badge, name="notifications_badge"),
     path("branches/", views.branch_list, name="branch_list"),
     path("branches/create/", views.branch_create, name="branch_create"),
     path("branches/<int:pk>/update/", views.branch_update, name="branch_update"),
@@ -100,6 +114,13 @@ urlpatterns = [
     path("api/employee/login/", employee_api.employee_login, name="employee_api_login"),
     path("api/employee/logout/", employee_api.employee_logout, name="employee_api_logout"),
     path("api/employee/me/", employee_api.me, name="employee_api_me"),
+    path("api/employee/upload-photo/", employee_api.upload_photo, name="employee_api_upload_photo"),
+    path("api/employee/change-password/", employee_api.change_password, name="employee_api_change_password"),
+    path("api/employee/change-phone/", employee_api.change_phone, name="employee_api_change_phone"),
+    path("api/employee/transactions/", employee_api.admin_transactions, name="employee_api_admin_transactions"),
+    path("api/employee/students/", employee_api.student_list, name="employee_api_students"),
+    path("api/employee/students/<int:pk>/", employee_api.student_detail, name="employee_api_student_detail"),
+    path("api/employee/students/<int:pk>/remove_group/", employee_api.student_remove_group, name="employee_api_student_remove_group"),
     path("api/employee/employees/", employee_api.employee_list, name="employee_api_list"),
     path("api/employee/employees/create/", employee_api.employee_create, name="employee_api_create"),
     path("api/employee/employees/<int:pk>/", employee_api.employee_detail, name="employee_api_detail"),
@@ -113,8 +134,25 @@ urlpatterns = [
     path("api/employee/branches/", employee_api.branches_list, name="employee_api_branches"),
     path("api/employee/teacher-dashboard/", employee_api.teacher_dashboard_api, name="employee_api_dashboard"),
     path("api/employee/teacher-group/<int:pk>/", employee_api.teacher_group_detail_api, name="employee_api_group_detail"),
+    path("api/employee/teacher-group/<int:pk>/update/", employee_api.teacher_group_update_api, name="employee_api_group_update"),
+    path("api/employee/my-tasks/", employee_api.my_tasks, name="employee_api_my_tasks"),
+    path("api/employee/task-status/", employee_api.task_status, name="employee_api_task_status"),
+    path("api/employee/reminders/", employee_api.my_reminders, name="employee_api_reminders"),
+    path("api/employee/reminder-read/", employee_api.reminder_read, name="employee_api_reminder_read"),
+    path("api/employee/notifications/", employee_api.notifications, name="employee_api_notifications"),
+    path("api/employee/notifications/seen/", employee_api.mark_notifications_seen, name="employee_api_notifications_seen"),
+    path("api/employee/push/vapid-public/", employee_api.push_vapid_public, name="employee_api_push_vapid"),
+    path("api/employee/push/subscribe/", employee_api.push_subscribe, name="employee_api_push_subscribe"),
+    path("api/employee/push/unsubscribe/", employee_api.push_unsubscribe, name="employee_api_push_unsubscribe"),
+    # Teacher salary (foiz tizimi)
+    path("api/employee/my-salary/", teacher_salary_api.my_salary, name="employee_api_my_salary"),
+    path("api/salary/teachers/", teacher_salary_api.teacher_salary_list, name="teacher_salary_list"),
+    path("api/salary/teachers/<int:pk>/", teacher_salary_api.teacher_salary_detail, name="teacher_salary_detail"),
+    path("api/salary/teachers/<int:pk>/pay/", teacher_salary_api.teacher_salary_pay, name="teacher_salary_pay"),
+    path("api/salary/teachers/<int:pk>/percent/", teacher_salary_api.teacher_salary_update_percent, name="teacher_salary_update_percent"),
     # Student API
     path("api/telegram-webhook/", student_api.telegram_webhook, name="telegram_webhook"),
+    path("api/telegram-webhook/eslatma/", student_api.telegram_eslatma_webhook, name="telegram_eslatma_webhook"),
     path("api/student/send-code/", student_api.send_code, name="student_send_code"),
     path("api/student/verify-code/", student_api.verify_code, name="student_verify_code"),
     path("api/student/set-password/", student_api.set_password, name="student_set_password"),
@@ -129,7 +167,11 @@ urlpatterns = [
     path("api/student/sms/send/", views.student_send_sms, name="student_send_sms"),
     # Payment views
     path("groups/<int:group_pk>/student-price/<int:student_pk>/", views.update_student_lesson_price, name="update_student_lesson_price"),
+    path("payments/", views.payments_all, name="payments"),
     path("payments/create/", views.payment_create, name="payment_create"),
+    path("payments/transfer-ajax/", views.payment_transfer_ajax, name="payment_transfer_ajax"),
+    path("payments/expense-ajax/", views.payment_expense_ajax, name="payment_expense_ajax"),
+    path("payments/student-refund/", views.payment_student_refund, name="payment_student_refund"),
     path("payments/withdraw/", views.balance_withdraw, name="balance_withdraw"),
     path("payments/transfer/", views.balance_transfer, name="balance_transfer"),
     path("payments/<int:pk>/transfer-wrong/", views.transfer_wrong_payment, name="transfer_wrong_payment"),
@@ -142,21 +184,25 @@ urlpatterns = [
     path("settings/receipt/", views.receipt_settings, name="receipt_settings"),
     path("settings/sms/", views.sms_settings, name="sms_settings"),
     path("settings/qr/", views.qr_settings, name="qr_settings"),
-    # Receipt template builder
-    path("receipt-templates/", views.receipt_builder, name="receipt_builder"),
-    path("receipt-templates/new/", views.receipt_builder, name="receipt_builder_new"),
-    path("receipt-templates/<int:pk>/", views.receipt_builder, name="receipt_builder_edit"),
-    path("receipt-templates/<int:pk>/print/<int:transaction_id>/", views.receipt_print_preview, name="receipt_print_preview"),
-    path("receipt/print/<int:transaction_id>/", views.receipt_print, name="receipt_print"),
-    path("receipts/", views.receipt_list, name="receipt_list"),
-    path("api/receipt-html/<int:transaction_id>/", views.api_receipt_html, name="api_receipt_html"),
-    # API
-    path("api/receipt-templates/", views.api_receipt_templates, name="api_receipt_templates"),
-    path("api/receipt-templates/create/", views.api_receipt_template_create, name="api_receipt_template_create"),
-    path("api/receipt-templates/<int:pk>/", views.api_receipt_template_detail, name="api_receipt_template_detail"),
-    path("api/receipt-templates/<int:pk>/duplicate/", views.api_receipt_template_duplicate, name="api_receipt_template_duplicate"),
-    path("api/receipt-templates/<int:pk>/set-default/", views.api_receipt_template_set_default, name="api_receipt_template_set_default"),
+    path("settings/davomat-eslatmasi/", views.attendance_reminder_settings, name="attendance_reminder_settings"),
+
     path("api/student/deferred-reason/", views.api_update_deferred_reason, name="api_update_deferred_reason"),
+    path("api/receipt-html/<int:transaction_id>/", views.api_receipt_html, name="api_receipt_html"),
     # Kassa Management
     path("kassa/", include(kassa_urls)),
+    # Qo'shimcha funksiyalar
+    path("qoshimcha-funksiyalar/", views.additional_functions, name="additional_functions"),
+    # === Admin Permission System (Super Admin) ===
+    path("admins/", admin_permission_views.admin_list, name="admin_list"),
+    path("admins/create/", admin_permission_views.admin_create, name="admin_create"),
+    path("admins/<int:pk>/permissions/", admin_permission_views.admin_permissions, name="admin_permissions"),
+    path("employees/<int:pk>/permissions/", admin_permission_views.employee_permissions, name="employee_permissions"),
+    path("admins/<int:pk>/edit/", admin_permission_views.admin_update, name="admin_update"),
+    path("admins/<int:pk>/delete/", admin_permission_views.admin_delete, name="admin_delete"),
+    path("admins/<int:pk>/permission/toggle/", admin_permission_views.admin_permission_toggle, name="admin_permission_toggle"),
+    path("admins/<int:pk>/permission/grant-all/", admin_permission_views.admin_permission_grant_all, name="admin_permission_grant_all"),
+    path("admins/<int:pk>/permission/revoke-all/", admin_permission_views.admin_permission_revoke_all, name="admin_permission_revoke_all"),
+    path("admins/<int:pk>/block/", admin_permission_views.admin_block, name="admin_block"),
+    path("admins/<int:pk>/unblock/", admin_permission_views.admin_unblock, name="admin_unblock"),
+    path("audit-log/", admin_permission_views.audit_log, name="audit_log"),
 ]

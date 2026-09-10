@@ -47,7 +47,7 @@
 <div class="page-top">
   <h2><i class="fas fa-cash-register" style="color:var(--primary);"></i> Kassalar</h2>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
-    {% if is_superadmin %}
+    {% if 'cashbox.create' in permissions %}
     <a href="{% url 'kassa_create' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Yangi kassa</a>
     {% endif %}
   </div>
@@ -77,9 +77,15 @@
     </div>
     <div class="list-item-actions">
       <a href="{% url 'kassa_detail' item.kassa.pk %}" class="btn-view"><i class="fas fa-eye"></i> Ko'rish</a>
-      {% if is_superadmin %}
+      {% if 'cashbox.update' in permissions %}
       <a href="{% url 'kassa_update' item.kassa.pk %}" class="btn-edit"><i class="fas fa-edit"></i> Tahrirlash</a>
+      {% endif %}
+      {% if 'cashbox.delete' in permissions %}
+      {% if item.balance == 0 %}
       <a href="{% url 'kassa_delete' item.kassa.pk %}" class="btn-del"><i class="fas fa-trash"></i> O'chirish</a>
+      {% else %}
+      <span class="btn-del" style="opacity:.45;cursor:not-allowed;" title="Kassada {{ item.balance|floatformat:0 }} so'm bor. Avval barcha pullarni chiqim qiling yoki boshqa kassaga o'tkazing!"><i class="fas fa-trash"></i> O'chirish</span>
+      {% endif %}
       {% endif %}
     </div>
   </div>
@@ -87,7 +93,7 @@
   <div class="empty-state">
     <i class="fas fa-cash-register"></i>
     <p style="font-size:1.1rem;margin-bottom:8px;">Hali kassa yaratilmagan</p>
-    {% if is_superadmin %}
+    {% if 'cashbox.create' in permissions %}
     <a href="{% url 'kassa_create' %}" style="color:var(--primary);font-weight:600;font-size:.92rem;">Yangi kassa yaratish</a>
     {% endif %}
   </div>

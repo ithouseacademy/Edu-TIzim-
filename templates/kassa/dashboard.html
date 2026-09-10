@@ -86,9 +86,13 @@
   <div class="k-header">
     <h1><i class="fas fa-cash-register"></i> Kassa boshqaruvi</h1>
     <div class="k-header-actions">
+      {% if 'cashbox.report' in permissions %}
       <a href="{% url 'kassa_dashboard_export_excel' %}" class="k-btn"><i class="fas fa-file-excel" style="color:#16a34a;"></i> Excel</a>
-      {% if is_superadmin %}
+      {% endif %}
+      {% if 'cashbox.create' in permissions %}
       <a href="{% url 'kassa_create' %}" class="k-btn k-btn-primary"><i class="fas fa-plus"></i> Yangi kassa</a>
+      {% endif %}
+      {% if 'settings.update' in permissions %}
       <a href="{% url 'income_category_list' %}" class="k-btn"><i class="fas fa-arrow-up" style="color:#059669;"></i> Kirim kat.</a>
       {% endif %}
       <a href="{% url 'kassa_history' %}" class="k-btn"><i class="fas fa-history"></i> Tarix</a>
@@ -144,7 +148,7 @@
     <div class="k-empty">
       <i class="fas fa-cash-register"></i>
       <p>Hali kassa yaratilmagan</p>
-      {% if is_superadmin %}
+      {% if 'cashbox.create' in permissions %}
       <a href="{% url 'kassa_create' %}">Yangi kassa yaratish</a>
       {% endif %}
     </div>

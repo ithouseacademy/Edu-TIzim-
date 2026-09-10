@@ -4,16 +4,23 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Sum, Q, Count
+from django.db import transaction
 from django.core.paginator import Paginator
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 import csv
 
-from .models import Kassa, KassaTransaction, KassaTransfer, Employee, PaymentMethod, ExpenseCategory, IncomeCategory
+from .models import (
+    Kassa, KassaTransaction, KassaTransfer, Employee,
+    PaymentMethod, ExpenseCategory, IncomeCategory,
+    TeacherBalance, TeacherTransaction,
+)
+from .views import get_or_create_teacher_balance, add_teacher_balance_transaction
 from .forms import (
     KassaForm, KassaIncomeForm, KassaExpenseForm,
     KassaTransferForm, KassaFilterForm, ExpenseCategoryForm, IncomeCategoryForm,
 )
+from .permissions import has_permission
 
 
 def _get_employee(user):
@@ -32,6 +39,10 @@ def _employee_name(user):
     if emp:
         return f"{emp.first_name} {emp.last_name or ''}".strip()
     return user.get_full_name() or user.username
+
+
+def _wants_json(request):
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
 
 @login_required(login_url="login")
@@ -117,9 +128,7 @@ def kassa_dashboard(request):
 @login_required(login_url="login")
 def kassa_dashboard_export_excel(request):
     user = request.user
-    if not _is_superadmin(user):
-        messages.error(request, "Faqat Admin export qila oladi!")
-        return redirect("kassa_dashboard")
+    is_superadmin = _is_superadmin(user)
 
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -358,6 +367,29 @@ def kassa_detail(request, pk):
             k_pm[pm_name] = float(k_inc - k_exp)
         all_kassa_pm_balances[str(k.pk)] = k_pm
 
+    employees_data = []
+    for emp in Employee.objects.filter(is_deleted=False, is_active=True).order_by("first_name", "last_name"):
+        tb = get_or_create_teacher_balance(emp)
+        monthly = (emp.monthly_salary or Decimal('0.00')) > 0
+        percent = (emp.percent or Decimal('0.00')) > 0
+        is_monthly_emp = emp.salary_type == Employee.SalaryType.MONTHLY
+        if is_monthly_emp:
+            advance_limit = float(emp.monthly_salary or 0) if monthly else None
+        else:
+            advance_limit = float(max(tb.balance, Decimal('0.00'))) if percent else None
+        employees_data.append({
+            "id": emp.pk,
+            "name": f"{emp.first_name} {emp.last_name}".strip(),
+            "balance": float(tb.balance),
+            "avans_balance": float(tb.avans_balance),
+            "salary_type": emp.salary_type,
+            "monthly_salary": float(emp.monthly_salary or 0),
+            "percent": float(emp.percent or 0),
+            "has_income": is_monthly_emp or percent,
+            "advance_limit": advance_limit,
+        })
+    employees_json = json.dumps(employees_data)
+
     return render(request, "kassa/detail.html", {
         "kassa": kassa,
         "balance": balance,
@@ -379,6 +411,7 @@ def kassa_detail(request, pk):
         "active_payment_methods": active_payment_methods,
         "all_kassa_pm_balances": json.dumps(all_kassa_pm_balances),
         "income_categories": IncomeCategory.objects.filter(is_active=True),
+        "employees_json": employees_json,
     })
 
 
@@ -416,19 +449,33 @@ def kassa_update(request, pk):
 
 
 @login_required(login_url="login")
-@login_required(login_url="login")
 def kassa_delete(request, pk):
     if not _is_superadmin(request.user):
         messages.error(request, "Faqat Super Admin kassani o'chirishi mumkin!")
         return redirect("kassa_list")
 
     kassa = get_object_or_404(Kassa, pk=pk)
+
+    balance = kassa.balance
+    if balance != 0:
+        messages.error(
+            request,
+            f"'{kassa.name}' kassasida {balance:,.0f} so'm mablag' bor! "
+            "Kassa o'chirilmaydi. Avval ichidagi barcha pullarni chiqim qiling "
+            "yoki boshqa kassaga o'tkazing.",
+        )
+        return redirect("kassa_list")
+
     if request.method == "POST":
         name = kassa.name
         kassa.delete()
         messages.success(request, f"'{name}' kassasi o'chirildi (faolligi bekor qilindi)")
         return redirect("kassa_list")
-    return render(request, "kassa/delete.html", {"object": kassa, "title": "Kassani o'chirish"})
+    return render(request, "kassa/delete.html", {
+        "object": kassa,
+        "title": "Kassani o'chirish",
+        "object_balance": balance,
+    })
 
 
 @login_required(login_url="login")
@@ -485,9 +532,17 @@ def kassa_add_expense(request, pk):
     kassa = get_object_or_404(Kassa, pk=pk)
     is_superadmin = _is_superadmin(user)
 
+    def _fail(msg):
+        if _wants_json(request):
+            return JsonResponse({"success": False, "error": msg})
+        messages.error(request, msg)
+        return redirect("kassa_detail", pk=pk)
+
     if not is_superadmin and kassa.owner != user:
-        messages.error(request, "Sizning kassangiz emas!")
-        return redirect("kassa_list")
+        return _fail("Sizning kassangiz emas!")
+
+    if not has_permission(user, "expense.regular"):
+        return _fail("Sizga oddiy chiqim qilishga ruxsat berilmagan.")
 
     if request.method != "POST":
         return redirect("kassa_detail", pk=pk)
@@ -502,8 +557,7 @@ def kassa_add_expense(request, pk):
         balance_before = kassa.balance
 
         if balance_before < amount:
-            messages.error(request, f"Kassada yetarli mablag' yo'q! Balans: {balance_before:,.0f} so'm")
-            return redirect("kassa_detail", pk=pk)
+            return _fail(f"Kassada yetarli mablag' yo'q! Balans: {balance_before:,.0f} so'm")
 
         if expense_category == "boshqa" and custom_category:
             final_category = custom_category
@@ -524,10 +578,326 @@ def kassa_add_expense(request, pk):
             created_by=_employee_name(user),
             created_by_user=user,
         )
-        messages.success(request, f"{amount:,.0f} so'm chiqim qilindi")
+        msg = f"{amount:,.0f} so'm chiqim qilindi"
+        if _wants_json(request):
+            return JsonResponse({"success": True, "message": msg})
+        messages.success(request, msg)
     else:
-        messages.error(request, "Xatolik yuz berdi. Summa va sababni kiriting.")
+        return _fail("Xatolik yuz berdi. Summa va sababni kiriting.")
 
+    return redirect("kassa_detail", pk=pk)
+
+
+@login_required(login_url="login")
+def kassa_add_employee_payout(request, pk):
+    """Xodimga oylik (salary) yoki avans (advance) berish.
+
+    Ikki operatsiya bitta transaction ichida bajariladi:
+    1. Xodim balansidan summa ayriladi.
+    2. Kassa chiqimi yaratiladi.
+
+    Xavfsizlik: backendda ham balanslar tekshiriladi, xodim balansi
+    hech qachon minusga tushmaydi. Biror qadam xatoga uchrasa hammasi bekor qilinadi.
+    """
+    user = request.user
+    kassa = get_object_or_404(Kassa, pk=pk)
+    is_superadmin = _is_superadmin(user)
+
+    def _fail(msg):
+        if _wants_json(request):
+            return JsonResponse({"success": False, "error": msg})
+        messages.error(request, msg)
+        return redirect("kassa_detail", pk=pk)
+
+    if not is_superadmin and kassa.owner != user:
+        return _fail("Sizning kassangiz emas!")
+
+    if request.method != "POST":
+        return redirect("kassa_detail", pk=pk)
+
+    employee_id = request.POST.get("employee_id")
+    salary_type = request.POST.get("salary_type", "")
+    payment_method = request.POST.get("payment_method", "").strip()
+    description = request.POST.get("description", "").strip()
+    raw_amount = request.POST.get("amount", "").strip()
+
+    if salary_type not in ("salary", "advance"):
+        return _fail("Noto'g'ri berish turi! Oylik yoki avansni tanlang.")
+
+    required_perm = "expense.salary" if salary_type == "salary" else "expense.advance"
+    if not has_permission(user, required_perm):
+        return _fail("Sizga bu turdagi chiqim qilishga ruxsat berilmagan.")
+
+    salary_type_label = "Oylik" if salary_type == "salary" else "Avans"
+
+    if not employee_id:
+        return _fail("Xodimni tanlang!")
+
+    employee = Employee.objects.filter(pk=employee_id, is_deleted=False).first()
+    if not employee:
+        return _fail("Xodim topilmadi!")
+
+    emp_name = f"{employee.first_name} {employee.last_name}".strip()
+    monthly_employee = (
+        employee.salary_type == Employee.SalaryType.MONTHLY
+        and (employee.monthly_salary or Decimal('0.00')) > 0
+    )
+
+    try:
+        with transaction.atomic():
+            balance = get_or_create_teacher_balance(employee)
+            balance_obj = TeacherBalance.objects.select_for_update().get(pk=balance.pk)
+
+            kassa_balance = kassa.balance
+            if kassa_balance < 0:
+                raise ValueError("Kassa balansi manfiy!")
+
+            if salary_type == "advance":
+                # Avans — oddiy chiqim emas: xodimning daromad mexanizmi (belgilangan
+                # oylik yoki foiz) mavjud bo'lsa beriladi. Avans qarzi hisobga o'sadi,
+                # oylik balansiga ta'sir qilmaydi.
+                has_income = (
+                    employee.salary_type == Employee.SalaryType.MONTHLY
+                    or (employee.percent or Decimal('0.00')) > 0
+                )
+                if not has_income:
+                    raise ValueError("Xodimga oylik yoki foiz belgilanmagan. Avans berish mumkin emas.")
+                try:
+                    amount = Decimal(raw_amount.replace(" ", "").replace("'", ""))
+                except Exception:
+                    raise ValueError("Noto'g'ri summa kiritildi!")
+                if amount <= 0:
+                    raise ValueError("Summa musbat son bo'lishi kerak!")
+                if (
+                    employee.salary_type == Employee.SalaryType.MONTHLY
+                    and (employee.monthly_salary or Decimal('0.00')) > 0
+                ):
+                    advance_limit = Decimal(employee.monthly_salary) - balance_obj.avans_balance
+                elif (employee.percent or Decimal('0.00')) > 0:
+                    advance_limit = balance_obj.balance - balance_obj.avans_balance
+                else:
+                    advance_limit = None
+                if advance_limit is not None and amount > advance_limit:
+                    raise ValueError(
+                        f"Avans limiti oshib ketdi. Berish mumkin: {max(advance_limit, Decimal('0.00')):,.0f} so'm "
+                        f"(mavjud avans qarzi: {balance_obj.avans_balance:,.0f} so'm)"
+                    )
+                if kassa_balance < amount:
+                    raise ValueError(
+                        f"Kassada yetarli mablag' yo'q! Balans: {kassa_balance:,.0f} so'm"
+                    )
+                add_teacher_balance_transaction(
+                    employee,
+                    amount,
+                    TeacherTransaction.Type.ADVANCE,
+                    description=description or f"Avans berildi",
+                    created_by=_employee_name(user),
+                    payment_method=payment_method,
+                    salary_type=salary_type,
+                    avans_amount=amount,
+                    affect_balance=False,
+                )
+                new_avans = balance_obj.avans_balance + amount
+                new_balance = balance_obj.balance
+                kassa_amount = amount
+            elif monthly_employee:
+                # Belgilangan oylik maosh (Administrator/Support).
+                # Beriladigan summa: oylik - (avansdan ushlab qolinsa avans qarzi).
+                # Avans qarzi oylikdan katta bo'lsa, faqat oylik miqdori yopiladi,
+                # qolgan qarz keyingi davrga o'tadi.
+                monthly_salary = Decimal(employee.monthly_salary)
+                avans = balance_obj.avans_balance
+                deduct_avans = request.POST.get("deduct_avans") == "on"
+                if deduct_avans and avans > 0:
+                    deduction = min(avans, monthly_salary)
+                    beriladigan = monthly_salary - deduction
+                    new_avans = avans - deduction
+                else:
+                    deduction = Decimal('0.00')
+                    beriladigan = monthly_salary
+                    new_avans = avans
+                if beriladigan <= 0:
+                    raise ValueError(
+                        f"{emp_name} uchun beriladigan oylik 0 so'm "
+                        f"(avans qarzi oylikdan katta yoki teng: {avans:,.0f} so'm). "
+                        "Qolgan qarz keyingi davrga o'tadi."
+                    )
+                if kassa_balance < beriladigan:
+                    raise ValueError(
+                        f"Kassada yetarli mablag' yo'q! Balans: {kassa_balance:,.0f} so'm"
+                    )
+                add_teacher_balance_transaction(
+                    employee,
+                    -beriladigan,
+                    TeacherTransaction.Type.PAYOUT,
+                    description=description or f"{salary_type_label} berildi",
+                    created_by=_employee_name(user),
+                    payment_method=payment_method,
+                    salary_type=salary_type,
+                    affect_balance=False,
+                    avans_amount=-deduction if deduction > 0 else None,
+                )
+                new_balance = balance_obj.balance
+                amount = beriladigan
+                kassa_amount = beriladigan
+            else:
+                # O'qituvchi foiz balansidan oylik (mavjud tizim, o'zgartirilmaydi).
+                try:
+                    amount = Decimal(raw_amount.replace(" ", "").replace("'", ""))
+                except Exception:
+                    raise ValueError("Noto'g'ri summa kiritildi!")
+                if amount <= 0:
+                    raise ValueError("Summa musbat son bo'lishi kerak!")
+                if kassa_balance < amount:
+                    raise ValueError(
+                        f"Kassada yetarli mablag' yo'q! Balans: {kassa_balance:,.0f} so'm"
+                    )
+                if balance_obj.balance < amount:
+                    raise ValueError(
+                        f"Oylik balansi yetarli emas. Mavjud oylik balansi: {balance_obj.balance:,.0f} so'm. "
+                        f"({emp_name})"
+                    )
+                add_teacher_balance_transaction(
+                    employee,
+                    -amount,
+                    TeacherTransaction.Type.PAYOUT,
+                    description=description or f"{salary_type_label} berildi",
+                    created_by=_employee_name(user),
+                    payment_method=payment_method,
+                    salary_type=salary_type,
+                )
+                new_balance = balance_obj.balance - amount
+                new_avans = balance_obj.avans_balance
+                kassa_amount = amount
+
+            KassaTransaction.objects.create(
+                kassa=kassa,
+                transaction_type=KassaTransaction.TransactionType.EXPENSE,
+                amount=kassa_amount,
+                balance_before=kassa_balance,
+                balance_after=kassa_balance - kassa_amount,
+                expense_category=KassaTransaction.ExpenseCategory.SALARY,
+                salary_type=salary_type,
+                payment_method=payment_method,
+                description=description or f"Xodimga {salary_type_label}: {emp_name}",
+                employee=employee,
+                created_by=_employee_name(user),
+                created_by_user=user,
+            )
+    except ValueError as exc:
+        return _fail(str(exc))
+    except Exception:
+        return _fail("Xatolik yuz berdi. Operatsiya bekor qilindi, hech qanday o'zgarish saqlanmadi.")
+
+    if salary_type == "advance":
+        msg = (
+            f"{amount:,.0f} so'm avans berildi: {emp_name} "
+            f"(avans qarzi: {new_avans:,.0f} so'm)"
+        )
+    elif monthly_employee:
+        msg = (
+            f"Oylik: {float(employee.monthly_salary):,.0f} so'm, "
+            f"avansdan ushlandi: {float(deduction):,.0f} so'm, "
+            f"beriladi: {amount:,.0f} so'm — {emp_name} "
+            f"(qolgan avans qarzi: {new_avans:,.0f} so'm)"
+        )
+    else:
+        msg = (
+            f"{amount:,.0f} so'm oylik berildi: {emp_name} "
+            f"(qolgan oylik balansi: {new_balance:,.0f} so'm)"
+        )
+    if _wants_json(request):
+        return JsonResponse({"success": True, "message": msg})
+    messages.success(request, msg)
+    return redirect("kassa_detail", pk=pk)
+
+
+@login_required(login_url="login")
+def kassa_employee_advance_close(request, pk):
+    """Avans yopish — alohida amal.
+
+    Xodimning avans qarzi (avans_balance) oylik balansidan (balance) ayirilib yopiladi.
+    Kassaga chiqim yozilmaydi (avans puli avval berilgan bo'lgan).
+    """
+    user = request.user
+    kassa = get_object_or_404(Kassa, pk=pk)
+    is_superadmin = _is_superadmin(user)
+
+    def _fail(msg):
+        if _wants_json(request):
+            return JsonResponse({"success": False, "error": msg})
+        messages.error(request, msg)
+        return redirect("kassa_detail", pk=pk)
+
+    if not is_superadmin and kassa.owner != user:
+        return _fail("Sizning kassangiz emas!")
+
+    if not has_permission(user, "expense.advance_close"):
+        return _fail("Sizga avans yopishga ruxsat berilmagan.")
+
+    if request.method != "POST":
+        return redirect("kassa_detail", pk=pk)
+
+    employee_id = request.POST.get("employee_id")
+    raw_amount = request.POST.get("amount", "").strip()
+    description = request.POST.get("description", "").strip()
+
+    if not employee_id:
+        return _fail("Xodimni tanlang!")
+
+    employee = Employee.objects.filter(pk=employee_id, is_deleted=False).first()
+    if not employee:
+        return _fail("Xodim topilmadi!")
+
+    try:
+        amount = Decimal(raw_amount.replace(" ", "").replace("'", ""))
+    except Exception:
+        return _fail("Noto'g'ri summa kiritildi!")
+
+    if amount <= 0:
+        return _fail("Summa musbat son bo'lishi kerak!")
+
+    emp_name = f"{employee.first_name} {employee.last_name}".strip()
+
+    try:
+        with transaction.atomic():
+            balance = get_or_create_teacher_balance(employee)
+            balance_obj = TeacherBalance.objects.select_for_update().get(pk=balance.pk)
+            if balance_obj.avans_balance <= 0:
+                raise ValueError(f"{emp_name} da yopiladigan avans qarzi mavjud emas.")
+            if amount > balance_obj.avans_balance:
+                raise ValueError(
+                    f"Avans qarzdan ortiq summa yopish mumkin emas. Mavjud qarz: {balance_obj.avans_balance:,.0f} so'm"
+                )
+            if amount > balance_obj.balance:
+                raise ValueError(
+                    f"Oylik balansi yetarli emas. Mavjud oylik balansi: {balance_obj.balance:,.0f} so'm. "
+                    f"({emp_name})"
+                )
+
+            add_teacher_balance_transaction(
+                employee,
+                -amount,
+                TeacherTransaction.Type.ADVANCE_CLOSE,
+                description=description or "Avans yopildi",
+                created_by=_employee_name(user),
+                salary_type="advance",
+                avans_amount=-amount,
+            )
+            new_balance = balance_obj.balance - amount
+            new_avans = balance_obj.avans_balance - amount
+    except ValueError as exc:
+        return _fail(str(exc))
+    except Exception:
+        return _fail("Xatolik yuz berdi. Operatsiya bekor qilindi, hech qanday o'zgarish saqlanmadi.")
+
+    msg = (
+        f"{amount:,.0f} so'm avans yopildi: {emp_name} "
+        f"(qolgan qarz: {new_avans:,.0f} so'm, oylik balansi: {new_balance:,.0f} so'm)"
+    )
+    if _wants_json(request):
+        return JsonResponse({"success": True, "message": msg})
+    messages.success(request, msg)
     return redirect("kassa_detail", pk=pk)
 
 
@@ -621,7 +991,7 @@ def kassa_history(request):
     user = request.user
     is_superadmin = _is_superadmin(user)
 
-    transactions = KassaTransaction.objects.select_related("kassa", "kassa__owner", "student").order_by("-created_at")
+    transactions = KassaTransaction.objects.select_related("kassa", "kassa__owner", "student", "employee").order_by("-created_at")
 
     if not is_superadmin:
         transactions = transactions.filter(kassa__owner=user)
@@ -630,6 +1000,8 @@ def kassa_history(request):
     date_to = request.GET.get("date_to")
     tx_type = request.GET.get("transaction_type")
     search = request.GET.get("search", "").strip()
+    f_salary_type = request.GET.get("salary_type", "").strip()
+    f_employee = request.GET.get("employee", "").strip()
 
     if date_from:
         transactions = transactions.filter(created_at__date__gte=date_from)
@@ -637,14 +1009,42 @@ def kassa_history(request):
         transactions = transactions.filter(created_at__date__lte=date_to)
     if tx_type:
         transactions = transactions.filter(transaction_type=tx_type)
+    if f_salary_type:
+        transactions = transactions.filter(salary_type=f_salary_type)
+    if f_employee:
+        try:
+            transactions = transactions.filter(employee_id=int(f_employee))
+        except Exception:
+            pass
     if search:
         transactions = transactions.filter(
             Q(description__icontains=search) |
             Q(created_by__icontains=search) |
             Q(kassa__name__icontains=search) |
             Q(student__first_name__icontains=search) |
-            Q(student__last_name__icontains=search)
+            Q(student__last_name__icontains=search) |
+            Q(employee__first_name__icontains=search) |
+            Q(employee__last_name__icontains=search)
         )
+
+    employee_summary = None
+    if f_employee:
+        emp = Employee.objects.filter(pk=int(f_employee), is_deleted=False).first() if f_employee.isdigit() else None
+        if emp:
+            base = KassaTransaction.objects.filter(kassa__owner=user) if not is_superadmin else KassaTransaction.objects.all()
+            base = base.filter(employee=emp)
+            if date_from:
+                base = base.filter(created_at__date__gte=date_from)
+            if date_to:
+                base = base.filter(created_at__date__lte=date_to)
+            total_salary = base.filter(salary_type="salary").aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
+            total_advance = base.filter(salary_type="advance").aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
+            employee_summary = {
+                "employee": emp,
+                "total_salary": total_salary,
+                "total_advance": total_advance,
+                "total": total_salary + total_advance,
+            }
 
     paginator = Paginator(transactions, 30)
     page = request.GET.get("page")
@@ -653,6 +1053,10 @@ def kassa_history(request):
     return render(request, "kassa/history.html", {
         "transactions": transactions,
         "is_superadmin": is_superadmin,
+        "employees": Employee.objects.filter(is_deleted=False, is_active=True).order_by("first_name", "last_name"),
+        "f_salary_type": f_salary_type,
+        "f_employee": f_employee,
+        "employee_summary": employee_summary,
     })
 
 
@@ -1194,9 +1598,7 @@ def kassa_overview_export(request):
 def kassa_overview_export_excel(request):
     """Umumiy kassa — Excel export (filter bilan)"""
     user = request.user
-    if not _is_superadmin(user):
-        messages.error(request, "Faqat Admin export qila oladi!")
-        return redirect("kassa_dashboard")
+    is_superadmin = _is_superadmin(user)
 
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -1211,6 +1613,10 @@ def kassa_overview_export_excel(request):
     f_search = request.GET.get("search", "").strip()
 
     transactions = KassaTransaction.objects.select_related("kassa", "kassa__owner", "student")
+
+    if not is_superadmin:
+        user_kassa_ids = Kassa.objects.filter(owner=user).values_list("pk", flat=True)
+        transactions = transactions.filter(kassa_id__in=user_kassa_ids)
 
     if f_kassa:
         transactions = transactions.filter(kassa_id=f_kassa)

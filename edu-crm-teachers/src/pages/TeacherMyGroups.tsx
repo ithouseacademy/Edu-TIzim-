@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { api } from "../api"
 import type { TeacherGroup } from "../types"
+import DesktopShell from "../components/DesktopShell"
 
 const DAY_SHORT: Record<string, string> = {
   dushanba: "Du", seshanba: "Se", chorshanba: "Ch",
@@ -11,14 +12,6 @@ function BackIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-    </svg>
-  )
-}
-
-function GraduateIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
     </svg>
   )
 }
@@ -55,22 +48,6 @@ function FolderIcon({ className }: { className?: string }) {
   )
 }
 
-function GridIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-    </svg>
-  )
-}
-
-function LogoutIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-    </svg>
-  )
-}
-
 function formatLessonDisplay(lesson_times: TeacherGroup["lesson_times"]): string {
   if (!lesson_times || lesson_times.length === 0) return ""
   return lesson_times
@@ -100,13 +77,33 @@ function getStatusBadge(status: string) {
   }
 }
 
+const STATUS_FILTERS = [
+  { key: "all", label: "Barcha" },
+  { key: "active", label: "Dars bo'lyapti" },
+  { key: "upcoming", label: "Kutilmoqda" },
+  { key: "finished", label: "O'tib ketdi" },
+  { key: "expired", label: "Muddati tugagan" },
+]
+
+const DAY_OPTIONS = [
+  { value: "", label: "Barcha kunlar" },
+  { value: "dushanba", label: "Dushanba" },
+  { value: "seshanba", label: "Seshanba" },
+  { value: "chorshanba", label: "Chorshanba" },
+  { value: "payshanba", label: "Payshanba" },
+  { value: "juma", label: "Juma" },
+  { value: "shanba", label: "Shanba" },
+  { value: "yakshanba", label: "Yakshanba" },
+]
+
 export default function TeacherMyGroups({ onSelectGroup, onBack }: { onSelectGroup: (id: number) => void; onBack: () => void }) {
   const [groups, setGroups] = useState<TeacherGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-
-  const emp = JSON.parse(localStorage.getItem("employee") || "{}")
-  const initials = ((emp.first_name?.[0] || "") + (emp.last_name?.[0] || "")).toUpperCase()
+  const [query, setQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [dayFilter, setDayFilter] = useState("")
+  const [timeFilter, setTimeFilter] = useState("")
 
   useEffect(() => {
     setLoading(true)
@@ -116,6 +113,23 @@ export default function TeacherMyGroups({ onSelectGroup, onBack }: { onSelectGro
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [])
+
+  const timeOptions = [...new Set(
+    groups
+      .flatMap((g) => (g.lesson_times || []).map((lt) => lt.start_time))
+      .filter(Boolean),
+  )].sort()
+
+  const filteredGroups = groups.filter((g) => {
+    const q = query.trim().toLowerCase()
+    const okQuery = !q || [g.name, g.course || "", g.room || ""].some((v) => v.toLowerCase().includes(q))
+    const okStatus = statusFilter === "all" || g.status === statusFilter
+    const okDay = !dayFilter || (g.lesson_times || []).some((lt) =>
+      lt.days.split(",").map((d) => d.trim().toLowerCase()).includes(dayFilter),
+    )
+    const okTime = !timeFilter || (g.lesson_times || []).some((lt) => lt.start_time === timeFilter)
+    return okQuery && okStatus && okDay && okTime
+  })
 
   if (loading) {
     return (
@@ -137,87 +151,132 @@ export default function TeacherMyGroups({ onSelectGroup, onBack }: { onSelectGro
     <>
       {/* Mobile View */}
       <div className="md:hidden">
-        <div className="min-h-screen bg-white max-w-[480px] mx-auto shadow-lg flex flex-col">
-          <header className="flex items-center gap-3 px-5 py-4 bg-[#2001ff] text-white sticky top-0 z-20">
-            <button onClick={onBack} className="bg-transparent border-none text-white p-0 cursor-pointer">
-              <BackIcon className="w-5 h-5" />
-            </button>
-            <h1 className="text-lg font-semibold flex-1">Mening guruhlarim</h1>
-            <span className="text-sm opacity-80 mr-2">{groups.length} ta</span>
-            <div className="w-8 h-8 rounded-full bg-white/25 border-2 border-white/40 flex items-center justify-center text-xs font-bold text-white shrink-0">
-              {initials}
+        <div className="min-h-screen bg-[#F8F9FC] max-w-[480px] mx-auto flex flex-col">
+          <header className="relative bg-gradient-to-b from-[#3E37FF] via-[#2001FF] to-[#1B00E0] text-white sticky top-0 z-20 shadow-md shadow-[#2001FF]/20">
+            <div className="relative px-4 pt-2 pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <button onClick={onBack} className="w-7 h-7 bg-white/20 backdrop-blur rounded-full border border-white/25 flex items-center justify-center btn-hover shrink-0">
+                  <BackIcon className="w-3.5 h-3.5 text-white" />
+                </button>
+                <div className="flex-1 text-center min-w-0">
+                  <h1 className="text-[13px] font-bold leading-tight truncate">Mening guruhlarim</h1>
+                  <p className="text-[9px] font-medium text-white/65 mt-px truncate">{groups.length} ta guruh</p>
+                </div>
+                <div className="w-7 shrink-0" />
+              </div>
             </div>
           </header>
 
-          <div className="flex-1 px-5 pt-5 pb-28 overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-[#1a1a2e]">Barcha guruhlar</h2>
-              <span className="text-xs text-[#2001ff] bg-indigo-50 px-3 py-1 rounded-full font-semibold">
-                {groups.length} ta
-              </span>
+          <div className="px-3 pt-3 flex flex-col gap-2">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Guruh nomi bo'yicha qidirish..."
+              className="w-full px-3.5 py-2.5 text-[13px] bg-white border border-gray-200 rounded-xl outline-none text-gray-900 focus:border-[#2001FF]"
+            />
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              {STATUS_FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setStatusFilter(f.key)}
+                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer border ${
+                    statusFilter === f.key
+                      ? "bg-[#2001FF] text-white border-[#2001FF]"
+                      : "bg-white text-gray-500 border-gray-200"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={dayFilter}
+                onChange={(e) => setDayFilter(e.target.value)}
+                className="flex-1 px-3 py-2.5 text-[13px] font-medium bg-white border border-gray-200 rounded-xl outline-none text-gray-800"
+              >
+                {DAY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <select
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value)}
+                className="flex-1 px-3 py-2.5 text-[13px] font-medium bg-white border border-gray-200 rounded-xl outline-none text-gray-800"
+              >
+                <option value="">Barcha vaqtlar</option>
+                {timeOptions.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
+          <div className="flex-1 px-3 pt-3 pb-28 overflow-y-auto">
             {groups.length === 0 ? (
-              <div className="text-center py-16">
-                <FolderIcon className="w-14 h-14 text-[#2001ff] opacity-35 mx-auto mb-4" />
+              <div className="text-center py-16 animate-scale-in">
+                <FolderIcon className="w-14 h-14 text-[#2001FF] opacity-20 mx-auto mb-4" />
                 <h3 className="text-[17px] text-[#1a1a2e] mb-1.5">Guruhlar topilmadi</h3>
-                <p className="text-sm text-gray-400">Sizga biriktirilgan guruhlar mavjud emas</p>
+                <p className="text-[12px] text-gray-400">Sizga biriktirilgan guruhlar mavjud emas</p>
+              </div>
+            ) : filteredGroups.length === 0 ? (
+              <div className="text-center py-16 animate-scale-in">
+                <FolderIcon className="w-14 h-14 text-[#2001FF] opacity-20 mx-auto mb-4" />
+                <h3 className="text-[17px] text-[#1a1a2e] mb-1.5">Hech narsa topilmadi</h3>
+                <p className="text-[12px] text-gray-400">Qidiruv yoki filtrga mos guruh yo'q</p>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
-                {groups.map((g) => {
+              <div className="flex flex-col gap-2.5">
+                {filteredGroups.map((g, idx) => {
                   const expired = g.status === "expired"
                   const badge = getStatusBadge(g.status)
                   const lessonDisplay = formatLessonDisplay(g.lesson_times)
                   return (
-                    <div key={g.id} className="bg-[#f4f4f4] rounded-xl border border-gray-200/50 overflow-hidden">
+                    <div key={g.id} className={`card-premium overflow-hidden animate-page-enter ${expired ? "opacity-60" : ""}`} style={{ animationDelay: `${idx * 40}ms` }}>
                       {expired ? (
-                        <div className="block px-4 pt-3.5 pb-3 opacity-60 cursor-default">
+                        <div className="px-3.5 pt-3 pb-2.5">
                           <div className="flex items-center justify-between mb-1.5">
-                            <div className="font-bold text-[15px] text-[#1a1a2e]">{g.name}</div>
-                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${badge.cls}`}>{badge.label}</span>
+                            <div className="font-bold text-[14px] text-[#1a1a2e]">{g.name}</div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${badge.cls}`}>{badge.label}</span>
                           </div>
                           <div className="flex flex-wrap gap-1.5 gap-x-4">
-                            <div className="text-xs text-gray-500 flex items-center gap-1.5">
+                            <div className="text-[11px] text-gray-500 flex items-center gap-1.5">
                               <span className="font-medium text-[#1a1a2e]">{g.course || "—"}</span>
                             </div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1.5">
-                              <ClockIcon className="w-3 h-3 text-[#2001ff]" />
+                            <div className="text-[11px] text-gray-500 flex items-center gap-1.5">
+                              <ClockIcon className="w-3 h-3 text-[#2001FF]" />
                               <span className="font-medium text-[#1a1a2e]">{lessonDisplay || "—"}</span>
                             </div>
+                          </div>
+                          <div className="mt-2 pt-2 border-t border-gray-100 text-[11px] text-gray-500 flex items-center gap-1.5">
+                            <BanIcon className="w-3 h-3 text-red-600 shrink-0" />
+                            <span>Muddati tugagan · <strong>{g.student_count}</strong> ta o'quvchi</span>
                           </div>
                         </div>
                       ) : (
                         <button
                           onClick={() => onSelectGroup(g.id)}
-                          className="block w-full text-left px-4 pt-3.5 pb-3 bg-white cursor-pointer border-none"
+                          className="block w-full text-left px-3.5 pt-3 pb-2.5 bg-transparent cursor-pointer border-none"
                         >
                           <div className="flex items-center justify-between mb-1.5">
-                            <div className="font-bold text-[15px] text-[#1a1a2e]">{g.name}</div>
-                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${badge.cls}`}>{badge.label}</span>
+                            <div className="font-bold text-[14px] text-[#1a1a2e]">{g.name}</div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${badge.cls}`}>{badge.label}</span>
                           </div>
                           <div className="flex flex-wrap gap-1.5 gap-x-4">
-                            <div className="text-xs text-gray-500 flex items-center gap-1.5">
+                            <div className="text-[11px] text-gray-500 flex items-center gap-1.5">
                               <span className="font-medium text-[#1a1a2e]">{g.course || "—"}</span>
                             </div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1.5">
-                              <ClockIcon className="w-3 h-3 text-[#2001ff]" />
+                            <div className="text-[11px] text-gray-500 flex items-center gap-1.5">
+                              <ClockIcon className="w-3 h-3 text-[#2001FF]" />
                               <span className="font-medium text-[#1a1a2e]">{lessonDisplay || "Vaqt belgilanmagan"}</span>
                             </div>
                           </div>
+                          <div className="mt-2 pt-2 border-t border-gray-100 text-[11px] text-gray-500 flex items-center gap-1.5">
+                            <UsersIcon className="w-3 h-3 text-[#2001FF] shrink-0" />
+                            <span><strong>{g.student_count}</strong> ta o'quvchi</span>
+                          </div>
                         </button>
-                      )}
-                      {expired && (
-                        <div className="px-4 pb-3 pt-0.5 text-xs text-gray-500 flex items-center gap-1.5">
-                          <BanIcon className="w-3 h-3 text-red-600 shrink-0" />
-                          <span>Muddati tugagan · <strong>{g.student_count}</strong> ta o'quvchi</span>
-                        </div>
-                      )}
-                      {!expired && (
-                        <div className="px-4 pb-3 pt-1 text-xs text-gray-500 flex items-center gap-1.5">
-                          <UsersIcon className="w-3 h-3 text-[#2001ff] shrink-0" />
-                          <span><strong>{g.student_count}</strong> ta o'quvchi</span>
-                        </div>
                       )}
                     </div>
                   )
@@ -229,73 +288,79 @@ export default function TeacherMyGroups({ onSelectGroup, onBack }: { onSelectGro
       </div>
 
       {/* Desktop View */}
-      <div className="hidden md:block min-h-screen bg-[#f8fafc]">
-        <div className="flex min-h-screen">
-          {/* Sidebar */}
-          <aside className="w-[260px] bg-white border-r border-gray-200 fixed top-0 left-0 h-screen z-50 flex flex-col">
-            <div className="px-5 pt-6 pb-5 border-b border-gray-200">
-              <h1 className="text-lg font-bold text-[#1a1a2e] flex items-center gap-2.5">
-                <GraduateIcon className="w-6 h-6 text-[#2001ff]" />
-                IT House Academy
-              </h1>
-              <span className="text-[11px] text-gray-500 block mt-0.5 pl-[42px]">O'qituvchi paneli</span>
-            </div>
-            <nav className="flex-1 px-3 py-3 overflow-y-auto">
-              <button
-                onClick={onBack}
-                className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-500 hover:bg-gray-100 text-sm font-medium cursor-pointer w-full border-none text-left mb-0.5"
-              >
-                <GridIcon className="w-5 h-5" />
-                Dashboard
-              </button>
-              <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#2001ff] text-white font-semibold shadow-md">
-                <UsersIcon className="w-5 h-5" />
-                Mening guruhlarim
-              </div>
-            </nav>
-            <div className="px-3 py-4 border-t border-gray-200">
-              <button
-                onClick={() => { localStorage.clear(); window.location.href = "/" }}
-                className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-red-600 text-sm w-full border-none text-left cursor-pointer"
-              >
-                <LogoutIcon className="w-5 h-5" />
-                Chiqish
-              </button>
-            </div>
-          </aside>
+      <DesktopShell
+        activeKey="groups"
+        navItems={[
+          { key: "dashboard", label: "Dashboard", icon: null, onClick: () => (window.location.hash = "#dashboard") },
+          { key: "groups", label: "Mening guruhlarim", icon: null, onClick: () => {} },
+          { key: "salary", label: "Mening oyligim", icon: null, onClick: () => (window.location.hash = "#salary") },
+          { key: "tasks", label: "Topshiriqlar", icon: null, onClick: () => (window.location.hash = "#tasks") },
+          { key: "profile", label: "Profil", icon: null, onClick: () => (window.location.hash = "#profile") },
+        ]}
+      >
+        <div className="pt-7 pb-8">
 
-          {/* Main content */}
-          <div className="flex-1 ml-[260px] flex flex-col">
-            <header className="bg-white border-b border-gray-200 h-[68px] flex items-center gap-5 px-8 sticky top-0 z-40">
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-[#1a1a2e]">Mening guruhlarim</h1>
-              </div>
-              <div className="flex items-center gap-4 ml-auto">
-                <div className="flex items-center gap-3 px-2 py-1 rounded-lg">
-                  <div className="w-9 h-9 rounded-full bg-[#eef0ff] text-[#2001ff] flex items-center justify-center font-semibold text-sm">
-                    {initials}
-                  </div>
-                  <div className="leading-tight">
-                    <div className="text-sm font-semibold text-[#1a1a2e]">{emp.first_name} {emp.last_name}</div>
-                    <div className="text-xs text-gray-500">{emp.position?.name || "O'qituvchi"}</div>
-                  </div>
-                </div>
-              </div>
-            </header>
-
-            <div className="px-8 pt-7 pb-8 flex-1">
               <div className="mb-2">
                 <p className="text-sm text-gray-500">Barcha guruhlar · O'qituvchi paneli</p>
               </div>
 
-              <div className="flex items-center justify-between mb-5 mt-6">
+              <div className="flex items-center justify-between gap-4 mb-4 mt-6 flex-wrap">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   <UsersIcon className="w-4 h-4 text-[#2001ff]" />
                   Guruhlarim
+                  <span className="text-xs bg-indigo-50 text-[#2001ff] px-3 py-1 rounded-full font-semibold">
+                    {filteredGroups.length}/{groups.length} ta
+                  </span>
                 </h2>
-                <span className="text-xs bg-indigo-50 text-[#2001ff] px-3 py-1 rounded-full font-semibold">
-                  {groups.length} ta
-                </span>
+                <div className="relative w-[240px] shrink-0">
+                  <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Guruh qidirish..."
+                    className="w-full h-9 pl-9 pr-3 border border-gray-200 rounded-lg text-sm bg-[#f8fafc] outline-none focus:border-[#2563eb] focus:bg-white focus:ring-[3px] focus:ring-[#2563eb]/10"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 mb-5 flex-wrap">
+                {STATUS_FILTERS.map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => setStatusFilter(f.key)}
+                    className={`px-4 py-2 rounded-lg border text-[12.5px] font-semibold transition-colors cursor-pointer ${
+                      statusFilter === f.key
+                        ? "bg-[#2563eb] text-white border-[#2563eb]"
+                        : "bg-white text-slate-600 border-gray-200 hover:bg-slate-50 hover:border-slate-300"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+                <div className="ml-auto flex items-center gap-2">
+                  <select
+                    value={dayFilter}
+                    onChange={(e) => setDayFilter(e.target.value)}
+                    className="h-9 px-3 text-[13px] font-medium text-slate-700 bg-white border border-gray-200 rounded-lg outline-none cursor-pointer hover:border-slate-300"
+                  >
+                    {DAY_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={timeFilter}
+                    onChange={(e) => setTimeFilter(e.target.value)}
+                    className="h-9 px-3 text-[13px] font-medium text-slate-700 bg-white border border-gray-200 rounded-lg outline-none cursor-pointer hover:border-slate-300"
+                  >
+                    <option value="">Barcha vaqtlar</option>
+                    {timeOptions.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {groups.length === 0 ? (
@@ -304,9 +369,15 @@ export default function TeacherMyGroups({ onSelectGroup, onBack }: { onSelectGro
                   <h3 className="text-base font-semibold text-[#1a1a2e] mb-1">Guruhlar topilmadi</h3>
                   <p className="text-sm text-gray-400">Sizga biriktirilgan guruhlar mavjud emas</p>
                 </div>
+              ) : filteredGroups.length === 0 ? (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200/80 p-16 text-center">
+                  <FolderIcon className="w-10 h-10 text-[#2001ff] opacity-35 mx-auto mb-3" />
+                  <h3 className="text-base font-semibold text-[#1a1a2e] mb-1">Hech narsa topilmadi</h3>
+                  <p className="text-sm text-gray-400">Qidiruv yoki filtrga mos guruh yo'q</p>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {groups.map((g) => {
+                  {filteredGroups.map((g) => {
                     const expired = g.status === "expired"
                     const badge = getStatusBadge(g.status)
                     const lessonDisplay = formatLessonDisplay(g.lesson_times)
@@ -359,9 +430,7 @@ export default function TeacherMyGroups({ onSelectGroup, onBack }: { onSelectGro
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      </div>
+          </DesktopShell>
     </>
   )
 }

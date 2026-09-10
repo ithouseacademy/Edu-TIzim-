@@ -8,10 +8,24 @@
   .gc-card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
   .gc-card-body { padding: 24px; }
   .gc-info { padding: 12px 16px; background: #eff6ff; border-radius: 10px; font-size: 13px; color: #1d4ed8; margin-top: 20px; }
-  .gc-rule { display: flex; align-items: flex-start; gap: 12px; padding: 16px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-bottom: 12px; }
-  .gc-rule i { font-size: 18px; margin-top: 2px; }
+  .gc-rule { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-bottom: 12px; }
+  .gc-rule-left { display: flex; align-items: flex-start; gap: 12px; }
+  .gc-rule i.rule-icon { font-size: 18px; margin-top: 2px; }
   .gc-rule .gc-label-text { font-size: 14px; font-weight: 600; color: #0f172a; }
   .gc-rule .gc-help { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #cbd5e1; border-radius: 24px; transition: 0.3s; }
+  .toggle-slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+  .toggle-switch input:checked + .toggle-slider { background: #22c55e; }
+  .toggle-switch input:disabled + .toggle-slider { background: #22c55e; opacity: 0.6; cursor: not-allowed; }
+  .toggle-switch input:disabled + .toggle-slider:before { transform: translateX(20px); }
+  .gc-locked { opacity: 0.55; }
+  .gc-locked .gc-label-text { color: #64748b; }
+  .gc-locked .gc-help { color: #94a3b8; }
+  .gc-lock-icon { font-size: 11px; color: #94a3b8; margin-left: 6px; }
+  .gc-save-btn { margin-top: 20px; padding: 10px 28px; background: var(--primary, #2563eb); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+  .gc-save-btn:hover { opacity: 0.9; transform: translateY(-1px); }
 </style>
 
 <div class="gc-body">
@@ -25,28 +39,60 @@
     {% endfor %}
   {% endif %}
 
-  <div class="gc-card">
-    <div class="gc-card-body">
-      <div class="gc-rule">
-        <i class="fas fa-check-circle" style="color: #22c55e;"></i>
-        <div>
-          <div class="gc-label-text">Qatnashdi (Keldi)</div>
-          <div class="gc-help">Dars narxi balansdan yechiladi va qarzdorlikka qo'shiladi</div>
+  <form method="POST">
+    {% csrf_token %}
+    <div class="gc-card">
+      <div class="gc-card-body">
+        <div class="gc-rule gc-locked">
+          <div class="gc-rule-left">
+            <i class="fas fa-check-circle rule-icon" style="color: #22c55e;"></i>
+            <div>
+              <div class="gc-label-text">Qatnashdi (Keldi) — pul yechish <i class="fas fa-lock gc-lock-icon"></i></div>
+              <div class="gc-help">Darsga qatnagan o'quvchidan dars narxini balansdan yechish (doimo yoqilgan)</div>
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="deduct_present" value="1" checked disabled>
+            <span class="toggle-slider"></span>
+          </label>
         </div>
-      </div>
-      <div class="gc-rule">
-        <i class="fas fa-times-circle" style="color: #ef4444;"></i>
-        <div>
-          <div class="gc-label-text">Kelmadi / Sababli kelmadi</div>
-          <div class="gc-help">Pul yechilmaydi. Qarzdorlikka ham qo'shilmaydi</div>
+
+        <div class="gc-rule">
+          <div class="gc-rule-left">
+            <i class="fas fa-times-circle rule-icon" style="color: #ef4444;"></i>
+            <div>
+              <div class="gc-label-text">Kelmadi — pul yechish</div>
+              <div class="gc-help">Sababsiz kelmagan o'quvchidan dars narxini yechish</div>
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="deduct_absent" value="1" {% if config.deduct_absent %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="gc-rule">
+          <div class="gc-rule-left">
+            <i class="fas fa-exclamation-circle rule-icon" style="color: #f59e0b;"></i>
+            <div>
+              <div class="gc-label-text">Sababli kelmadi — pul yechish</div>
+              <div class="gc-help">Sababli kelmagan o'quvchidan ham dars narxini yechish</div>
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="deduct_excused" value="1" {% if config.deduct_excused %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
         </div>
       </div>
     </div>
-  </div>
+
+    <button type="submit" class="gc-save-btn"><i class="fas fa-save"></i> Saqlash</button>
+  </form>
 
   <div class="gc-info">
     <i class="fas fa-info-circle"></i>
-    Faqat davomat qilgan (Keldi belgilangan) kun hisoblanadi. Qaysi kuni davomat qilsa, o'sha kunning dars summasi balansga va umumiy qarzdorlikka qo'shiladi.
+    Toggle orqali qaysi holatda pul yechilishini boshqaring. Faqat yoqilgan (yashil) holatdagilar hisoblanadi.
   </div>
 </div>
 {% endblock %}

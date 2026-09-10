@@ -1,11 +1,18 @@
 from django.test import TestCase
+import json
 from datetime import date, datetime, time
 from decimal import Decimal
 from datetime import timezone as dt_timezone
+from django.contrib.auth.models import User
+from django.urls import reverse
 
 from .models import (
     Course, CourseLevel, Group, Student, LessonTime,
     Attendance, StudentBalance, Transaction, StudentLog, GlobalConfig,
+    Employee, LessonTeacherSalary, GroupTeacherAssignment,
+    TeacherTransaction, TeacherBalance,
+    Kassa, KassaTransaction,
+    Role,
 )
 from .views import (
     get_student_join_date,
@@ -17,7 +24,14 @@ from .views import (
     get_or_create_balance,
     process_payment,
     _add_student_to_group,
+    resolve_attendance_teacher,
+    get_teacher_percent,
+    sync_lesson_teacher_salary,
+    release_pending_salaries,
+    reverse_teacher_share_for_student,
+    get_or_create_teacher_balance,
 )
+from .teacher_salary_api import _salary_stats
 
 
 def utc(d):
@@ -141,11 +155,11 @@ class RealTest1_GuruhochibOquvchiQoshish(TestCase):
         print(f"[TO'LOV] Bugungacha kutilgan: {expected_today:,.0f} so'm")
         print(f"[TO'LOV] Oxirigacha to'lanadigan: {remaining:,.0f} so'm")
 
-        # 10-sana bugun yoki undan oldin bo'lsa, 0 dars. Keyin bo'lsa hisoblaymiz
-        dates_to_today = generate_lesson_dates(
-            self.group, date(self.year, self.month, 10), self.today
+        # Kutilgan miqdor: 10-sana (qo'shilish) dan oy oxirigacha bo'lgan darslar
+        dates_to_month_end = generate_lesson_dates(
+            self.group, date(self.year, self.month, 10), date(self.year, self.month, 28)
         )
-        expected_lesson_count = len(dates_to_today)
+        expected_lesson_count = len(dates_to_month_end)
         expected_amount = expected_lesson_count * Decimal("50000.00")
         self.assertEqual(expected_today, expected_amount)
 
@@ -471,6 +485,445 @@ class RealTest4_TolovdanKeyin(TestCase):
         print(f"\n{'='*65}")
         print(f"  NATIJA: To'lovdan keyin qoldiq TO'G'RI kamaydi!")
         print(f"{'='*65}")
+
+
+class TeacherSalaryAssignmentTest(TestCase):
+    """O'qituvchi biriktiruvi va davomat asosidagi oylik (Humoyun → Feruza holati)."""
+
+    def setUp(self):
+        self.course = Course.objects.create(name="Python Dasturlash")
+        self.level = CourseLevel.objects.create(
+            course=self.course, name="Beginner", daily_price=Decimal("50000.00")
+        )
+        self.group = Group.objects.create(
+            name="Python-1", status="aktiv",
+            course=self.course, level=self.level,
+            lesson_price=Decimal("50000.00"),
+            start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
+        )
+        self.humoyun = Employee.objects.create(first_name="Humoyun", last_name="T.", phone="901000001")
+        self.feruza = Employee.objects.create(first_name="Feruza", last_name="A.", phone="901000002")
+        self.group.teacher = self.humoyun
+        self.group.save(update_fields=["teacher"])
+        self.student = Student.objects.create(first_name="Jasur", last_name="Karimov", phone="901234567")
+        self.student.groups.add(self.group)
+
+    def _attendance(self, day, teacher=None, status="present"):
+        return Attendance.objects.create(
+            group=self.group, student=self.student,
+            date=date(2026, 8, day), status=status, teacher=teacher,
+        )
+
+    def test_resolve_teacher_by_date_assignment(self):
+        """1-15-avgust Humoyun, 16-avgustdan Feruza → har dars puli to'g'ri o'qituvchiga."""
+        GroupTeacherAssignment.objects.create(group=self.group, teacher=self.humoyun, start_date=date(2026, 8, 1), end_date=date(2026, 8, 15))
+        GroupTeacherAssignment.objects.create(group=self.group, teacher=self.feruza, start_date=date(2026, 8, 16), end_date=None)
+
+        self.assertEqual(resolve_attendance_teacher(self.group, date(2026, 8, 5)), self.humoyun)
+        self.assertEqual(resolve_attendance_teacher(self.group, date(2026, 8, 15)), self.humoyun)
+        self.assertEqual(resolve_attendance_teacher(self.group, date(2026, 8, 16)), self.feruza)
+        self.assertEqual(resolve_attendance_teacher(self.group, date(2026, 8, 31)), self.feruza)
+
+        a1 = self._attendance(5)
+        a2 = self._attendance(20)
+        sync_attendance_balance(self.student, self.group, a1, "present", "Admin")
+        sync_attendance_balance(self.student, self.group, a2, "present", "Admin")
+
+        s1 = LessonTeacherSalary.objects.get(attendance=a1)
+        s2 = LessonTeacherSalary.objects.get(attendance=a2)
+        self.assertEqual(s1.teacher, self.humoyun)
+        self.assertEqual(s2.teacher, self.feruza)
+        self.assertEqual(s1.teacher_amount, Decimal("15000.00"))
+        self.assertEqual(s2.teacher_amount, Decimal("15000.00"))
+
+    def test_default_percent_30_and_custom_percent(self):
+        self.assertEqual(get_teacher_percent(None), Decimal("30.00"))
+        self.assertEqual(get_teacher_percent(self.humoyun), Decimal("30.00"))
+        self.humoyun.percent = Decimal("40.00")
+        self.humoyun.save(update_fields=["percent"])
+        self.assertEqual(get_teacher_percent(self.humoyun), Decimal("40.00"))
+
+    def test_negative_balance_pending_positive_paid(self):
+        a = self._attendance(5)
+        sync_attendance_balance(self.student, self.group, a, "present", "Admin")
+        salary = LessonTeacherSalary.objects.get(attendance=a)
+        self.assertEqual(salary.status, LessonTeacherSalary.Status.PENDING)
+
+        balance = get_or_create_balance(self.student)
+        self.assertEqual(balance.balance, Decimal("-50000.00"))
+
+        b = self._attendance(7)
+        sync_attendance_balance(self.student, self.group, b, "present", "Admin")
+        salary2 = LessonTeacherSalary.objects.get(attendance=b)
+        self.assertEqual(salary2.status, LessonTeacherSalary.Status.PENDING)
+
+        process_payment(self.student, Decimal("100000.00"), description="To'lov")
+        salary.refresh_from_db()
+        salary2.refresh_from_db()
+        self.assertEqual(salary.status, LessonTeacherSalary.Status.PAID)
+        self.assertEqual(salary2.status, LessonTeacherSalary.Status.PAID)
+
+        tb = get_or_create_teacher_balance(self.humoyun)
+        self.assertEqual(tb.balance, Decimal("30000.00"))
+
+    def test_fifo_oldest_first_and_teacher_credit(self):
+        GroupTeacherAssignment.objects.create(group=self.group, teacher=self.humoyun, start_date=date(2026, 8, 1), end_date=date(2026, 8, 15))
+        GroupTeacherAssignment.objects.create(group=self.group, teacher=self.feruza, start_date=date(2026, 8, 16), end_date=None)
+
+        a1 = self._attendance(3)
+        a2 = self._attendance(5)
+        a3 = self._attendance(20)
+        for a in (a1, a2, a3):
+            sync_attendance_balance(self.student, self.group, a, "present", "Admin")
+
+        self.assertEqual(
+            LessonTeacherSalary.objects.filter(status=LessonTeacherSalary.Status.PENDING).count(), 3
+        )
+
+        process_payment(self.student, Decimal("100000.00"), description="Ikkita dars")
+        s1 = LessonTeacherSalary.objects.get(attendance=a1)
+        s2 = LessonTeacherSalary.objects.get(attendance=a2)
+        s3 = LessonTeacherSalary.objects.get(attendance=a3)
+        self.assertEqual(s1.status, LessonTeacherSalary.Status.PAID)
+        self.assertEqual(s2.status, LessonTeacherSalary.Status.PAID)
+        self.assertEqual(s3.status, LessonTeacherSalary.Status.PENDING)
+
+        process_payment(self.student, Decimal("50000.00"), description="Uchinchi dars")
+        s3.refresh_from_db()
+        self.assertEqual(s3.status, LessonTeacherSalary.Status.PAID)
+
+        self.assertEqual(get_or_create_teacher_balance(self.humoyun).balance, Decimal("30000.00"))
+        self.assertEqual(get_or_create_teacher_balance(self.feruza).balance, Decimal("15000.00"))
+        self.assertEqual(
+            TeacherTransaction.objects.filter(transaction_type=TeacherTransaction.Type.INCOME).count(), 3
+        )
+
+    def test_reverse_teacher_share(self):
+        a = self._attendance(5)
+        sync_attendance_balance(self.student, self.group, a, "present", "Admin")
+        process_payment(self.student, Decimal("100000.00"), description="To'lov")
+        salary = LessonTeacherSalary.objects.get(attendance=a)
+        self.assertEqual(salary.status, LessonTeacherSalary.Status.PAID)
+        self.assertEqual(get_or_create_teacher_balance(self.humoyun).balance, Decimal("15000.00"))
+
+        reversed_count = reverse_teacher_share_for_student(self.student, Decimal("100000.00"))
+        self.assertEqual(reversed_count, 1)
+        salary.refresh_from_db()
+        self.assertEqual(salary.status, LessonTeacherSalary.Status.PENDING)
+        self.assertEqual(get_or_create_teacher_balance(self.humoyun).balance, Decimal("0.00"))
+
+    def test_attendance_cancelled_reverses_paid_salary(self):
+        a = self._attendance(5)
+        sync_attendance_balance(self.student, self.group, a, "present", "Admin")
+        process_payment(self.student, Decimal("100000.00"), description="To'lov")
+        salary = LessonTeacherSalary.objects.get(attendance=a)
+        self.assertEqual(salary.status, LessonTeacherSalary.Status.PAID)
+
+        sync_attendance_balance(self.student, self.group, a, "absent", "Admin")
+        self.assertFalse(LessonTeacherSalary.objects.filter(attendance=a).exists())
+        self.assertEqual(get_or_create_teacher_balance(self.humoyun).balance, Decimal("0.00"))
+
+    def test_percent_frozen_on_existing_records(self):
+        """Foiz o'zgarganda eski yozuvlar qayta hisoblanmaydi, faqat yangi darslarga ta'sir qiladi."""
+        self.humoyun.percent = Decimal("30.00")
+        self.humoyun.save(update_fields=["percent"])
+        a1 = self._attendance(5)
+        sync_attendance_balance(self.student, self.group, a1, "present", "Admin")
+        s1 = LessonTeacherSalary.objects.get(attendance=a1)
+        self.assertEqual(s1.teacher_percent, Decimal("30.00"))
+        self.assertEqual(s1.teacher_amount, Decimal("15000.00"))
+
+        # Admin foizni 20% qilib o'zgartirdi
+        self.humoyun.percent = Decimal("20.00")
+        self.humoyun.save(update_fields=["percent"])
+
+        # Eski davomat qayta saqlansa ham muzlatilgan qiymatlar o'zgarmaydi
+        sync_attendance_balance(self.student, self.group, a1, "present", "Admin")
+        s1.refresh_from_db()
+        self.assertEqual(s1.teacher_percent, Decimal("30.00"))
+        self.assertEqual(s1.teacher_amount, Decimal("15000.00"))
+
+        # Yangi dars yangi foiz bilan hisoblanadi
+        a2 = self._attendance(16)
+        sync_attendance_balance(self.student, self.group, a2, "present", "Admin")
+        s2 = LessonTeacherSalary.objects.get(attendance=a2)
+        self.assertEqual(s2.teacher_percent, Decimal("20.00"))
+        self.assertEqual(s2.teacher_amount, Decimal("10000.00"))
+
+    def test_price_frozen_on_existing_records(self):
+        """Narx o'zgarganda ham eski dars yozuvi muzlatilgan narxda qoladi."""
+        a1 = self._attendance(5)
+        sync_attendance_balance(self.student, self.group, a1, "present", "Admin")
+        s1 = LessonTeacherSalary.objects.get(attendance=a1)
+        self.assertEqual(s1.lesson_price, Decimal("50000.00"))
+
+        self.group.lesson_price = Decimal("60000.00")
+        self.group.save(update_fields=["lesson_price"])
+        sync_attendance_balance(self.student, self.group, a1, "present", "Admin")
+        s1.refresh_from_db()
+        self.assertEqual(s1.lesson_price, Decimal("50000.00"))
+        self.assertEqual(s1.teacher_amount, Decimal("15000.00"))
+
+    def test_pending_breakdown_in_stats(self):
+        """Pending statistikada o'quvchi va darslar bo'yicha tafsilot ko'rinadi."""
+        ali = Student.objects.create(first_name="Ali", last_name="V.", phone="901111111")
+        ali.groups.add(self.group)
+
+        a1 = self._attendance(3)
+        a2 = self._attendance(5)
+        for a in (a1, a2):
+            sync_attendance_balance(self.student, self.group, a, "present", "Admin")
+        a3 = Attendance.objects.create(
+            group=self.group, student=ali, date=date(2026, 8, 6), status="present"
+        )
+        sync_attendance_balance(ali, self.group, a3, "present", "Admin")
+
+        stats = _salary_stats(self.humoyun)
+        self.assertEqual(stats["pending_amount"], 45000.0)
+        self.assertEqual(stats["pending_count"], 3)
+        self.assertEqual(stats["pending_student_count"], 2)
+        by_name = {p["student_name"]: p for p in stats["pending_students"]}
+        self.assertEqual(by_name["Jasur Karimov"]["amount"], 30000.0)
+        self.assertEqual(by_name["Jasur Karimov"]["lessons"], 2)
+        self.assertEqual(by_name["Ali V."]["amount"], 15000.0)
+        self.assertEqual(by_name["Ali V."]["lessons"], 1)
+
+    def test_pending_breakdown_after_payment(self):
+        """To'lovdan keyin Pending tafsiloti kamayadi, Available oylik ortadi."""
+        a1 = self._attendance(3)
+        sync_attendance_balance(self.student, self.group, a1, "present", "Admin")
+        stats = _salary_stats(self.humoyun)
+        self.assertEqual(stats["pending_amount"], 15000.0)
+        self.assertEqual(stats["balance"], 0.0)
+
+        process_payment(self.student, Decimal("50000.00"), description="To'lov")
+        stats = _salary_stats(self.humoyun)
+        self.assertEqual(stats["pending_amount"], 0.0)
+        self.assertEqual(stats["balance"], 15000.0)
+
+
+class KassaPulQoidalari(TestCase):
+    """Kassa hech qachon minusga tushmaydi, pul bor kassa o'chirilmaydi."""
+
+    def setUp(self):
+        self.admin = User.objects.create_superuser(username="admin", password="pass123")
+        self.client.login(username="admin", password="pass123")
+        self.kassa = Kassa.objects.create(name="Asosiy kassa", owner=self.admin)
+
+    def _add_income(self, amount):
+        KassaTransaction.objects.create(
+            kassa=self.kassa,
+            transaction_type=KassaTransaction.TransactionType.INCOME,
+            amount=Decimal(str(amount)),
+            balance_before=self.kassa.balance,
+            balance_after=self.kassa.balance + Decimal(str(amount)),
+            description="Kirim test",
+            created_by="Admin",
+        )
+
+    def test_kassa_with_money_cannot_be_deleted(self):
+        self._add_income(50000)
+        resp = self.client.post(reverse("kassa_delete", args=[self.kassa.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Kassa.all_objects.get(pk=self.kassa.pk).is_active)
+
+    def test_kassa_with_negative_balance_cannot_be_deleted(self):
+        KassaTransaction.objects.create(
+            kassa=self.kassa,
+            transaction_type=KassaTransaction.TransactionType.EXPENSE,
+            amount=Decimal("50000.00"),
+            balance_before=Decimal("0.00"),
+            balance_after=Decimal("-50000.00"),
+            description="Chiqim test",
+            created_by="Admin",
+        )
+        resp = self.client.post(reverse("kassa_delete", args=[self.kassa.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Kassa.all_objects.get(pk=self.kassa.pk).is_active)
+
+    def test_empty_kassa_can_be_deleted(self):
+        resp = self.client.post(reverse("kassa_delete", args=[self.kassa.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Kassa.all_objects.get(pk=self.kassa.pk).is_active)
+
+    def test_expense_cannot_make_kassa_negative(self):
+        self._add_income(10000)
+        resp = self.client.post(reverse("kassa_add_expense", args=[self.kassa.pk]), {
+            "amount": "50000.00",
+            "description": "Kattaroq chiqim",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.kassa.balance, Decimal("10000.00"))
+
+    def test_expense_within_balance_is_allowed(self):
+        self._add_income(10000)
+        resp = self.client.post(reverse("kassa_add_expense", args=[self.kassa.pk]), {
+            "amount": "4000.00",
+            "description": "Kichik chiqim",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.kassa.balance, Decimal("6000.00"))
+
+
+class AdminEmployeeApiTests(TestCase):
+    """Admin mobil ilova (edu-crm-admin) uchun yangi API endpointlarini tekshirish."""
+
+    def setUp(self):
+        self.admin_role = Role.objects.create(name="Administrator")
+        self.teacher_role = Role.objects.create(name="O'qituvchi")
+        self.user = User.objects.create_user(username="901234567", password="adminpass")
+        self.employee = Employee.objects.create(
+            user=self.user,
+            first_name="Admin",
+            last_name="Bosh",
+            phone="901234567",
+            role=self.admin_role,
+        )
+
+    def _login(self, password="adminpass"):
+        return self.client.post(
+            reverse("employee_api_login"),
+            data=json.dumps({"phone": "901234567", "password": password}),
+            content_type="application/json",
+        )
+
+    def test_login_returns_admin_flags(self):
+        resp = self._login()
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["success"])
+        self.assertTrue(data["is_admin"])
+        self.assertEqual(data["employee"]["teacher_balance"], 0.0)
+
+    def test_change_password_success(self):
+        self._login()
+        resp = self.client.post(
+            reverse("employee_api_change_password"),
+            data=json.dumps({"old_password": "adminpass", "new_password": "newpass123"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["success"])
+        self.assertEqual(self._login("adminpass").status_code, 401)
+        resp2 = self._login("newpass123")
+        self.assertEqual(resp2.status_code, 200)
+
+    def test_change_password_wrong_old(self):
+        self._login()
+        resp = self.client.post(
+            reverse("employee_api_change_password"),
+            data=json.dumps({"old_password": "notright", "new_password": "newpass123"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_admin_transactions_listing(self):
+        self._login()
+        student = Student.objects.create(first_name="Vali", last_name="Aliyev", phone="998111111")
+        Transaction.objects.create(
+            student=student,
+            amount=Decimal("100000.00"),
+            balance_after=Decimal("100000.00"),
+            transaction_type="payment",
+            created_by="Admin Bosh",
+        )
+        resp = self.client.get(reverse("employee_api_admin_transactions"))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data["transactions"]), 1)
+        tx = data["transactions"][0]
+        self.assertEqual(tx["amount_str"], "+100,000 so'm")
+        self.assertEqual(tx["student_name"], "Vali Aliyev")
+        self.assertEqual(tx["type_display"], "To'lov")
+        self.assertIn("kassa_balance", data)
+        self.assertIn("today_income", data)
+        self.assertIn("month_income", data)
+
+    def test_admin_sees_only_own_transactions(self):
+        self._login()
+        student = Student.objects.create(first_name="Vali", last_name="Aliyev", phone="998111111")
+        Transaction.objects.create(
+            student=student, amount=Decimal("100000.00"),
+            balance_after=Decimal("100000.00"), transaction_type="payment", created_by="Admin Bosh",
+        )
+        other = User.objects.create_user(username="998222223", password="othpass2")
+        Employee.objects.create(
+            user=other, first_name="Boshqa", last_name="Admin", phone="998222223", role=self.admin_role
+        )
+        Transaction.objects.create(
+            student=student, amount=Decimal("50000.00"),
+            balance_after=Decimal("150000.00"), transaction_type="payment", created_by="Boshqa Admin",
+        )
+        resp = self.client.get(reverse("employee_api_admin_transactions"))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data["transactions"]), 1)
+        self.assertEqual(data["transactions"][0]["amount_str"], "+100,000 so'm")
+
+    def test_non_admin_forbidden_from_transactions(self):
+        tu = User.objects.create_user(username="998222222", password="teacherpass")
+        Employee.objects.create(
+            user=tu, first_name="Ustoz", last_name="Odil", phone="998222222", role=self.teacher_role
+        )
+        self.client.post(
+            reverse("employee_api_login"),
+            data=json.dumps({"phone": "998222222", "password": "teacherpass"}),
+            content_type="application/json",
+        )
+        resp = self.client.get(reverse("employee_api_admin_transactions"))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_change_phone_success(self):
+        self._login()
+        resp = self.client.post(
+            reverse("employee_api_change_phone"),
+            data=json.dumps({"old_password": "adminpass", "new_phone": "901234568"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["success"])
+        self.employee.refresh_from_db()
+        self.assertEqual(self.employee.phone, "901234568")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "901234568")
+        self.assertEqual(self._login("adminpass").status_code, 401)
+
+    def test_change_phone_wrong_old_password(self):
+        self._login()
+        resp = self.client.post(
+            reverse("employee_api_change_phone"),
+            data=json.dumps({"old_password": "notright", "new_phone": "901234568"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.employee.refresh_from_db()
+        self.assertEqual(self.employee.phone, "901234567")
+
+    def test_change_phone_duplicate(self):
+        other = User.objects.create_user(username="912345678", password="othpass")
+        Employee.objects.create(
+            user=other, first_name="Boshqa", last_name="Xodim", phone="912345678", role=self.admin_role
+        )
+        self._login()
+        resp = self.client.post(
+            reverse("employee_api_change_phone"),
+            data=json.dumps({"old_password": "adminpass", "new_phone": "912345678"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.employee.refresh_from_db()
+        self.assertEqual(self.employee.phone, "901234567")
+
+    def test_change_phone_invalid_number(self):
+        self._login()
+        resp = self.client.post(
+            reverse("employee_api_change_phone"),
+            data=json.dumps({"old_password": "adminpass", "new_phone": "12"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.employee.refresh_from_db()
+        self.assertEqual(self.employee.phone, "901234567")
 
 
 def get_lesson_weekdays(group):

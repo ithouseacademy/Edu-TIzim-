@@ -45,6 +45,15 @@
     {% endfor %}
   {% endif %}
 
+  <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+    <a href="{% url 'payment_history' %}" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;background:#fff;border:1.5px solid #e2e8f0;font-size:13px;font-weight:600;color:#0f172a;text-decoration:none;transition:all .15s;">
+      <i class="fas fa-history" style="color:#6366f1;"></i> Tranzaksiyalar
+    </a>
+    <a href="{% url 'payment_filter' %}" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;background:#fff;border:1.5px solid #e2e8f0;font-size:13px;font-weight:600;color:#0f172a;text-decoration:none;transition:all .15s;">
+      <i class="fas fa-filter" style="color:#0891b2;"></i> To'lov filtri
+    </a>
+  </div>
+
   <form method="post">
     {% csrf_token %}
 

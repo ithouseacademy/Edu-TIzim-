@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Huquqlarni boshqarish | Edu Tizim{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .perm-switch { position: relative; width: 38px; height: 20px; flex-shrink: 0; display: inline-block; }
+  .perm-switch input { opacity: 0; width: 0; height: 0; }
+  .perm-slider { position: absolute; inset: 0; background: #e2e8f0; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+  .perm-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  .perm-switch input:checked + .perm-slider { background: #16a34a; }
+  .perm-switch input:checked + .perm-slider::before { transform: translateX(18px); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-full bg-[#eff6ff] flex items-center justify-center text-[#2563eb] font-bold">
+        {{ admin.username|first|upper }}
+      </div>
+      <div>
+        <h2 class="text-xl font-bold text-[#0f172a]">{{ admin.first_name|default:admin.username }}</h2>
+        <p class="text-sm text-[#64748b]">Login: {{ admin.username }}
+          {% if admin.is_superuser %}<span class="badge badge-purple ml-2">Super Admin</span>{% endif %}
+          {% if not admin.is_active %}<span class="badge badge-red ml-2">Bloklangan</span>{% endif %}
+        </p>
+      </div>
+    </div>
+    <div class="flex gap-3">
+      {% if back_url %}
+      <a href="{{ back_url }}" class="px-4 py-2.5 border border-[#e2e8f0] rounded-lg text-sm font-semibold text-[#64748b] hover:bg-[#f8fafc] transition-all">{{ back_label }}</a>
+      {% else %}
+      <a href="{% url 'admin_list' %}" class="px-4 py-2.5 border border-[#e2e8f0] rounded-lg text-sm font-semibold text-[#64748b] hover:bg-[#f8fafc] transition-all">Orqaga</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if admin.is_superuser %}
+  <div class="mb-4 px-4 py-3 bg-[#f3e8ff] text-[#7c3aed] rounded-lg text-sm font-medium">
+    Super Admin barcha huquqlarga avtomatik ega va uning huquqlarini o'zgartirib bo'lmaydi.
+  </div>
+  {% else %}
+  <div class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm mb-4 overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-4 bg-[#f8fafc] border-b border-[#e2e8f0]">
+      <div class="text-sm font-semibold text-[#0f172a]">
+        Berilgan huquqlar: <span class="text-[#2563eb]">{{ granted_count }}</span> / {{ total_count }}
+      </div>
+      <div class="flex gap-3">
+        <button onclick="grantAll({{ admin.pk }})" class="px-4 py-2 bg-[#2563eb] text-white rounded-lg text-xs font-semibold hover:bg-[#1d4ed8] transition-all">
+          <i class="fas fa-check-double"></i> Barchasini berish
+        </button>
+        <button onclick="revokeAll({{ admin.pk }})" class="px-4 py-2 bg-[#fee2e2] text-[#b91c1c] rounded-lg text-xs font-semibold hover:bg-[#fecaca] transition-all">
+          <i class="fas fa-ban"></i> Barchasini olib tashlash
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {% for mod in modules %}
+  <div class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm mb-4 overflow-hidden">
+    <div class="px-5 py-4 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between">
+      <h3 class="font-bold text-[#0f172a]">{{ mod.label }}</h3>
+      <div class="text-xs text-[#64748b]">
+        {% with c=mod.permissions|length %}{% endwith %}
+      </div>
+    </div>
+    <div class="p-2">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+        {% for p in mod.permissions %}
+        <div class="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[#f8fafc] border border-transparent hover:border-[#e2e8f0] transition-all">
+          <div>
+            <div class="text-sm font-medium text-[#0f172a]">{{ p.label }}</div>
+          </div>
+          <label class="perm-switch">
+            <input type="checkbox" data-pk="{{ admin.pk }}" data-code="{{ p.codename }}" {% if p.granted %}checked{% endif %}>
+            <span class="perm-slider"></span>
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function csrf() { return '{{ csrf_token }}'; }
+function togglePerm(pk, code, state) {
+  const fd = new FormData();
+  fd.append('codename', code);
+  fd.append('state', state ? 'true' : 'false');
+  return fetch(`/admins/${pk}/permission/toggle/`, { method: 'POST', body: fd, headers: { 'X-CSRFToken': csrf() } })
+    .then(r => r.json());
+}
+document.querySelectorAll('.perm-switch input').forEach(chk => {
+  chk.addEventListener('change', function () {
+    const pk = this.dataset.pk, code = this.dataset.code;
+    togglePerm(pk, code, this.checked).then(d => {
+      if (!d.ok) { alert(d.error || 'Xatolik'); this.checked = !this.checked; }
+      else location.reload();
+    }).catch(() => { alert('Xatolik'); this.checked = !this.checked; });
+  });
+});
+function grantAll(pk) {
+  if (!confirm('Barcha huquqlarni bermoqchimisiz?')) return;
+  fetch(`/admins/${pk}/permission/grant-all/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } })
+    .then(r => r.json()).then(d => { if (d.ok) location.reload(); else alert(d.error || 'Xatolik'); })
+    .catch(() => alert('Xatolik'));
+}
+function revokeAll(pk) {
+  if (!confirm('Barcha huquqlarni olib tashlamoqchimisiz?')) return;
+  fetch(`/admins/${pk}/permission/revoke-all/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } })
+    .then(r => r.json()).then(d => { if (d.ok) location.reload(); else alert(d.error || 'Xatolik'); })
+    .catch(() => alert('Xatolik'));
+}
+</script>
+{% endblock %}

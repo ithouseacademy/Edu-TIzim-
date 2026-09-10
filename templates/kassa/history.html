@@ -42,6 +42,22 @@
 .pager a:hover{border-color:var(--primary);color:var(--primary);}
 .pager .cur{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;}
 
+/* ===== Xodim oylik/avans summary ===== */
+.summary-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px;}
+.sum-card{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);padding:16px 18px;position:relative;overflow:hidden;}
+.sum-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--primary);}
+.sum-card.blue::before{background:var(--primary);}
+.sum-card.green::before{background:#059669;}
+.sum-card.amber::before{background:#d97706;}
+.sum-card .s-label{font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;display:flex;align-items:center;gap:8px;}
+.sum-card .s-value{font-size:1.05rem;font-weight:700;color:var(--text);margin-top:6px;font-variant-numeric:tabular-nums;}
+.sum-card .s-value.blue{color:var(--primary);}
+.sum-card .s-value.green{color:#059669;}
+.sum-card .s-value.amber{color:#d97706;}
+.sum-card .s-sub{font-size:.75rem;color:var(--text-muted);margin-top:3px;}
+.op-badge.salary{background:#ede9fe;color:#6d28d9;}
+.op-badge.advance{background:#fef3c7;color:#92400e;}
+
 @media(max-width:768px){.hist-filter form{flex-direction:column;}.hist-filter .fi{width:100%;}.btn-filter,.btn-reset{width:100%;justify-content:center;text-align:center;}}
 </style>
 {% endblock %}
@@ -67,11 +83,53 @@
         <option value="refund" {% if request.GET.transaction_type == 'refund' %}selected{% endif %}>Qaytarish</option>
       </select>
     </div>
+    <div class="fi">
+      <label>Oylik / Avans</label>
+      <select name="salary_type">
+        <option value="">Barchasi</option>
+        <option value="salary" {% if f_salary_type == 'salary' %}selected{% endif %}>Xodimga oylik</option>
+        <option value="advance" {% if f_salary_type == 'advance' %}selected{% endif %}>Xodimga avans</option>
+      </select>
+    </div>
+    <div class="fi">
+      <label>Xodim</label>
+      <select name="employee">
+        <option value="">Barcha xodimlar</option>
+        {% for emp in employees %}
+        <option value="{{ emp.pk }}" {% if f_employee == emp.pk|stringformat:'s' %}selected{% endif %}>{{ emp.first_name }} {{ emp.last_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
     <div class="fi"><label>Qidirish</label><input type="text" name="search" value="{{ request.GET.search|default:'' }}" placeholder="Qidirish..."></div>
     <button type="submit" class="btn-filter"><i class="fas fa-search"></i> Filtrlash</button>
     <a href="{% url 'kassa_history' %}" class="btn-reset"><i class="fas fa-times"></i> Tozalash</a>
   </form>
 </div>
+
+{% if employee_summary %}
+<div class="summary-cards">
+  <div class="sum-card blue">
+    <div class="s-label"><i class="fas fa-user"></i> Xodim</div>
+    <div class="s-value">{{ employee_summary.employee.first_name }} {{ employee_summary.employee.last_name }}</div>
+    <div class="s-sub">Jami berilgan pullar</div>
+  </div>
+  <div class="sum-card green">
+    <div class="s-label"><i class="fas fa-money-bill-wave"></i> Jami oylik</div>
+    <div class="s-value green">{{ employee_summary.total_salary|floatformat:0 }} so'm</div>
+    <div class="s-sub">Xodimga berilgan oyliklar</div>
+  </div>
+  <div class="sum-card amber">
+    <div class="s-label"><i class="fas fa-hand-holding-usd"></i> Jami avans</div>
+    <div class="s-value amber">{{ employee_summary.total_advance|floatformat:0 }} so'm</div>
+    <div class="s-sub">Xodimga berilgan avanslar</div>
+  </div>
+  <div class="sum-card">
+    <div class="s-label"><i class="fas fa-coins"></i> Jami berilgan</div>
+    <div class="s-value">{{ employee_summary.total|floatformat:0 }} so'm</div>
+    <div class="s-sub">Oylik + Avans</div>
+  </div>
+</div>
+{% endif %}
 
 <div class="table-wrap">
   <div class="table-scroll">
@@ -87,6 +145,7 @@
           <th>Yangi balans</th>
           <th>Izoh</th>
           <th>O'quvchi</th>
+          <th>Xodim</th>
           <th>Bajaruvchi</th>
         </tr>
       </thead>
@@ -99,7 +158,10 @@
           <td>
             {% if tx.transaction_type == 'payment' %}<span class="op-badge payment"><i class="fas fa-credit-card"></i> To'lov</span>
             {% elif tx.transaction_type == 'income' %}<span class="op-badge income"><i class="fas fa-plus"></i> Kirim</span>
-            {% elif tx.transaction_type == 'expense' %}<span class="op-badge expense"><i class="fas fa-minus"></i> Chiqim</span>
+            {% elif tx.transaction_type == 'expense' %}
+              {% if tx.salary_type == 'salary' %}<span class="op-badge salary"><i class="fas fa-money-bill-wave"></i> Xodimga oylik</span>
+              {% elif tx.salary_type == 'advance' %}<span class="op-badge advance"><i class="fas fa-hand-holding-usd"></i> Xodimga avans</span>
+              {% else %}<span class="op-badge expense"><i class="fas fa-minus"></i> Chiqim</span>{% endif %}
             {% elif tx.transaction_type == 'transfer_in' %}<span class="op-badge transfer_in"><i class="fas fa-arrow-right"></i> O'tkazma (k)</span>
             {% elif tx.transaction_type == 'transfer_out' %}<span class="op-badge transfer_out"><i class="fas fa-arrow-left"></i> O'tkazma (ch)</span>
             {% elif tx.transaction_type == 'refund' %}<span class="op-badge refund"><i class="fas fa-undo"></i> Qaytarish</span>
@@ -116,11 +178,12 @@
           <td class="old-bal">{{ tx.balance_after|floatformat:0 }}</td>
           <td class="tx-desc" title="{{ tx.description }}">{% if tx.expense_category %}<span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:4px;font-size:.7rem;margin-right:4px;">{{ tx.get_expense_category_display }}</span>{% endif %}{{ tx.description|default:"-" }}</td>
           <td>{% if tx.student %}{{ tx.student.first_name }} {{ tx.student.last_name }}{% else %}<span style="color:var(--text-muted);">-</span>{% endif %}</td>
+          <td>{% if tx.employee %}{{ tx.employee.first_name }} {{ tx.employee.last_name }}{% else %}<span style="color:var(--text-muted);">-</span>{% endif %}</td>
           <td>{{ tx.created_by|default:"-" }}</td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="10" class="empty-state">
+          <td colspan="11" class="empty-state">
             <i class="fas fa-inbox"></i>
             <p>Operatsiyalar topilmadi</p>
           </td>

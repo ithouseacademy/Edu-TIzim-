@@ -1,0 +1,14 @@
+<style>
+    .task-section-tabs{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+    .task-section-tab{padding:9px 20px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text);text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:.2s}
+    .task-section-tab:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .task-section-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+</style>
+<div class="task-section-tabs">
+    <a href="{% url 'task_list' %}" class="task-section-tab {% if request.resolver_match.url_name == 'task_list' %}active{% endif %}">
+        <i class="fas fa-clipboard-list"></i> Topshiriqlar
+    </a>
+    <a href="{% url 'reminder_list' %}" class="task-section-tab {% if request.resolver_match.url_name == 'reminder_list' %}active{% endif %}">
+        <i class="fas fa-bell"></i> Eslatmalar
+    </a>
+</div>

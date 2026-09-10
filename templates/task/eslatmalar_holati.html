@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Kim o'qigan | Eslatmalar{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Kim o'qigan</h2>
+        <span class="page-header-count"><a href="{% url 'reminder_list' %}" style="color:var(--primary)"><i class="fas fa-arrow-left"></i> Eslatmalar</a></span>
+    </div>
+</div>
+
+{% include "task/_tabs.html" %}
+
+<div class="card" style="max-width: 760px; margin-bottom: 24px;">
+    <div class="card-header between">
+        <h3><i class="fas fa-bell"></i> Eslatma haqida</h3>
+        {% if reminder.priority == "muhim" %}
+        <span class="status-badge" style="background:#fdecea;color:#c62828"><i class="fas fa-exclamation-circle"></i> Muhim</span>
+        {% elif reminder.priority == "ma'lumot" %}
+        <span class="status-badge" style="background:#e3f2fd;color:#1565c0"><i class="fas fa-info-circle"></i> Ma'lumot</span>
+        {% else %}
+        <span class="status-badge" style="background:#fff8e1;color:#b26a00"><i class="fas fa-bell"></i> Eslatma</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div style="font-size:15px;margin-bottom:6px">{{ reminder.message }}</div>
+        <div style="font-size:12px;color:var(--text-light)">
+            Kim tomonidan: {{ reminder.created_by|default_if_none:"—" }} ·
+            Yuborilgan: {{ reminder.created_at|date:"d.m.Y H:i" }}
+        </div>
+    </div>
+</div>
+
+<div class="row" style="display:flex;gap:16px;flex-wrap:wrap;">
+    <div class="card" style="flex:1;min-width:300px;">
+        <div class="card-header">
+            <h3 style="color:#2e7d32"><i class="fas fa-check"></i> O'qiganlar ({{ readers|length }})</h3>
+        </div>
+        <div class="card-body">
+            {% for r in readers %}
+            <div style="padding:7px 0;border-bottom:1px solid var(--border, #eee);font-size:13px">
+                <span style="color:#2e7d32">✓</span> <b>{{ r.name }}</b>
+                <span style="color:var(--text-light);float:right">{{ r.time }}</span>
+            </div>
+            {% empty %}
+            <div class="empty">Hali hech kim o'qimagan</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card" style="flex:1;min-width:300px;">
+        <div class="card-header">
+            <h3 style="color:#e65100"><i class="fas fa-times"></i> O'qimaganlar ({{ unreaders|length }})</h3>
+        </div>
+        <div class="card-body">
+            {% for u in unreaders %}
+            <div style="padding:7px 0;border-bottom:1px solid var(--border, #eee);font-size:13px">
+                <span style="color:#e65100">✗</span> {{ u.name }}
+                {% if u.phone %}<span style="color:var(--text-light);float:right">{{ u.phone }}</span>{% endif %}
+            </div>
+            {% empty %}
+            <div class="empty" style="color:#2e7d32">Barchasi o'qigan</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

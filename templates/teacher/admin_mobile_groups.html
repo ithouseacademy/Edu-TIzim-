@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Bugungi guruhlar | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+.content{padding:16px 20px!important;}
+.page-header{margin-bottom:14px!important;}
+.page-header-right .btn span{display:none!important;}
+
+.mob-day-banner{
+    display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#eff6ff,#dbeafe);
+    border:1px solid #bfdbfe;border-radius:12px;padding:12px 16px;margin-bottom:16px;
+}
+.mob-day-banner .banner-icon{
+    width:42px;height:42px;border-radius:10px;background:var(--primary);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;
+}
+.mob-day-banner .banner-title{font-size:.95rem;font-weight:700;color:var(--text);line-height:1.25;}
+.mob-day-banner .banner-sub{font-size:.75rem;color:var(--text-light);}
+
+.groups-stack{display:flex;flex-direction:column;gap:10px;}
+.g-card{
+    background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;
+    transition:box-shadow .2s;
+}
+.g-card:hover{box-shadow:var(--shadow-md);}
+.g-card-link{display:block;padding:14px 16px;text-decoration:none;color:inherit;}
+.g-card-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
+.g-card-name{font-weight:700;font-size:15px;color:var(--text);}
+.g-card-name .muted{font-weight:500;font-size:12px;}
+.g-badge{font-size:10px;padding:3px 9px;border-radius:12px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;}
+.g-badge i{font-size:9px;}
+.g-badge-active{background:#e8f7ee;color:#16a34a;}
+.g-badge-upcoming{background:#e8f0fe;color:#1d4ed8;}
+.g-badge-finished{background:#f1f5f9;color:#64748b;}
+.g-badge-kutilmoqda{background:#fef3c7;color:#b45309;}
+
+.g-lesson{
+    display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;color:var(--primary);
+    background:#eff6ff;padding:3px 10px;border-radius:8px;margin-bottom:8px;
+}
+.g-lesson i{font-size:.7rem;}
+.g-meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--text-light);}
+.g-meta span{display:flex;align-items:center;gap:4px;}
+.g-meta i{color:var(--primary);width:13px;font-size:10px;text-align:center;}
+
+.g-foot{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:8px 16px;border-top:1px solid #f1f5f9;font-size:12px;color:var(--text-muted);
+}
+.g-foot .teacher-name{color:#6366f1;font-weight:500;display:inline-flex;align-items:center;gap:4px;}
+.g-foot .teacher-name i{font-size:10px;}
+.g-foot .student-count{color:var(--primary);font-weight:600;display:inline-flex;align-items:center;gap:4px;}
+.g-foot .student-count i{font-size:10px;}
+.g-foot .g-quick{display:inline-flex;gap:6px;}
+.g-foot .g-quick a{
+    width:26px;height:26px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid var(--border);color:var(--text-muted);font-size:11px;text-decoration:none;transition:all .15s;
+}
+.g-foot .g-quick a:hover{border-color:var(--primary);color:var(--primary);}
+
+.empty-state{text-align:center;padding:48px 20px;color:var(--text-light);}
+.empty-state i{font-size:2.6rem;opacity:.25;color:var(--primary);display:block;margin-bottom:10px;}
+.empty-state p{font-size:.88rem;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Bugungi guruhlar</h2>
+        <span class="page-header-count">{{ groups|length }} ta guruh</span>
+    </div>
+    <div class="page-header-right">
+        <a href="{% url 'group_list' %}" class="btn btn-sm btn-icon" title="Barcha guruhlar"><i class="fas fa-list"></i> <span>Barchasi</span></a>
+    </div>
+</div>
+
+<div class="mob-day-banner">
+    <div class="banner-icon"><i class="far fa-calendar-check"></i></div>
+    <div>
+        <div class="banner-title">Bugungi darslar</div>
+        <div class="banner-sub">{% now "l, d-m-Y" %}</div>
+    </div>
+</div>
+
+<div class="groups-stack">
+    {% for item in groups %}
+    <div class="g-card">
+        <a href="{% url 'group_detail' item.group.pk %}" class="g-card-link">
+            <div class="g-card-top">
+                <div class="g-card-name">
+                    {{ item.group.name }}
+                    {% if item.group.level %}<span class="muted">· {{ item.group.level.name }}</span>{% endif %}
+                </div>
+                {% if item.status == "active" %}
+                    <span class="g-badge g-badge-active"><i class="fas fa-circle" style="font-size:6px;"></i> Davom etmoqda</span>
+                {% elif item.status == "upcoming" %}
+                    <span class="g-badge g-badge-upcoming"><i class="fas fa-clock"></i> Kelgusi</span>
+                {% elif item.status == "finished" %}
+                    <span class="g-badge g-badge-finished"><i class="fas fa-check"></i> O'tkazildi</span>
+                {% else %}
+                    <span class="g-badge g-badge-kutilmoqda"><i class="fas fa-hourglass-half"></i> Kutilmoqda</span>
+                {% endif %}
+            </div>
+            {% if item.lesson_display %}
+            <div class="g-lesson"><i class="far fa-clock"></i>{{ item.lesson_display }}</div>
+            {% endif %}
+            <div class="g-meta">
+                {% if item.group.course %}<span><i class="fas fa-book"></i> {{ item.group.course.name }}</span>{% endif %}
+                {% if item.group.room %}<span><i class="fas fa-door-open"></i> {{ item.group.room.name }}</span>{% endif %}
+                {% if item.group.education_type %}
+                <span><i class="fas fa-{% if item.group.education_type == 'onlayn' %}globe{% else %}building{% endif %}"></i> {{ item.group.get_education_type_display }}</span>
+                {% endif %}
+            </div>
+        </a>
+        <div class="g-foot">
+            <span class="student-count"><i class="fas fa-user-graduate"></i> {{ item.student_count }}</span>
+            {% if item.group.teacher %}
+            <span class="teacher-name"><i class="fas fa-chalkboard-teacher"></i> {{ item.group.teacher.first_name }} {{ item.group.teacher.last_name }}</span>
+            {% endif %}
+            <div class="g-quick">
+                <a href="{% url 'group_davom' item.group.pk %}" title="Davomat"><i class="fas fa-clipboard-check"></i></a>
+                {% if item.group.telegram_link %}
+                <a href="{{ item.group.telegram_link }}" target="_blank" title="Telegram"><i class="fab fa-telegram-plane"></i></a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <i class="far fa-calendar-times"></i>
+        <p>Bugun uchun guruhlar mavjud emas.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

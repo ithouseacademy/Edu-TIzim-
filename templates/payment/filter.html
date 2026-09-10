@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% load humanize %}
 {% block title %}To'lov filtri | Edu Tizim{% endblock %}
@@ -381,7 +382,9 @@
                     <td class="td-desc">{{ t.description|default:"-" }}</td>
                     <td>
                         {% if t.transaction_type == 'payment' and t.amount > 0 %}
+                        {% if 'payment.transfer' in permissions %}
                         <button class="xato-btn" onclick="openWrongTransfer({{ t.pk }}, '{{ t.student.first_name }} {{ t.student.last_name }}', {{ t.amount }})"><i class="fas fa-exchange-alt"></i></button>
+                        {% endif %}
                         {% endif %}
                     </td>
                 </tr>
@@ -453,9 +456,11 @@
         <label style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:3px;">Izoh</label>
         <textarea id="wrongDescription" rows="2" placeholder="Ixtiyoriy..." style="padding:7px 10px;border-radius:6px;border:1.5px solid var(--border);width:100%;font-size:11px;font-family:inherit;outline:none;resize:none;color:var(--text);" onfocus="this.style.borderColor='var(--primary)'" onblur="if(!this.value)this.style.borderColor='var(--border)'"></textarea>
       </div>
+      {% if 'payment.transfer' in permissions %}
       <button id="wrongSubmit" onclick="submitWrongTransfer()" style="width:100%;padding:8px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:inherit;">
         <i class="fas fa-exchange-alt"></i> O'tkazish
       </button>
+      {% endif %}
     </div>
   </div>
 </div>
