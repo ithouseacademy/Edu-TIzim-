@@ -60,42 +60,42 @@ export default function SideDrawer() {
         onClick={close}
       />
       <div
-        className={`absolute top-0 left-0 h-full bg-white rounded-r-[24px] shadow-premium-lg overflow-hidden flex flex-col ${animating ? "animate-slide-in" : "animate-slide-out"}`}
-        style={{ width: "82%" }}
+        className={`absolute top-0 left-0 h-full bg-white rounded-r-[20px] shadow-premium-lg overflow-hidden flex flex-col ${animating ? "animate-slide-in" : "animate-slide-out"}`}
+        style={{ width: "80%" }}
       >
         <div className="drawer-scroll flex-1 overflow-y-auto">
-          <div className="px-5 pt-14 pb-4">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#2001FF] to-[#4361FF] rounded-full flex items-center justify-center shadow-lg shadow-[#2001FF]/20">
-                  <span className="text-xl font-bold text-white">{initials}</span>
+          <div className="px-4 pt-10 pb-3">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-11 h-11 bg-gradient-to-br from-[#2001FF] to-[#4361FF] rounded-full flex items-center justify-center shadow-lg shadow-[#2001FF]/20">
+                  <span className="text-base font-bold text-white">{initials}</span>
                 </div>
                 <div>
-                  <p className="text-base font-bold text-gray-900">{fullName}</p>
+                  <p className="text-sm font-bold text-gray-900">{fullName}</p>
                   {student?.phone && (
-                    <p className="text-xs text-gray-400 font-medium mt-0.5">{student.phone}</p>
+                    <p className="text-[11px] text-gray-400 font-medium mt-0.5">{student.phone}</p>
                   )}
                 </div>
               </div>
-              <ChevronRight size={20} className="text-gray-300" />
+              <ChevronRight size={16} className="text-gray-300" />
             </div>
 
-            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Balans</p>
+            <div className="bg-gray-50 rounded-xl p-3 mb-4">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Balans</p>
               {student?.balance_str ? (
                 <>
-                  <p className={`text-2xl font-bold mt-1 ${(student.balance ?? 0) >= 0 ? "text-gray-900" : "text-red-600"}`}>
+                  <p className={`text-xl font-bold mt-0.5 ${(student.balance ?? 0) >= 0 ? "text-gray-900" : "text-red-600"}`}>
                     {student.balance_str}
                   </p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Wallet size={14} className={(student.balance ?? 0) >= 0 ? "text-green-500" : "text-red-500"} />
-                    <span className={`text-xs font-medium ${(student.balance ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <Wallet size={12} className={(student.balance ?? 0) >= 0 ? "text-green-500" : "text-red-500"} />
+                    <span className={`text-[11px] font-medium ${(student.balance ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
                       {(student.balance ?? 0) >= 0 ? "To'lov muddati o'tmagan" : "Qarzingiz mavjud"}
                     </span>
                   </div>
                 </>
               ) : (
-                <p className="text-xl font-bold text-gray-400 mt-1">---</p>
+                <p className="text-lg font-bold text-gray-400 mt-0.5">---</p>
               )}
             </div>
           </div>
@@ -105,27 +105,27 @@ export default function SideDrawer() {
               <button
                 key={item.path}
                 onClick={() => handleNav(item.path)}
-                className="ripple-btn w-full flex items-center justify-between px-4 py-3.5 rounded-2xl hover:bg-gray-50 transition-all btn-hover"
+                className="ripple-btn w-full flex items-center justify-between px-3 py-3 rounded-xl hover:bg-gray-50 transition-all btn-hover"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center">
-                    <item.icon size={18} className="text-gray-600" />
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
+                    <item.icon size={15} className="text-gray-600" />
                   </div>
-                  <span className="text-sm font-semibold text-gray-700">{item.label}</span>
+                  <span className="text-xs font-semibold text-gray-700">{item.label}</span>
                 </div>
-                <ChevronRight size={16} className="text-gray-300" />
+                <ChevronRight size={14} className="text-gray-300" />
               </button>
             ))}
           </div>
         </div>
 
-        <div className="px-4 pb-8 pt-3 border-t border-gray-100">
-          <div className="flex items-center justify-between px-4 py-3.5 rounded-2xl bg-gray-50">
-            <div className="flex items-center gap-3">
-              <Building2 size={18} className="text-gray-500" />
-              <span className="text-sm font-semibold text-gray-700">Filialni tanlash</span>
+        <div className="px-3 pb-6 pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-gray-50">
+            <div className="flex items-center gap-2.5">
+              <Building2 size={15} className="text-gray-500" />
+              <span className="text-xs font-semibold text-gray-700">Filialni tanlash</span>
             </div>
-            <ChevronDown size={16} className="text-gray-400" />
+            <ChevronDown size={14} className="text-gray-400" />
           </div>
         </div>
       </div>

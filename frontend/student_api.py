@@ -12,7 +12,6 @@ from django.contrib.auth import authenticate
 from django.db.models import Count, Q
 from django.utils import timezone as use_tz
 from decimal import Decimal
-from datetime import timedelta
 from .models import Student, Group, LessonTime, Attendance, VerificationCode, Employee, StudentBalance, Transaction, Task, Reminder
 
 
@@ -31,6 +30,41 @@ def normalize_phone(phone):
     if phone.startswith('998') and len(phone) >= 12:
         phone = phone[:12]
     return phone
+
+
+WEEKDAY_MAP = {0: "dushanba", 1: "seshanba", 2: "chorshanba", 3: "payshanba", 4: "juma", 5: "shanba", 6: "yakshanba"}
+WEEKDAY_MAP_REV = {v: k for k, v in WEEKDAY_MAP.items()}
+
+
+def _remaining_lessons_in_month(student, now_date):
+    """Oy oxirigacha qolgan darslar soni."""
+    import calendar
+    active_groups = student.groups.filter(status="aktiv").prefetch_related("lesson_times")
+    month_start = now_date.replace(day=1)
+    last_day = calendar.monthrange(now_date.year, now_date.month)[1]
+    month_end = now_date.replace(day=last_day)
+    count = 0
+    for group in active_groups:
+        if group.is_date_overdue():
+            continue
+        weekdays = set()
+        for lt in group.lesson_times.all():
+            for d_name in (lt.days or "").split(","):
+                d_name = d_name.strip().lower()
+                if d_name in WEEKDAY_MAP_REV:
+                    weekdays.add(WEEKDAY_MAP_REV[d_name])
+        if not weekdays:
+            continue
+        g_start = group.start_date if group.start_date else month_start
+        g_end = group.end_date if group.end_date else month_end
+        lesson_start = max(month_start, g_start)
+        lesson_end = min(month_end, g_end)
+        d = lesson_start
+        while d <= lesson_end:
+            if d.weekday() in weekdays and d >= now_date:
+                count += 1
+            d += timedelta(days=1)
+    return count
 
 
 def student_required(view_func):
@@ -783,6 +817,7 @@ def profile(request):
 
     balance, _ = StudentBalance.objects.get_or_create(student=student, defaults={"balance": Decimal('0.00')})
     debt = abs(balance.balance) if balance.balance < 0 else 0
+    remaining_lessons = _remaining_lessons_in_month(student, date.today())
 
     recent_transactions = Transaction.objects.filter(student=student).select_related("group").order_by("-created_at")[:20]
     transactions_data = []
@@ -816,6 +851,7 @@ def profile(request):
             "balance_str": f"{balance.balance:,.0f} so'm",
             "debt": float(debt),
             "debt_str": f"{debt:,.0f} so'm" if debt else "0 so'm",
+            "remaining_lessons": remaining_lessons,
         },
         "groups": groups_data,
         "transactions": transactions_data,

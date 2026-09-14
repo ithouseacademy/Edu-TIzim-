@@ -4,6 +4,10 @@
   --font-sans: 'Inter', sans-serif;
 }
 
+html {
+  font-size: 85%;
+}
+
 * {
   font-family: 'Inter', sans-serif;
   -webkit-tap-highlight-color: transparent;

@@ -41,20 +41,20 @@ export default function Schedule() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] pb-24 page-enter">
-      <div className="max-w-lg mx-auto px-4 pt-14">
-        <div className="flex items-center gap-3 mb-6 animate-fade-in">
-          <div className="p-2.5 bg-[#2001FF]/10 rounded-xl">
-            <CalendarDays size={22} className="text-[#2001FF]" />
+    <div className="min-h-screen bg-[#F7F9FC] pb-20 page-enter">
+      <div className="max-w-lg mx-auto px-2.5 pt-8">
+        <div className="flex items-center gap-2.5 mb-3 animate-fade-in">
+          <div className="p-2 bg-[#2001FF]/10 rounded-lg">
+            <CalendarDays size={18} className="text-[#2001FF]" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Schedule</h1>
-            <p className="text-xs text-gray-400 font-medium">Haftalik darslar tartibi</p>
+            <h1 className="text-base font-bold text-gray-900 tracking-tight">Schedule</h1>
+            <p className="text-[10px] text-gray-400 font-medium">Haftalik darslar tartibi</p>
           </div>
         </div>
 
         {/* Day Tabs */}
-        <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1 scrollbar-hide animate-fade-in">
+        <div className="flex gap-1 mb-3 overflow-x-auto pb-1 scrollbar-hide animate-fade-in">
           {dayKeys.map((key) => {
             const isActive = activeDay === key
             const isToday = weekdayMap[today.getDay()] === key
@@ -62,7 +62,7 @@ export default function Schedule() {
               <button
                 key={key}
                 onClick={() => setActiveDay(key)}
-                className={`px-4 py-2.5 rounded-[14px] text-xs font-semibold whitespace-nowrap transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all ${
                   isActive
                     ? "bg-[#2001FF] text-white shadow-md shadow-[#2001FF]/20"
                     : isToday
@@ -71,28 +71,28 @@ export default function Schedule() {
                 }`}
               >
                 {dayLabels[key]}
-                {isToday && <span className="ml-1.5 inline-block w-1.5 h-1.5 bg-current rounded-full" />}
+                {isToday && <span className="ml-1 inline-block w-1 h-1 bg-current rounded-full" />}
               </button>
             )
           })}
         </div>
 
         {/* Day title */}
-        <div className="flex items-center justify-between mb-3 animate-fade-in">
-          <p className="text-sm font-bold text-gray-900">{fullLabels[activeDay]}</p>
-          <span className="text-[10px] font-semibold text-gray-400 bg-white px-2.5 py-1 rounded-lg card-shadow">
+        <div className="flex items-center justify-between mb-2 animate-fade-in">
+          <p className="text-xs font-bold text-gray-900">{fullLabels[activeDay]}</p>
+          <span className="text-[9px] font-semibold text-gray-400 bg-white px-2 py-0.5 rounded-lg card-shadow">
             {lessons.length} ta dars
           </span>
         </div>
 
         {/* Lessons */}
-        <div className="space-y-2.5 animate-slide-up">
+        <div className="space-y-2 animate-slide-up">
           {lessons.length === 0 && (
-            <div className="bg-white rounded-[22px] p-10 text-center card-shadow">
-              <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <CalendarDays size={28} className="text-gray-300" />
+            <div className="bg-white rounded-2xl p-6 text-center card-shadow">
+              <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-2">
+                <CalendarDays size={22} className="text-gray-300" />
               </div>
-              <p className="text-sm font-medium text-gray-400">Bu kunga darslar mavjud emas</p>
+              <p className="text-xs font-medium text-gray-400">Bu kunga darslar mavjud emas</p>
             </div>
           )}
 
@@ -102,37 +102,37 @@ export default function Schedule() {
               <div
                 key={`${lesson.group_id}-${lesson.start_time}-${idx}`}
                 onClick={() => navigate(`/lesson/${lesson.group_id}`)}
-                className="bg-white rounded-[22px] p-4 card-shadow card-shadow-hover transition-all cursor-pointer btn-scale"
+                className="bg-white rounded-2xl p-3 card-shadow card-shadow-hover transition-all cursor-pointer btn-scale"
               >
-                <div className="flex items-start gap-3">
-                  <div className={`w-1.5 self-stretch rounded-full shrink-0 bg-gradient-to-b ${color.bg}`} />
+                <div className="flex items-start gap-2.5">
+                  <div className={`w-1 self-stretch rounded-full shrink-0 bg-gradient-to-b ${color.bg}`} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <h3 className="font-semibold text-sm text-gray-900">{lesson.subject}</h3>
-                      <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                        <Clock size={10} />
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="font-semibold text-xs text-gray-900">{lesson.subject}</h3>
+                      <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-lg flex items-center gap-1">
+                        <Clock size={9} />
                         {lesson.start_time} - {lesson.end_time}
                       </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
                       {lesson.teacher && (
-                        <span className={`px-2 py-0.5 rounded-lg ${color.light} ${color.text} font-medium`}>
+                        <span className={`px-1.5 py-0.5 rounded-lg ${color.light} ${color.text} font-medium`}>
                           👨‍🏫 {lesson.teacher}
                         </span>
                       )}
                       {lesson.room && (
                         <span className="flex items-center gap-1 font-medium">
-                          <MapPin size={10} />
+                          <MapPin size={9} />
                           {lesson.room}
                         </span>
                       )}
                       <span className="flex items-center gap-1 font-medium">
-                        <BookOpen size={10} />
+                        <BookOpen size={9} />
                         {lesson.group_name}
                       </span>
                     </div>
                   </div>
-                  <ChevronRight size={16} className="text-gray-300 mt-1 shrink-0" />
+                  <ChevronRight size={14} className="text-gray-300 mt-0.5 shrink-0" />
                 </div>
               </div>
             )

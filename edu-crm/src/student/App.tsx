@@ -14,14 +14,17 @@ import Messages from "./pages/Messages"
 import Profile from "./pages/Profile"
 import LessonDetail from "./pages/LessonDetail"
 import AttendanceHistory from "./pages/AttendanceHistory"
+import TransactionsPage from "./pages/TransactionsPage"
+import GroupsPage from "./pages/GroupsPage"
+import BalancePage from "./pages/BalancePage"
 
-function ProtectedLayout({ children }: { children: React.ReactNode }) {
+function ProtectedLayout({ children, showNav = true }: { children: React.ReactNode; showNav?: boolean }) {
   const token = localStorage.getItem("student_token")
   if (!token) return <Navigate to="/" replace />
   return (
     <>
       {children}
-      <BottomNav />
+      {showNav && <BottomNav />}
     </>
   )
 }
@@ -81,6 +84,30 @@ export default function StudentApp() {
             element={
               <ProtectedLayout>
                 <Profile />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/profile/transactions"
+            element={
+              <ProtectedLayout>
+                <TransactionsPage />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/profile/balance"
+            element={
+              <ProtectedLayout showNav={false}>
+                <BalancePage />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/profile/groups"
+            element={
+              <ProtectedLayout>
+                <GroupsPage />
               </ProtectedLayout>
             }
           />

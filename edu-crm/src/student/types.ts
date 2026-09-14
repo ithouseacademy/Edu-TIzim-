@@ -12,6 +12,7 @@ export interface StudentProfile {
   balance_str?: string
   debt?: number
   debt_str?: string
+  remaining_lessons?: number
   has_password?: boolean
 }
 

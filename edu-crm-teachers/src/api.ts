@@ -1,6 +1,13 @@
 import type { Employee, EmployeeDetail, TeacherGroup, AttendanceData, DashboardData, GroupDetailData, Role, Position, Branch, SalaryData, TasksData, RemindersData } from "./types"
 
 const BASE = import.meta.env.DEV ? "/api" : "https://it-house-academt-edu-tizim-production.up.railway.app/api"
+const MEDIA_BASE = import.meta.env.DEV ? "" : "https://it-house-academt-edu-tizim-production.up.railway.app"
+
+export function fixPhotoUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.startsWith("http")) return url
+  return MEDIA_BASE + url
+}
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}/employee${url}`, {

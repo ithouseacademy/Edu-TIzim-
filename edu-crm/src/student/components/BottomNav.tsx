@@ -21,7 +21,7 @@ export default function BottomNav() {
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              className="flex flex-col items-center gap-0.5 py-1.5 px-4 min-w-0 transition-all duration-200 relative btn-scale"
+              className="flex flex-col items-center gap-0.5 py-1 px-3 min-w-0 transition-all duration-200 relative btn-scale"
             >
               <div
                 className={`p-1.5 rounded-xl transition-all duration-200 ${
@@ -31,20 +31,20 @@ export default function BottomNav() {
                 }`}
               >
                 <tab.icon
-                  size={24}
+                  size={20}
                   strokeWidth={active ? 2.5 : 1.8}
                   className="transition-all duration-200"
                 />
               </div>
               <span
-                className={`text-[9px] font-semibold leading-none transition-all duration-200 ${
+                className={`text-[8px] font-semibold leading-none transition-all duration-200 ${
                   active ? "text-[#2001FF]" : "text-[#9CA3AF]"
                 }`}
               >
                 {tab.label}
               </span>
               {active && (
-                <div className="absolute -top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-[#2001FF] rounded-full" />
+                <div className="absolute -top-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-[#2001FF] rounded-full" />
               )}
             </button>
           )

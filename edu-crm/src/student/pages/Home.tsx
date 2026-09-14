@@ -121,68 +121,68 @@ export default function Home() {
   const isCurrentMonth = calMonth === now.getMonth() && calYear === now.getFullYear()
 
   return (
-    <div className="min-h-screen bg-[#F8F9FC] pb-24 animate-page-enter">
-      <div className="max-w-lg mx-auto px-4 pt-12">
-        <header className="flex items-center justify-between mb-5">
+    <div className="min-h-screen bg-[#F8F9FC] pb-20 animate-page-enter">
+      <div className="max-w-lg mx-auto px-2.5 pt-8">
+        <header className="flex items-center justify-between mb-3">
           <button
             onClick={openDrawer}
-            className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm btn-hover"
+            className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm btn-hover"
           >
-            <Menu size={20} className="text-gray-700" />
+            <Menu size={16} className="text-gray-700" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#2001FF] rounded-xl flex items-center justify-center">
-              <HomeIcon size={16} className="text-white" />
+          <div className="flex items-center gap-1.5">
+            <div className="w-6 h-6 bg-[#2001FF] rounded-lg flex items-center justify-center">
+              <HomeIcon size={13} className="text-white" />
             </div>
-            <h1 className="text-lg font-bold text-gray-900">Bosh sahifa</h1>
+            <h1 className="text-base font-bold text-gray-900">Bosh sahifa</h1>
           </div>
-          <button className="relative w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm btn-hover">
-            <Bell size={20} className="text-gray-600" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#2001FF] rounded-full flex items-center justify-center animate-badge-pulse">
-              <span className="text-[8px] font-bold text-white">3</span>
+          <button className="relative w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm btn-hover">
+            <Bell size={16} className="text-gray-600" />
+            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[#2001FF] rounded-full flex items-center justify-center animate-badge-pulse">
+              <span className="text-[7px] font-bold text-white">3</span>
             </span>
           </button>
         </header>
 
         <section className="mb-3 animate-scale-in">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-[#2001FF] rounded-2xl flex items-center justify-center shadow-lg shadow-[#2001FF]/20">
-                <span className="text-lg font-bold text-white">{initials}</span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 bg-[#2001FF] rounded-xl flex items-center justify-center shadow-lg shadow-[#2001FF]/20">
+                <span className="text-base font-bold text-white">{initials}</span>
               </div>
               <div>
-                <p className="text-xs font-medium text-gray-400">{greeting}</p>
-                <p className="text-base font-bold text-gray-900 leading-tight">{studentName || "O'quvchi"}</p>
+                <p className="text-[10px] font-medium text-gray-400">{greeting}</p>
+                <p className="text-sm font-bold text-gray-900 leading-tight">{studentName || "O'quvchi"}</p>
                 {groupName && (
-                  <p className="text-xs font-medium text-gray-400 mt-0.5">{groupName}</p>
+                  <p className="text-[10px] font-medium text-gray-400 mt-0.5">{groupName}</p>
                 )}
               </div>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-gray-900">{stats?.percentage || 0}%</p>
-              <p className="text-xs font-medium text-gray-400">Davomat</p>
+              <p className="text-xl font-bold text-gray-900">{stats?.percentage || 0}%</p>
+              <p className="text-[10px] font-medium text-gray-400">Davomat</p>
             </div>
           </div>
         </section>
 
-        <section className="mb-4">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <button onClick={prevMonth} className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm btn-hover">
-              <ChevronLeft size={16} className="text-gray-500" />
+        <section className="mb-3">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <button onClick={prevMonth} className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow-sm btn-hover">
+              <ChevronLeft size={14} className="text-gray-500" />
             </button>
-            <h2 className="text-base font-bold text-gray-900">
+            <h2 className="text-sm font-bold text-gray-900">
               {MONTHS_UZ[calMonth]} {calYear}
             </h2>
-            <button onClick={nextMonth} className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm btn-hover">
-              <ChevronRight size={16} className="text-gray-500" />
+            <button onClick={nextMonth} className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow-sm btn-hover">
+              <ChevronRight size={14} className="text-gray-500" />
             </button>
           </div>
 
-          <div className="card-calendar p-3">
+          <div className="card-calendar p-2">
             <div className="grid grid-cols-7 mb-1">
               {DAYS_UZ.map((d) => (
-                <div key={d} className="text-center py-1.5">
-                  <span className="text-[11px] font-semibold text-gray-400">{d}</span>
+                <div key={d} className="text-center py-1">
+                  <span className="text-[10px] font-semibold text-gray-400">{d}</span>
                 </div>
               ))}
             </div>
@@ -200,10 +200,10 @@ export default function Home() {
                       <button
                         key={day}
                         onClick={() => setSelectedDay(day)}
-                        className="relative flex flex-col items-center justify-center py-1.5 rounded-xl transition-all btn-hover"
+                        className="relative flex flex-col items-center justify-center py-1 rounded-lg transition-all btn-hover"
                       >
                         <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-semibold transition-all duration-200 ${
                             isSelected
                               ? "bg-[#2001FF] text-white shadow-md shadow-[#2001FF]/20"
                               : isToday
@@ -213,9 +213,9 @@ export default function Home() {
                         >
                           {day}
                         </div>
-                        <div className="flex items-center gap-0.5 mt-0.5 h-2">
+                        <div className="flex items-center gap-0.5 mt-0.5 h-1.5">
                           {hasLesson && (
-                            <div className={`w-2 h-2 rounded-full ${
+                            <div className={`w-1.5 h-1.5 rounded-full ${
                               att === "present" ? "bg-green-500" :
                               att === "absent" ? "bg-red-500" :
                               att === "excused" ? "bg-yellow-500" :
@@ -242,13 +242,13 @@ export default function Home() {
             if (hasLesson && afterStart) {
               const dayClasses = isTodaySel ? todayClasses : scheduleLessons
               return (
-                <div className="mt-3 space-y-3 animate-scale-in">
+                <div className="mt-2.5 space-y-2.5 animate-scale-in">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-gray-900">
+                    <h3 className="text-xs font-bold text-gray-900">
                       {selectedDay} {MONTHS_UZ[calMonth]} - Darslar
                     </h3>
                     {att && (
-                      <span className={`text-[11px] font-bold px-3 py-1.5 rounded-xl ${
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
                         att === "present" ? "bg-green-50 text-green-700" :
                         att === "absent" ? "bg-red-50 text-red-600" :
                         "bg-yellow-50 text-yellow-700"
@@ -259,19 +259,19 @@ export default function Home() {
                     )}
                   </div>
                   {dayClasses.map((cls: any, idx: number) => (
-                    <div key={cls.id || cls.group_id || idx} className="card-premium p-5">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-[#2001FF]/10 rounded-2xl flex items-center justify-center">
-                            <BookOpen size={22} className="text-[#2001FF]" />
+                    <div key={cls.id || cls.group_id || idx} className="card-premium p-3.5">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 bg-[#2001FF]/10 rounded-xl flex items-center justify-center">
+                            <BookOpen size={18} className="text-[#2001FF]" />
                           </div>
                           <div>
-                            <p className="text-base font-bold text-gray-900">{cls.subject}</p>
-                            <p className="text-xs font-medium text-gray-400 mt-0.5">{cls.group_name}</p>
+                            <p className="text-sm font-bold text-gray-900">{cls.subject}</p>
+                            <p className="text-[10px] font-medium text-gray-400 mt-0.5">{cls.group_name}</p>
                           </div>
                         </div>
                         {cls.status && (
-                          <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg ${
+                          <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-lg ${
                             (statusConfig[cls.status]?.bg || "bg-gray-50") + " " + (statusConfig[cls.status]?.text || "text-gray-500")
                           }`}>
                             {statusConfig[cls.status]?.label || cls.status}
@@ -279,41 +279,41 @@ export default function Home() {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-3.5 py-3">
-                          <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                            <Clock size={15} className="text-[#2001FF]" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-2.5 py-2">
+                          <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                            <Clock size={12} className="text-[#2001FF]" />
                           </div>
                           <div>
-                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Vaqt</p>
-                            <p className="text-sm font-bold text-gray-900">{cls.start_time} - {cls.end_time}</p>
+                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Vaqt</p>
+                            <p className="text-xs font-bold text-gray-900">{cls.start_time} - {cls.end_time}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-3.5 py-3">
-                          <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                            <MapPin size={15} className="text-[#2001FF]" />
+                        <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-2.5 py-2">
+                          <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                            <MapPin size={12} className="text-[#2001FF]" />
                           </div>
                           <div>
-                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Xona</p>
-                            <p className="text-sm font-bold text-gray-900">{cls.room || "Aniqlanmagan"}-xona</p>
+                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Xona</p>
+                            <p className="text-xs font-bold text-gray-900">{cls.room || "Aniqlanmagan"}-xona</p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center">
-                            <span className="text-xs font-bold text-gray-500">
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-gray-50 rounded-lg flex items-center justify-center">
+                            <span className="text-[10px] font-bold text-gray-500">
                               {cls.teacher ? cls.teacher.charAt(0).toUpperCase() : "O'"}
                             </span>
                           </div>
                           <div>
-                            <p className="text-xs font-medium text-gray-400">O'qituvchi</p>
-                            <p className="text-sm font-bold text-gray-900">{cls.teacher || "O'qituvchi"}</p>
+                            <p className="text-[10px] font-medium text-gray-400">O'qituvchi</p>
+                            <p className="text-xs font-bold text-gray-900">{cls.teacher || "O'qituvchi"}</p>
                           </div>
                         </div>
                         {cls.attendance_status && (
-                          <div className={`px-3 py-1.5 rounded-xl text-[11px] font-bold ${
+                          <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
                             cls.attendance_status === "present" ? "bg-green-50 text-green-700" :
                             cls.attendance_status === "absent" ? "bg-red-50 text-red-600" :
                             "bg-yellow-50 text-yellow-700"
@@ -330,8 +330,8 @@ export default function Home() {
             }
 
             return (
-              <div className="mt-3 card-premium p-5 animate-scale-in">
-                <p className="text-sm font-semibold text-gray-400 text-center">
+              <div className="mt-2.5 card-premium p-4 animate-scale-in">
+                <p className="text-xs font-semibold text-gray-400 text-center">
                   {selectedDay} {MONTHS_UZ[calMonth]} - Bu kunda dars yo'q edi
                 </p>
               </div>
@@ -340,30 +340,30 @@ export default function Home() {
         </section>
 
         {todayClasses.length > 1 && (
-          <section className="mb-4 animate-scale-in stagger-2">
-            <h2 className="text-sm font-bold text-gray-900 mb-3">Barcha darslar</h2>
-            <div className="space-y-2.5">
+          <section className="mb-3 animate-scale-in stagger-2">
+            <h2 className="text-xs font-bold text-gray-900 mb-2">Barcha darslar</h2>
+            <div className="space-y-2">
               {todayClasses.slice(1).map((cls: any, idx: number) => {
                 const sc = statusConfig[cls.status]
                 return (
                   <div
                     key={cls.id || idx}
                     onClick={() => navigate(`/lesson/${cls.group_id}`)}
-                    className="card-premium-sm p-4 flex items-center justify-between btn-hover cursor-pointer"
+                    className="card-premium-sm p-3 flex items-center justify-between btn-hover cursor-pointer"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center">
-                        <BookOpen size={18} className="text-gray-500" />
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center">
+                        <BookOpen size={15} className="text-gray-500" />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-gray-900">{cls.subject}</p>
-                        <p className="text-[11px] font-medium text-gray-400 mt-0.5">
+                        <p className="text-xs font-bold text-gray-900">{cls.subject}</p>
+                        <p className="text-[10px] font-medium text-gray-400 mt-0.5">
                           {cls.start_time} - {cls.end_time} | {cls.room}-xona
                         </p>
                       </div>
                     </div>
                     {sc && (
-                      <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg shrink-0 ${sc.bg} ${sc.text}`}>
+                      <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-lg shrink-0 ${sc.bg} ${sc.text}`}>
                         {sc.label}
                       </span>
                     )}
@@ -374,35 +374,35 @@ export default function Home() {
           </section>
         )}
 
-        <section className="mb-4 animate-scale-in stagger-3">
+        <section className="mb-3 animate-scale-in stagger-3">
           <button
             onClick={() => navigate("/homework")}
-            className="card-premium p-4 w-full flex items-center justify-between btn-hover"
+            className="card-premium p-3 w-full flex items-center justify-between btn-hover"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-[#2001FF]/10 rounded-2xl flex items-center justify-center">
-                <BookOpen size={22} className="text-[#2001FF]" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 bg-[#2001FF]/10 rounded-xl flex items-center justify-center">
+                <BookOpen size={18} className="text-[#2001FF]" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-bold text-gray-900">Uy vazifalari</p>
-                <p className="text-xs font-medium text-gray-400 mt-0.5">3 ta topshiriq</p>
+                <p className="text-xs font-bold text-gray-900">Uy vazifalari</p>
+                <p className="text-[10px] font-medium text-gray-400 mt-0.5">3 ta topshiriq</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <div className="flex -space-x-1.5">
-                <div className="w-6 h-6 bg-yellow-400 rounded-full border-2 border-white" />
-                <div className="w-6 h-6 bg-green-400 rounded-full border-2 border-white" />
-                <div className="w-6 h-6 bg-red-400 rounded-full border-2 border-white" />
+                <div className="w-5 h-5 bg-yellow-400 rounded-full border-2 border-white" />
+                <div className="w-5 h-5 bg-green-400 rounded-full border-2 border-white" />
+                <div className="w-5 h-5 bg-red-400 rounded-full border-2 border-white" />
               </div>
-              <ChevronRight size={18} className="text-gray-300" />
+              <ChevronRight size={15} className="text-gray-300" />
             </div>
           </button>
         </section>
 
       </div>
 
-      <button className="fixed bottom-24 right-5 w-14 h-14 bg-[#2001FF] rounded-full flex items-center justify-center shadow-xl shadow-[#2001FF]/30 animate-float btn-hover z-40">
-        <span className="text-2xl font-bold text-white leading-none">+</span>
+      <button className="fixed bottom-20 right-4 w-11 h-11 bg-[#2001FF] rounded-full flex items-center justify-center shadow-xl shadow-[#2001FF]/30 animate-float btn-hover z-40">
+        <span className="text-xl font-bold text-white leading-none">+</span>
       </button>
     </div>
   )

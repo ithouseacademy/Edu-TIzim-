@@ -139,9 +139,14 @@ def employee_api_required(view_func):
     return wrapper
 
 
-def _employee_data(emp):
+def _employee_data(emp, request=None):
     from .models import TeacherBalance
     balance = TeacherBalance.objects.filter(employee=emp).first()
+    photo_url = None
+    if emp.photo:
+        photo_url = emp.photo.url
+        if request and photo_url and not photo_url.startswith("http"):
+            photo_url = request.build_absolute_uri(photo_url)
     return {
         "id": emp.id,
         "first_name": emp.first_name,
@@ -151,7 +156,7 @@ def _employee_data(emp):
         "gender": emp.gender or "",
         "gender_display": emp.get_gender_display() if emp.gender else "",
         "birth_date": emp.birth_date.isoformat() if emp.birth_date else None,
-        "photo": emp.photo.url if emp.photo else None,
+        "photo": photo_url,
         "position": {"id": emp.position_id, "name": emp.position.name} if emp.position else None,
         "role": {"id": emp.role_id, "name": emp.role.name} if emp.role else None,
         "branches": [{"id": b.id, "name": b.name} for b in emp.branches.all()],
@@ -199,7 +204,7 @@ def employee_login(request):
     permissions = sorted(all_codenames()) if is_super_admin(user) else sorted(get_permissions(user))
     return JsonResponse({
         "success": True,
-        "employee": _employee_data(emp),
+        "employee": _employee_data(emp, request),
         "is_admin": user.is_staff or (emp.role and emp.role.name == "Administrator"),
         "is_teacher": emp.role and emp.role.name == "O'qituvchi",
         "is_super_admin": user.is_superuser,
@@ -226,7 +231,7 @@ def employee_list(request):
     employees = Employee.objects.select_related("position", "role").prefetch_related("branches").annotate(
         group_count=Count("teacher_groups")
     ).all().order_by("-created_at")
-    return JsonResponse({"employees": [_employee_data(e) for e in employees]})
+    return JsonResponse({"employees": [_employee_data(e, request) for e in employees]})
 
 
 @csrf_exempt
@@ -245,7 +250,7 @@ def employee_detail(request, pk):
     groups = employee.teacher_groups.select_related("course", "room").annotate(
         student_count=Count("students")
     ).all().order_by("-created_at")
-    data = _employee_data(employee)
+    data = _employee_data(employee, request)
     data["groups"] = [
         {
             "id": g.id,
@@ -328,7 +333,7 @@ def employee_create(request):
     if branch_ids:
         from .models import Branch
         employee.branches.set(Branch.objects.filter(pk__in=branch_ids))
-    return JsonResponse({"success": True, "employee": _employee_data(employee)})
+    return JsonResponse({"success": True, "employee": _employee_data(employee, request)})
 
 
 @csrf_exempt
@@ -400,7 +405,7 @@ def employee_update(request, pk):
     if branch_ids is not None:
         from .models import Branch
         employee.branches.set(Branch.objects.filter(pk__in=branch_ids))
-    return JsonResponse({"success": True, "employee": _employee_data(employee)})
+    return JsonResponse({"success": True, "employee": _employee_data(employee, request)})
 
 
 @csrf_exempt
@@ -1200,7 +1205,7 @@ def me(request):
         emp = request.user.employee_profile
     except:
         return JsonResponse({"error": "Xodim topilmadi"}, status=404)
-    data = _employee_data(emp)
+    data = _employee_data(emp, request)
     data["is_teacher"] = emp.role and emp.role.name == "O'qituvchi"
     data["username"] = request.user.username
     data["is_super_admin"] = request.user.is_superuser
@@ -1227,7 +1232,10 @@ def upload_photo(request):
         return JsonResponse({"error": "Rasm topilmadi"}, status=400)
     emp.photo = photo
     emp.save(update_fields=["photo"])
-    return JsonResponse({"success": True, "photo": emp.photo.url if emp.photo else None})
+    photo_url = emp.photo.url if emp.photo else None
+    if request and photo_url and not photo_url.startswith("http"):
+        photo_url = request.build_absolute_uri(photo_url)
+    return JsonResponse({"success": True, "photo": photo_url})
 
 
 @csrf_exempt

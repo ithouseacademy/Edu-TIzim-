@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { KeyRound, Send, LogOut, User, Wallet, ChevronRight, Camera, Download, Users, Pencil } from "lucide-react"
-import { api } from "../api"
+import { api, fixPhotoUrl } from "../api"
 import type { SalaryData, TeacherGroup } from "../types"
 import WaveHeader from "../components/WaveHeader"
 import DesktopShell from "../components/DesktopShell"
@@ -30,7 +30,7 @@ export default function Profile({ onNavigate, onLogout }: ProfileProps) {
   const [tab, setTab] = useState("oylik")
   const [grpQuery, setGrpQuery] = useState("")
   const [photoUploading, setPhotoUploading] = useState(false)
-  const [photoUrl, setPhotoUrl] = useState<string | null>(emp.photo || null)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(fixPhotoUrl(emp.photo))
 
   useEffect(() => {
     api.mySalary()
@@ -57,7 +57,7 @@ export default function Profile({ onNavigate, onLogout }: ProfileProps) {
     setPhotoUploading(true)
     try {
       const res = await api.uploadPhoto(file)
-      setPhotoUrl(res.photo)
+      setPhotoUrl(fixPhotoUrl(res.photo))
       const updatedEmp = { ...emp, photo: res.photo }
       localStorage.setItem("employee", JSON.stringify(updatedEmp))
     } catch (err) {
