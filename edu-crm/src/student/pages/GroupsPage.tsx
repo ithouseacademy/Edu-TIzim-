@@ -2,10 +2,12 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Users } from "lucide-react"
 import { api } from "../api"
+import { useAppSettings } from "../AppSettings"
 import type { GroupInfo } from "../types"
 
 export default function GroupsPage() {
   const navigate = useNavigate()
+  const { tr } = useAppSettings()
   const [groups, setGroups] = useState<GroupInfo[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -33,7 +35,7 @@ export default function GroupsPage() {
           >
             <ArrowLeft size={16} className="text-gray-700" />
           </button>
-          <h1 className="text-base font-bold text-gray-900">Guruhlarim</h1>
+          <h1 className="text-base font-bold text-gray-900">{tr("Guruhlarim")}</h1>
         </header>
 
         {loading ? (
@@ -43,7 +45,7 @@ export default function GroupsPage() {
         ) : groups.length === 0 ? (
           <div className="card-premium px-5 py-10 text-center">
             <Users size={32} className="mx-auto text-gray-300 mb-2" />
-            <p className="text-xs font-medium text-gray-400">Guruhlar mavjud emas</p>
+            <p className="text-xs font-medium text-gray-400">{tr("Guruhlar mavjud emas")}</p>
           </div>
         ) : (
           <div className="space-y-2">

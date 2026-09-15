@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Taklif va shikoyatlar | Edu Tizim{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div>
+      <h2 class="text-xl font-bold text-[#0f172a]">Taklif va shikoyatlar</h2>
+      <p class="text-sm text-[#64748b] mt-0.5">
+        O'quvchilardan kelgan xabarlar — {% if new_count > 0 %}<span class="font-semibold text-[#e53935]">{{ new_count }} ta yangi</span>{% else %}hammasi ko'rilgan{% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 mb-4">
+    <form method="get" class="flex flex-wrap items-center gap-3">
+      <div class="flex-1 min-w-[200px]">
+        <input type="text" name="q" value="{{ q }}" placeholder="Qidirish: matn yoki o'quvchi ismi..." class="w-full px-3 py-2 rounded-lg border border-[#e2e8f0] text-sm focus:outline-none focus:border-[#2563eb]">
+      </div>
+      <select name="category" class="px-3 py-2 rounded-lg border border-[#e2e8f0] text-sm text-[#334155] bg-white focus:outline-none focus:border-[#2563eb]">
+        <option value="">Barcha turlar</option>
+        {% for value, label in category_choices %}
+        <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select name="status" class="px-3 py-2 rounded-lg border border-[#e2e8f0] text-sm text-[#334155] bg-white focus:outline-none focus:border-[#2563eb]">
+        <option value="">Barcha holatlar</option>
+        {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="px-4 py-2 bg-[#2563eb] text-white rounded-lg text-sm font-semibold hover:bg-[#1d4ed8] transition-all">Filterlash</button>
+      <a href="{% url 'feedback_list' %}" class="px-4 py-2 border border-[#e2e8f0] rounded-lg text-sm font-semibold text-[#64748b] hover:bg-[#f8fafc] transition-all">Tozalash</a>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-[#f8fafc] border-b border-[#e2e8f0] text-left text-xs uppercase tracking-wide text-[#64748b]">
+            <th class="px-5 py-3 font-semibold">Tur</th>
+            <th class="px-5 py-3 font-semibold">O'quvchi</th>
+            <th class="px-5 py-3 font-semibold">Xabar</th>
+            <th class="px-5 py-3 font-semibold">Holat</th>
+            <th class="px-5 py-3 font-semibold">Sana</th>
+            <th class="px-5 py-3 font-semibold text-right">Amal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in feedbacks %}
+          <tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc] {% if f.status == 'yangi' %}bg-[#fffbeb]{% endif %}">
+            <td class="px-5 py-3">
+              {% if f.category == "shikoyat" %}
+              <span class="badge badge-red"><i class="fas fa-exclamation-circle"></i> Shikoyat</span>
+              {% else %}
+              <span class="badge badge-blue"><i class="fas fa-lightbulb"></i> Taklif</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3">
+              <div class="font-semibold text-[#0f172a]">{{ f.student.first_name }} {{ f.student.last_name }}</div>
+              <div class="text-[11px] text-[#94a3b8]">{{ f.student.phone }}</div>
+            </td>
+            <td class="px-5 py-3 text-[#334155] max-w-xs">
+              {% if f.status == 'yangi' %}<span class="inline-block w-2 h-2 rounded-full bg-[#e53935] mr-1.5 align-middle"></span>{% endif %}
+              <span class="align-middle">{{ f.message|truncatechars:80 }}</span>
+            </td>
+            <td class="px-5 py-3">
+              {% if f.status == "yangi" %}
+              <span class="badge badge-red">Yangi</span>
+              {% elif f.status == "oqilgan" %}
+              <span class="badge badge-yellow">O'qilgan</span>
+              {% else %}
+              <span class="badge badge-green">Javob berilgan</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3 text-[#64748b]">{{ f.created_at|date:"d.m.Y H:i" }}</td>
+            <td class="px-5 py-3">
+              <div class="flex items-center justify-end gap-2">
+                <a href="{% url 'feedback_detail' f.pk %}" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#eff6ff] text-[#2563eb] hover:bg-[#dbeafe] transition-all">
+                  <i class="fas fa-eye"></i> Ko'rish
+                </a>
+                {% if can_respond %}
+                <button onclick="deleteFeedback({{ f.pk }})" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#fee2e2] text-[#dc2626] hover:bg-[#fecaca] transition-all" title="O'chirish">
+                  <i class="fas fa-trash"></i>
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="px-5 py-10 text-center text-[#94a3b8]">Xabarlar topilmadi</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function deleteFeedback(pk) {
+  if (!confirm('Bu xabarni o\'chirishni tasdiqlaysizmi?')) return;
+  fetch(`/feedback/${pk}/delete/`, { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' } })
+    .then(r => r.json())
+    .then(d => { if (d.ok) location.reload(); else alert(d.error || 'Xatolik'); })
+    .catch(() => alert('Xatolik yuz berdi'));
+}
+</script>
+{% endblock %}

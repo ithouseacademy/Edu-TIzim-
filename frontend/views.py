@@ -18,7 +18,7 @@ from django.utils import timezone
 from datetime import date, timedelta, datetime, timezone as dt_timezone
 import calendar
 from decimal import Decimal
-from .models import Course, CourseLevel, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Task, Reminder, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, SavedReceipt, Kassa, KassaTransaction, KassaTransfer, PaymentMethod, ExpenseCategory, SmsHistory, TeacherBalance, TeacherTransaction, GroupTeacherAssignment, LessonTeacherSalary, IncomeCategory, EslatmaReminderSetting
+from .models import Course, CourseLevel, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Task, Reminder, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, SavedReceipt, Kassa, KassaTransaction, KassaTransfer, PaymentMethod, ExpenseCategory, SmsHistory, TeacherBalance, TeacherTransaction, GroupTeacherAssignment, LessonTeacherSalary, IncomeCategory, EslatmaReminderSetting, ensure_student_username
 from .forms import LoginForm, CourseForm, CourseLevelForm, GroupForm, StudentCreateForm, StudentEditForm, MarketingSurveyForm, FreezeForm, RemoveFromGroupForm, AddToGroupForm, LessonTimeForm, BranchForm, RoomForm, PositionForm, EmployeeForm, TaskForm, ReminderForm
 from .sms_service import send_absence_sms, send_payment_received_sms, send_bulk_debt_reminders
 from .student_api import send_telegram_message
@@ -2362,6 +2362,8 @@ def student_create(request):
             groups = list(form.cleaned_data.get("groups", []))
             student = form.save(commit=False)
             student.save()
+            ensure_student_username(student, force=not student.username)
+            student.save(update_fields=["username"])
             for g in groups:
                 _add_student_to_group(student, g, "O'quvchi yaratilganda qo'shildi")
             form.save_m2m()
@@ -2413,6 +2415,8 @@ def student_update(request, pk):
         if form.is_valid():
             student = form.save(commit=False)
             student.save()
+            ensure_student_username(student, force=not student.username)
+            student.save(update_fields=["username"])
             new_groups = set(form.cleaned_data.get("groups", []))
             for g in new_groups - old_groups:
                 _add_student_to_group(student, g, "Tahrirlash orqali qo'shildi", request=request)
@@ -6847,6 +6851,7 @@ def additional_functions(request):
         {"title": "Chek sozlamalari", "description": "Chek chiqarish sozlamalarini boshqarish", "url": "receipt_settings", "icon": "fa-cog", "color": "#64748b"},
         {"title": "SMS sozlamalari", "description": "SMS xabarlar yuborish sozlamalarini boshqarish", "url": "sms_settings", "icon": "fa-sms", "color": "#2563eb"},
         {"title": "Davomat eslatmasi", "description": "Davomat to'ldirilmagan guruhlar uchun avto eslatmani yoqish va sozlash", "url": "attendance_reminder_settings", "icon": "fa-clock", "color": "#ea580c"},
+        {"title": "Xabarlar sozlamalari", "description": "Suhbatlar bo'limini yoqish/o'chirish va o'quvchi chat huquqlari", "url": "messaging_settings", "icon": "fa-comments", "color": "#2001FF"},
         {"title": "Pul yechish sozlamalari", "description": "Pul yechish va to'lov sozlamalarini boshqarish", "url": "global_config", "icon": "fa-sliders-h", "color": "#7c3aed"},
         {"title": "Tranzaksiyalar", "description": "Barcha to'lov tranzaksiyalarini tarixini ko'rish", "url": "payment_history", "icon": "fa-history", "color": "#6366f1"},
         {"title": "To'lov filtri", "description": "To'lovlarni sana, summa va holat bo'yicha filtrlash", "url": "payment_filter", "icon": "fa-filter", "color": "#0891b2"},
@@ -6854,3 +6859,32 @@ def additional_functions(request):
     return render(request, "additional_functions.html", {"functions": functions})
 
 
+
+@login_required(login_url="login")
+def messaging(request):
+    """Web panel «Xabarlar» bo'limi (admin va o'qituvchi uchun)."""
+    from django.core.exceptions import PermissionDenied
+    import frontend.messaging_api as ma
+    if not ma.can_access_messaging(request.user):
+        raise PermissionDenied("Sizda xabarlar bo'limini ko'rish uchun ruxsat yo'q")
+    return render(request, "messaging.html", {"messaging_page": True})
+
+
+@login_required(login_url="login")
+def messaging_settings(request):
+    """Xabarlar bo'limini yoqish/o'chirish va sozlamalar."""
+    from .permissions import has_permission
+    user = request.user
+    if not (user.is_superuser or has_permission(user, "messaging.settings") or has_permission(user, "settings.update")):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("Sizda xabarlar sozlamalarini boshqarish huquqi yo'q")
+    cfg = GlobalConfig.get_instance()
+    if request.method == "POST":
+        cfg.messaging_enabled = request.POST.get("messaging_enabled") == "1"
+        cfg.student_private_chats = request.POST.get("student_private_chats") == "1"
+        cfg.student_group_chats = request.POST.get("student_group_chats") == "1"
+        cfg.teachers_in_group_chats = request.POST.get("teachers_in_group_chats") == "1"
+        cfg.save()
+        messages.success(request, "Xabarlar sozlamalari saqlandi")
+        return redirect("messaging_settings")
+    return render(request, "settings/messaging.html", {"cfg": cfg})

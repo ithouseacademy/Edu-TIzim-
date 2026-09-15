@@ -1,7 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom"
 import { Home, CalendarDays, MessageCircle, User } from "lucide-react"
+import { useAppSettings } from "../AppSettings"
+import { useMessagingSettings } from "../messaging"
 
-const tabs = [
+const allTabs = [
   { icon: Home, label: "Home", path: "/home" },
   { icon: CalendarDays, label: "Schedule", path: "/schedule" },
   { icon: MessageCircle, label: "Messages", path: "/messages" },
@@ -11,6 +13,10 @@ const tabs = [
 export default function BottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { tr } = useAppSettings()
+  const ms = useMessagingSettings()
+
+  const tabs = ms && !ms.enabled ? allTabs.filter((t) => t.path !== "/messages") : allTabs
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-100/80 safe-bottom shadow-[0_-4px_30px_rgba(0,0,0,0.04)]">
@@ -41,7 +47,7 @@ export default function BottomNav() {
                   active ? "text-[#2001FF]" : "text-[#9CA3AF]"
                 }`}
               >
-                {tab.label}
+                {tr(tab.label)}
               </span>
               {active && (
                 <div className="absolute -top-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-[#2001FF] rounded-full" />

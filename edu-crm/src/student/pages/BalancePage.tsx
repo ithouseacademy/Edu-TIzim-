@@ -2,23 +2,25 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, History } from "lucide-react"
 import { api } from "../api"
+import { useAppSettings } from "../AppSettings"
 import type { StudentProfile } from "../types"
 
 function formatMoney(n: number): string {
   return `${n.toLocaleString("ru-RU")} so'm`
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-[18px] text-[#6B6B70]">{label}</span>
-      <span className="text-[18px] font-medium text-[#1B1B1F]">{value}</span>
+      <span className={`text-[18px] font-medium text-[#1B1B1F] ${valueClass || ""}`}>{value}</span>
     </div>
   )
 }
 
 export default function BalancePage() {
   const navigate = useNavigate()
+  const { tr } = useAppSettings()
   const [student, setStudent] = useState<StudentProfile | null>(null)
 
   useEffect(() => {
@@ -38,22 +40,23 @@ export default function BalancePage() {
   const balance = student.balance ?? 0
   const balanceStr = formatMoney(balance)
   const remaining = student.remaining_lessons ?? 0
-  const toPay = balance < 0 ? -balance : 0
-  const toPayStr = toPay > 0 ? `-${toPay.toLocaleString("ru-RU")} so'm` : "0 so'm"
+  const hasDebt = (student.debt ?? 0) > 0
+  const debtStr = student.debt_str || "0 so'm"
+  const toPayStr = student.to_pay_str || "0 so'm"
 
   return (
     <div className="min-h-[100dvh] bg-white text-[#1B1B1F] flex flex-col font-sans">
       <header className="h-20 bg-white flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate("/profile")} className="btn-hover" aria-label="Orqaga">
+          <button onClick={() => navigate("/profile")} className="btn-hover" aria-label={tr("Orqaga")}>
             <ArrowLeft size={22} className="text-[#1B1B1F]" />
           </button>
-          <span className="text-[20px] font-medium text-[#1B1B1F] tracking-tight">Balans</span>
+          <span className="text-[20px] font-medium text-[#1B1B1F] tracking-tight">{tr("Balans")}</span>
         </div>
         <button
           onClick={() => navigate("/profile/transactions")}
           className="w-10 h-10 rounded-full bg-[#F2F2F5] flex items-center justify-center btn-hover"
-          aria-label="Tranzaksiyalar"
+          aria-label={tr("Tranzaksiyalar")}
         >
           <History size={18} className="text-[#6B6B70]" />
         </button>
@@ -61,7 +64,7 @@ export default function BalancePage() {
 
       <div className="flex flex-col flex-1 px-6 min-h-0">
         <div className="pt-16 text-center">
-          <p className="text-[16px] text-[#8A8A8E]">Joriy balans</p>
+          <p className="text-[16px] text-[#8A8A8E]">{tr("Joriy balans")}</p>
           <p className={`mt-3 text-[46px] font-medium leading-none tracking-tight ${balance < 0 ? "text-[#DC2626]" : "text-[#1B1B1F]"}`}>
             {balanceStr}
           </p>
@@ -73,9 +76,9 @@ export default function BalancePage() {
           className="space-y-5 mb-10"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >
-          <Row label="Qolgan darslar soni:" value={`${remaining} ta`} />
-          <Row label="To‘lanishi kerak:" value={toPayStr} />
-          <Row label="To‘lash uchun jami:" value={toPayStr} />
+          <Row label={tr("Qolgan darslar soni:")} value={`${remaining} ${tr("ta")}`} />
+          <Row label={tr("Umumiy qarzdorlik:")} value={debtStr} valueClass={hasDebt ? "text-[#DC2626]" : ""} />
+          <Row label={tr("To‘lanishi kerak:")} value={toPayStr} valueClass={(student.to_pay ?? 0) > 0 ? "text-[#DC2626]" : ""} />
         </div>
       </div>
     </div>

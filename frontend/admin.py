@@ -1,11 +1,19 @@
 from django.contrib import admin
-from .models import Course, CourseLevel, MarketingSurvey, Group, Student, LessonTime, StudentLog, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, VerificationCode, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, Kassa, KassaTransaction, KassaTransfer, PaymentMethod, ExpenseCategory, SmsHistory, TeacherBalance, TeacherTransaction, GroupTeacherAssignment, LessonTeacherSalary, Permission as PermissionModel, AdminPermission, PermissionAuditLog
+from .models import Course, CourseLevel, MarketingSurvey, Group, Student, LessonTime, StudentLog, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, VerificationCode, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, Kassa, KassaTransaction, KassaTransfer, PaymentMethod, ExpenseCategory, SmsHistory, TeacherBalance, TeacherTransaction, GroupTeacherAssignment, LessonTeacherSalary, Permission as PermissionModel, AdminPermission, PermissionAuditLog, Feedback, Chat, ChatMember, Message
+
+
+@admin.register(Student)
+class StudentAdmin(admin.ModelAdmin):
+    list_display = ["id", "first_name", "last_name", "username", "phone", "status", "is_active"]
+    list_filter = ["status", "is_active"]
+    search_fields = ["first_name", "last_name", "username", "phone"]
+    ordering = ["-id"]
+
 
 admin.site.register(Course)
 admin.site.register(CourseLevel)
 admin.site.register(MarketingSurvey)
 admin.site.register(Group)
-admin.site.register(Student)
 admin.site.register(LessonTime)
 admin.site.register(StudentLog)
 admin.site.register(Branch)
@@ -126,3 +134,43 @@ class PermissionAuditLogAdmin(admin.ModelAdmin):
     list_filter = ["action", "permission_module", "created_at"]
     search_fields = ["actor__username", "target_user__username", "permission_codename"]
     readonly_fields = ["created_at"]
+
+
+@admin.register(Feedback)
+class FeedbackAdmin(admin.ModelAdmin):
+    list_display = ["student", "category", "status", "message_preview", "admin_response", "created_at"]
+    list_filter = ["category", "status", "created_at"]
+    search_fields = ["student__first_name", "student__last_name", "message"]
+    readonly_fields = ["created_at"]
+
+    @admin.display(description="Xabar")
+    def message_preview(self, obj):
+        return (obj.message or "")[:60]
+
+@admin.register(Chat)
+class ChatAdmin(admin.ModelAdmin):
+    list_display = ["id", "title", "chat_type", "group", "created_at"]
+    list_filter = ["chat_type", "created_at"]
+    search_fields = ["title", "group__name"]
+
+
+@admin.register(ChatMember)
+class ChatMemberAdmin(admin.ModelAdmin):
+    list_display = ["chat", "student", "employee", "user", "is_admin", "joined_at"]
+    list_filter = ["is_admin", "joined_at"]
+    search_fields = ["chat__title", "student__first_name", "employee__first_name"]
+
+    @admin.display(description="Ishtirokchi")
+    def who(self, obj):
+        return str(obj.student or obj.employee or obj.user or "-")
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ["id", "chat", "sender", "media_type", "created_at"]
+    list_filter = ["media_type", "created_at"]
+    search_fields = ["text", "chat__title", "student__first_name", "employee__first_name"]
+
+    @admin.display(description="Yuboruvchi")
+    def sender(self, obj):
+        return str(obj.student or obj.employee or obj.user or "-")

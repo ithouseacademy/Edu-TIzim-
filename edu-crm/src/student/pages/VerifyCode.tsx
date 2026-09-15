@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { api } from "../api"
+import { useAppSettings } from "../AppSettings"
 
 const CODE_EXPIRY = 300
 
 export default function VerifyCode() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { tr } = useAppSettings()
   const { phone, telegram_connected } = location.state || {}
   const [digits, setDigits] = useState(["", "", "", "", "", ""])
   const [loading, setLoading] = useState(false)
@@ -63,8 +65,8 @@ export default function VerifyCode() {
       } else {
         navigate("/set-password", { state: { phone, tempToken: res.token } })
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
       setDigits(["", "", "", "", "", ""])
       inputRefs.current[0]?.focus()
     } finally {
@@ -88,8 +90,8 @@ export default function VerifyCode() {
       setDigits(["", "", "", "", "", ""])
       setError("")
       inputRefs.current[0]?.focus()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setResending(false)
     }
@@ -123,7 +125,9 @@ export default function VerifyCode() {
               <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
             </svg>
             <p className="text-xs text-gray-600 leading-relaxed">
-              Kod Telegram'ingizga kelmagan bo'lsa, <a href="https://t.me/ithousekuy_bot" target="_blank" rel="noopener noreferrer" className="text-[#2001FF] font-semibold">@ithousekuy_bot</a> ga o'tib, telefon raqamingizni ulang va kodni qayta yuboring.
+              {tr("Kod Telegram'ingizga kelmagan bo'lsa, ")}
+              <a href="https://t.me/ithousekuy_bot" target="_blank" rel="noopener noreferrer" className="text-[#2001FF] font-semibold">@ithousekuy_bot</a>
+              {tr(" ga o'tib, telefon raqamingizni ulang va kodni qayta yuboring.")}
             </p>
           </div>
         )}
@@ -139,9 +143,9 @@ export default function VerifyCode() {
                 </svg>
               </div>
             </div>
-            <h1 className="text-[26px] font-bold text-[#111827] tracking-[-0.5px]">Tasdiqlash kodi</h1>
+            <h1 className="text-[26px] font-bold text-[#111827] tracking-[-0.5px]">{tr("Tasdiqlash kodi")}</h1>
             <p className="text-[15px] text-[#6B7280] font-normal mt-2 leading-relaxed">
-              6 xonali kod <span className="text-[#2001FF] font-semibold">{formatPhone(phone || "")}</span> raqamiga yuborildi
+              {tr("6 xonali kod")} <span className="text-[#2001FF] font-semibold">{formatPhone(phone || "")}</span> {tr("raqamiga yuborildi")}
             </p>
           </div>
 
@@ -175,7 +179,7 @@ export default function VerifyCode() {
             <div className="flex justify-center mb-3">
               <div className="flex items-center gap-2.5 bg-[#F0F0FF] px-5 py-2.5 rounded-full">
                 <div className="w-4 h-4 border-[2.5px] border-[#2001FF]/20 border-t-[#2001FF] rounded-full animate-spin" />
-                <span className="text-sm font-medium text-[#2001FF]">Tekshirilmoqda...</span>
+                <span className="text-sm font-medium text-[#2001FF]">{tr("Tekshirilmoqda...")}</span>
               </div>
             </div>
           )}
@@ -211,12 +215,12 @@ export default function VerifyCode() {
                   disabled={resending}
                   className="text-sm font-medium text-[#2001FF] hover:text-[#1a00e0] transition-colors disabled:opacity-40"
                 >
-                  Kodni qayta yuborish
+                  {tr("Kodni qayta yuborish")}
                 </button>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-4">
-                <p className="text-sm font-medium text-red-500">Kod muddati tugadi</p>
+                <p className="text-sm font-medium text-red-500">{tr("Kod muddati tugadi")}</p>
                 <button
                   onClick={handleResend}
                   disabled={resending}
@@ -225,7 +229,7 @@ export default function VerifyCode() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={resending ? "animate-spin" : ""}>
                     <path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
                   </svg>
-                  {resending ? "Yuborilmoqda..." : "Qayta yuborish"}
+                  {resending ? tr("Yuborilmoqda...") : tr("Qayta yuborish")}
                 </button>
               </div>
             )}
@@ -235,13 +239,13 @@ export default function VerifyCode() {
         {/* Bottom */}
         <div className="text-center">
           <p className="text-[13px] text-gray-400 font-medium">
-            Kod kelmadimi?{" "}
+            {tr("Kod kelmadimi? ")}
             <button
               onClick={handleResend}
               disabled={resending}
               className="text-[#2001FF] font-semibold hover:underline disabled:opacity-40"
             >
-              {resending ? "Yuborilmoqda..." : "Qayta yuborish"}
+              {resending ? tr("Yuborilmoqda...") : tr("Qayta yuborish")}
             </button>
           </p>
         </div>

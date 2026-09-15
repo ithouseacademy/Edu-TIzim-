@@ -2,6 +2,7 @@ import json
 import random
 import re
 import string
+import calendar
 from functools import wraps
 from datetime import datetime, date, timedelta, time
 from django.conf import settings
@@ -12,7 +13,7 @@ from django.contrib.auth import authenticate
 from django.db.models import Count, Q
 from django.utils import timezone as use_tz
 from decimal import Decimal
-from .models import Student, Group, LessonTime, Attendance, VerificationCode, Employee, StudentBalance, Transaction, Task, Reminder
+from .models import Student, Group, LessonTime, Attendance, VerificationCode, Employee, StudentBalance, Transaction, Task, Reminder, Feedback
 
 
 def generate_code():
@@ -656,7 +657,9 @@ def verify_code(request):
 
     if student:
         balance, _ = StudentBalance.objects.get_or_create(student=student, defaults={"balance": Decimal('0.00')})
-        debt = abs(balance.balance) if balance.balance < 0 else 0
+        from .views import _calc_monthly_debts
+        monthly_debts, _ = _calc_monthly_debts(student)
+        debt = sum(d["debt"] for d in monthly_debts)
         student_data = {
             "id": student.id,
             "first_name": student.first_name,
@@ -816,8 +819,11 @@ def profile(request):
         })
 
     balance, _ = StudentBalance.objects.get_or_create(student=student, defaults={"balance": Decimal('0.00')})
-    debt = abs(balance.balance) if balance.balance < 0 else 0
+    from .views import _calc_monthly_debts, calculate_remaining_month_payment
+    monthly_debts, deferred_payments = _calc_monthly_debts(student)
+    debt = sum(d["debt"] for d in monthly_debts)
     remaining_lessons = _remaining_lessons_in_month(student, date.today())
+    to_pay = calculate_remaining_month_payment(student)
 
     recent_transactions = Transaction.objects.filter(student=student).select_related("group").order_by("-created_at")[:20]
     transactions_data = []
@@ -851,10 +857,42 @@ def profile(request):
             "balance_str": f"{balance.balance:,.0f} so'm",
             "debt": float(debt),
             "debt_str": f"{debt:,.0f} so'm" if debt else "0 so'm",
+            "to_pay": float(to_pay),
+            "to_pay_str": f"{to_pay:,.0f} so'm" if to_pay else "0 so'm",
+            "total_to_pay": float(debt) + float(to_pay),
+            "total_to_pay_str": f"{debt + to_pay:,.0f} so'm" if (debt + to_pay) else "0 so'm",
             "remaining_lessons": remaining_lessons,
         },
         "groups": groups_data,
         "transactions": transactions_data,
+    })
+
+
+@csrf_exempt
+@student_required
+def update_profile(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST so'rovi kerak"}, status=405)
+    try:
+        data = json.loads(request.body)
+    except:
+        return JsonResponse({"error": "Noto'g'ri JSON"}, status=400)
+
+    student = request.student
+    birth_date = data.get("birth_date")
+    if birth_date:
+        try:
+            student.birth_date = date.fromisoformat(birth_date)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Noto'g'ri sana formati"}, status=400)
+    else:
+        student.birth_date = None
+
+    student.save(update_fields=["birth_date"])
+    return JsonResponse({
+        "success": True,
+        "message": "Ma'lumotlar saqlandi.",
+        "birth_date": student.birth_date.isoformat() if student.birth_date else "",
     })
 
 
@@ -1073,3 +1111,53 @@ def student_transactions_api(request):
             "created_at": t.created_at.astimezone(use_tz.get_current_timezone()).strftime("%d.%m.%Y %H:%M"),
         })
     return JsonResponse({"transactions": data})
+
+
+def _feedback_dict(f):
+    return {
+        "id": f.id,
+        "category": f.category,
+        "category_display": f.get_category_display(),
+        "message": f.message,
+        "status": f.status,
+        "status_display": f.get_status_display(),
+        "admin_response": f.admin_response,
+        "responded_at": f.responded_at.astimezone(use_tz.get_current_timezone()).strftime("%d.%m.%Y %H:%M") if f.responded_at else "",
+        "created_at": f.created_at.astimezone(use_tz.get_current_timezone()).strftime("%d.%m.%Y %H:%M"),
+    }
+
+
+@student_required
+def my_feedbacks(request):
+    student = request.student
+    items = Feedback.objects.filter(student=student).order_by("-created_at")[:100]
+    return JsonResponse({"feedbacks": [_feedback_dict(f) for f in items]})
+
+
+@csrf_exempt
+@student_required
+def create_feedback(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST so'rovi kerak"}, status=405)
+    try:
+        data = json.loads(request.body)
+    except:
+        return JsonResponse({"error": "Noto'g'ri JSON"}, status=400)
+
+    student = request.student
+    category = (data.get("category") or "").strip()
+    message = (data.get("message") or "").strip()
+    valid_categories = {c for c, _ in Feedback.Category.choices}
+    if category not in valid_categories:
+        return JsonResponse({"error": "Noto'g'ri tur tanlandi (taklif yoki shikoyat)"}, status=400)
+    if not message:
+        return JsonResponse({"error": "Xabar matni bo'sh bo'lishi mumkin emas"}, status=400)
+    if len(message) > 2000:
+        return JsonResponse({"error": "Xabar juda uzun (maksimal 2000 belgi)"}, status=400)
+
+    feedback = Feedback.objects.create(student=student, category=category, message=message)
+    return JsonResponse({
+        "success": True,
+        "message": "Xabaringiz yuborildi. Administratorga yetkazildi.",
+        "feedback": _feedback_dict(feedback),
+    })

@@ -1,0 +1,12 @@
+[variables]
+PYTHON_VERSION = "3.11"
+
+[phases.setup]
+nixPkgs = ["python311", "gcc", "libffi", "openssl", "pkg-config"]
+cmds = ["ln -sf python3 /usr/bin/python"]
+
+[phases.install]
+cmds = ["pip install --upgrade pip", "pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["python manage.py collectstatic --noinput"]

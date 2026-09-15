@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { CalendarDays, Clock, MapPin, BookOpen, ChevronRight } from "lucide-react"
 import { api } from "../api"
+import { useAppSettings } from "../AppSettings"
 import type { ScheduleDay } from "../types"
 
 const dayKeys = ["dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba"]
@@ -21,6 +22,7 @@ const colors = [
 
 export default function Schedule() {
   const navigate = useNavigate()
+  const { tr } = useAppSettings()
   const today = new Date()
   const weekdayMap = ["yakshanba", "dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba"]
   const [activeDay, setActiveDay] = useState(weekdayMap[today.getDay()])
@@ -48,8 +50,8 @@ export default function Schedule() {
             <CalendarDays size={18} className="text-[#2001FF]" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-gray-900 tracking-tight">Schedule</h1>
-            <p className="text-[10px] text-gray-400 font-medium">Haftalik darslar tartibi</p>
+            <h1 className="text-base font-bold text-gray-900 tracking-tight">{tr("Schedule")}</h1>
+            <p className="text-[10px] text-gray-400 font-medium">{tr("Haftalik darslar tartibi")}</p>
           </div>
         </div>
 
@@ -79,9 +81,9 @@ export default function Schedule() {
 
         {/* Day title */}
         <div className="flex items-center justify-between mb-2 animate-fade-in">
-          <p className="text-xs font-bold text-gray-900">{fullLabels[activeDay]}</p>
+          <p className="text-xs font-bold text-gray-900">{tr(fullLabels[activeDay])}</p>
           <span className="text-[9px] font-semibold text-gray-400 bg-white px-2 py-0.5 rounded-lg card-shadow">
-            {lessons.length} ta dars
+            {lessons.length} {tr("ta dars")}
           </span>
         </div>
 
@@ -92,7 +94,7 @@ export default function Schedule() {
               <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-2">
                 <CalendarDays size={22} className="text-gray-300" />
               </div>
-              <p className="text-xs font-medium text-gray-400">Bu kunga darslar mavjud emas</p>
+              <p className="text-xs font-medium text-gray-400">{tr("Bu kunga darslar mavjud emas")}</p>
             </div>
           )}
 

@@ -2,9 +2,11 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, ShieldCheck } from "lucide-react"
 import { api } from "../api"
+import { useAppSettings } from "../AppSettings"
 
 export default function LoginPhone() {
   const navigate = useNavigate()
+  const { tr } = useAppSettings()
   const [phone, setPhone] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -26,7 +28,7 @@ export default function LoginPhone() {
   const handleSubmit = async () => {
     const raw = phone.replace(/\s/g, "")
     if (raw.length !== 9) {
-      setError("Telefon raqamni to'liq kiriting")
+      setError(tr("Telefon raqamni to'liq kiriting"))
       return
     }
     setLoading(true)
@@ -34,8 +36,8 @@ export default function LoginPhone() {
       const full = "+998" + raw
       const res = await api.sendCode(full)
       navigate("/verify-code", { state: { phone: full, telegram_connected: res.telegram_connected } })
-    } catch (err: any) {
-      setError(err.message || "Xatolik yuz berdi")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tr("Xatolik yuz berdi"))
     } finally {
       setLoading(false)
     }
@@ -66,15 +68,13 @@ export default function LoginPhone() {
         {/* Title */}
         <div className="mb-10">
           <h1 className="text-[#111827] font-bold text-[28px] leading-[1.25] tracking-[-0.5px]">
-            Tizimga kirish uchun
-            <br />
-            maydonlarni to'ldiring.
+            {tr("Tizimga kirish uchun\nmaydonlarni to'ldiring.")}
           </h1>
         </div>
 
         {/* Label */}
         <label className="text-gray-400 text-[11px] font-semibold uppercase tracking-[1.5px] mb-3 block">
-          Telefon raqami
+          {tr("Telefon raqami")}
         </label>
 
         {/* Phone input */}
@@ -140,23 +140,23 @@ export default function LoginPhone() {
           {loading ? (
             <div className="flex items-center justify-center gap-2.5">
               <div className="w-5 h-5 border-2 border-white/30 rounded-full animate-spin border-t-white" />
-              <span className="text-white/80 font-medium">Yuborilmoqda...</span>
+              <span className="text-white/80 font-medium">{tr("Yuborilmoqda...")}</span>
             </div>
           ) : (
-            "Davom etish"
+            tr("Davom etish")
           )}
         </button>
 
         {/* Links */}
         <div className="flex flex-col items-center gap-4 mt-6">
           <button className="text-[#2001FF] text-sm font-medium hover:opacity-80 transition-opacity">
-            Parolni unutdingizmi?
+            {tr("Parolni unutdingizmi?")}
           </button>
           <button
             onClick={() => navigate("/password-login")}
             className="text-gray-400 text-sm font-medium hover:text-gray-600 transition-colors"
           >
-            Username orqali kirish
+            {tr("Username orqali kirish")}
           </button>
         </div>
 
@@ -164,7 +164,7 @@ export default function LoginPhone() {
         <div className="flex items-center justify-center gap-2 mt-8 shrink-0">
           <ShieldCheck size={14} className="text-gray-300 shrink-0" />
           <p className="text-gedium text-center leading-relaxed">
-            Ma'lumotlaringiz xavfsiz saqlanadi va uchinchi shaxslarga berilmaydi
+            {tr("Ma'lumotlaringiz xavfsiz saqlanadi va uchinchi shaxslarga berilmaydi")}
           </p>                                                                                                                 
         </div>
 

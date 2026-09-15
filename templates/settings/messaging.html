@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Xabarlar sozlamalari | Edu Tizim{% endblock %}
+{% block content %}
+<style>
+  .gc-body { max-width: 600px; }
+  .gc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .gc-header h2 { font-size: 18px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; margin: 0; }
+  .gc-card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+  .gc-card-body { padding: 24px; }
+  .gc-rule { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-bottom: 12px; }
+  .gc-rule-left { display: flex; align-items: flex-start; gap: 12px; }
+  .gc-rule i.rule-icon { font-size: 18px; margin-top: 2px; }
+  .gc-rule .gc-label-text { font-size: 14px; font-weight: 600; color: #0f172a; }
+  .gc-rule .gc-help { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #cbd5e1; border-radius: 24px; transition: 0.3s; }
+  .toggle-slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+  .toggle-switch input:checked + .toggle-slider { background: #22c55e; }
+  .gc-save-btn { margin-top: 20px; padding: 10px 28px; background: var(--primary, #2563eb); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+  .gc-save-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .gc-info { padding: 12px 16px; background: #eff6ff; border-radius: 10px; font-size: 13px; color: #1d4ed8; margin-top: 16px; }
+</style>
+
+<div class="gc-body">
+  <div class="gc-header">
+    <h2><i class="fas fa-comments"></i> Xabarlar sozlamalari</h2>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div style="padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; font-weight: 500; {% if msg.tags == 'success' %}background: #dcfce7; color: #166534;{% else %}background: #fef2f2; color: #dc2626;{% endif %}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="POST">
+    {% csrf_token %}
+    <div class="gc-card">
+      <div class="gc-card-body">
+        <div class="gc-rule">
+          <div class="gc-rule-left">
+            <i class="fas fa-power-off rule-icon" style="color: #2563eb;"></i>
+            <div>
+              <div class="gc-label-text">Xabarlar bo'limini yoqish</div>
+              <div class="gc-help">O'chirilgan bo'lsa, o'quvchilar ilovasida «Xabarlar» bo'limi ko'rinmaydi</div>
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="messaging_enabled" value="1" {% if cfg.messaging_enabled %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="gc-rule">
+          <div class="gc-rule-left">
+            <i class="fas fa-user-to-user rule-icon" style="color: #7c3aed;"></i>
+            <div>
+              <div class="gc-label-text">O'quvchilar o'rtasida shaxsiy yozishma</div>
+              <div class="gc-help">O'quvchilar bir-biriga to'g'ridan-to'g'ri xabar yozishi mumkin</div>
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="student_private_chats" value="1" {% if cfg.student_private_chats %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="gc-rule">
+          <div class="gc-rule-left">
+            <i class="fas fa-people-group rule-icon" style="color: #ea580c;"></i>
+            <div>
+              <div class="gc-label-text">O'quvchilar guruh chat yaratishi</div>
+              <div class="gc-help">Guruh chatlari (guruh o'quvchilari avtomatik a'zo bo'ladi)</div>
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="student_group_chats" value="1" {% if cfg.student_group_chats %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="gc-rule">
+          <div class="gc-rule-left">
+            <i class="fas fa-chalkboard-user rule-icon" style="color: #0891b2;"></i>
+            <div>
+              <div class="gc-label-text">O'qituvchilar guruh chatida</div>
+              <div class="gc-help">Guruh chatlariga o'qituvchi va adminlar avtomatik qo'shiladi</div>
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="teachers_in_group_chats" value="1" {% if cfg.teachers_in_group_chats %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="gc-save-btn"><i class="fas fa-save"></i> Saqlash</button>
+  </form>
+
+  <div class="gc-info">
+    <i class="fas fa-info-circle"></i>
+    Xabarlar butunlay o'chirilganda ham eski suhbatlar saqlanib qoladi, qayta yoqilganda tiklanadi.
+  </div>
+</div>
+{% endblock %}

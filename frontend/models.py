@@ -190,6 +190,7 @@ class Student(models.Model):
     first_name = models.CharField(max_length=255, verbose_name="Ism")
     last_name = models.CharField(max_length=255, verbose_name="Familya")
     phone = models.CharField(max_length=20, verbose_name="Telefon raqam")
+    username = models.CharField(max_length=50, blank=True, null=True, unique=True, verbose_name="@username (xabarlar uchun)")
     groups = models.ManyToManyField(Group, blank=True, related_name="students", verbose_name="Guruhlar")
     graduated_groups = models.ManyToManyField(
         Group, blank=True, related_name="graduated_students", verbose_name="Bitirilgan guruhlar"
@@ -979,6 +980,11 @@ class GlobalConfig(models.Model):
     deduct_absent = models.BooleanField(default=False, verbose_name="Sababsiz kelmaganlardan pul yechish")
     deduct_excused = models.BooleanField(default=False, verbose_name="Sababli kelmaganlardan pul yechish")
 
+    messaging_enabled = models.BooleanField(default=True, verbose_name="Xabarlar bo'limi yoqilgan")
+    student_private_chats = models.BooleanField(default=True, verbose_name="O'quvchilar shaxsiy chat ochishi mumkin")
+    student_group_chats = models.BooleanField(default=True, verbose_name="O'quvchilar guruh chat ochishi mumkin")
+    teachers_in_group_chats = models.BooleanField(default=True, verbose_name="O'qituvchilar o'quvchi guruh chatlariga avtomatik qo'shiladi")
+
     class Meta:
         verbose_name = "Global sozlama"
         verbose_name_plural = "Global sozlamalar"
@@ -1441,3 +1447,186 @@ class PermissionAuditLog(models.Model):
 
     def __str__(self):
         return f"{self.actor} {self.get_action_display()} {self.permission_codename} → {self.target_user}"
+
+
+class Feedback(models.Model):
+    """O'quvchidan kelgan taklif yoki shikoyat.
+
+    O'quvchi mobil ilovasidagi «Profil → Takliflar» bo'limidan yozadi.
+    Xabar adminlar uchun «Taklif va shikoyatlar» bo'limiga tushadi.
+    Faqat super admin yoki 'feedback.view' huquqi berilgan adminlar ko'radi,
+    'feedback.respond' huquqi bo'lganlar javob yozishi mumkin.
+    """
+    class Category(models.TextChoices):
+        SUGGESTION = "taklif", "Taklif"
+        COMPLAINT = "shikoyat", "Shikoyat"
+
+    class Status(models.TextChoices):
+        NEW = "yangi", "Yangi"
+        READ = "oqilgan", "O'qilgan"
+        ANSWERED = "javob_berilgan", "Javob berilgan"
+
+    student = models.ForeignKey(
+        Student, on_delete=models.CASCADE, related_name="feedbacks", verbose_name="O'quvchi"
+    )
+    category = models.CharField(
+        max_length=20, choices=Category.choices, default=Category.SUGGESTION, verbose_name="Turi"
+    )
+    message = models.TextField(verbose_name="Xabar matni")
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.NEW, verbose_name="Holati"
+    )
+    admin_response = models.TextField(blank=True, default="", verbose_name="Admin javobi")
+    responded_by = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="feedback_responses", verbose_name="Javob bergan admin"
+    )
+    responded_at = models.DateTimeField(null=True, blank=True, verbose_name="Javob vaqti")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yuborilgan vaqt")
+
+    class Meta:
+        verbose_name = "Taklif / shikoyat"
+        verbose_name_plural = "Taklif va shikoyatlar"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.student} - {self.get_category_display()} (#{self.pk})"
+
+
+class Chat(models.Model):
+    class ChatType(models.TextChoices):
+        PRIVATE = "private", "Shaxsiy suhbat"
+        GROUP = "group", "Guruh chat"
+
+    chat_type = models.CharField(
+        max_length=20, choices=ChatType.choices, default=ChatType.PRIVATE, verbose_name="Chat turi"
+    )
+    title = models.CharField(max_length=255, blank=True, default="", verbose_name="Guruh nomi")
+    group = models.ForeignKey(
+        "Group", on_delete=models.SET_NULL, null=True, blank=True, related_name="chats",
+        verbose_name="Bog'langan o'quv guruhi",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan vaqt")
+
+    objects = models.Manager()
+
+    def __str__(self):
+        return self.title or f"Chat #{self.pk} ({self.chat_type})"
+
+    class Meta:
+        verbose_name = "Chat"
+        verbose_name_plural = "Chatlar"
+        ordering = ["-created_at"]
+
+
+class ChatMember(models.Model):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name="members", verbose_name="Chat")
+    student = models.ForeignKey(
+        "Student", on_delete=models.CASCADE, null=True, blank=True, related_name="chat_members",
+        verbose_name="O'quvchi",
+    )
+    employee = models.ForeignKey(
+        "Employee", on_delete=models.CASCADE, null=True, blank=True, related_name="chat_members",
+        verbose_name="Xodim/o'qituvchi",
+    )
+    user = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, null=True, blank=True, related_name="chat_members",
+        verbose_name="Admin foydalanuvchi",
+    )
+    is_admin = models.BooleanField(default=False, verbose_name="Guruh admini")
+    last_read_at = models.DateTimeField(null=True, blank=True, verbose_name="Oxirgi o'qilgan vaqt")
+    joined_at = models.DateTimeField(auto_now_add=True, verbose_name="Qo'shilgan vaqt")
+
+    objects = models.Manager()
+
+    def __str__(self):
+        who = self.student or self.employee
+        return f"{who} -> {self.chat}"
+
+    class Meta:
+        verbose_name = "Chat ishtirokchisi"
+        verbose_name_plural = "Chat ishtirokchilari"
+        ordering = ["joined_at"]
+
+
+class Message(models.Model):
+    class MediaType(models.TextChoices):
+        TEXT = "text", "Matn"
+        PHOTO = "photo", "Rasm"
+        VIDEO = "video", "Video"
+        VOICE = "voice", "Ovozli xabar"
+        FILE = "file", "Fayl"
+
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name="messages", verbose_name="Chat")
+    student = models.ForeignKey(
+        "Student", on_delete=models.CASCADE, null=True, blank=True, related_name="messages",
+        verbose_name="Yuboruvchi (o'quvchi)",
+    )
+    employee = models.ForeignKey(
+        "Employee", on_delete=models.CASCADE, null=True, blank=True, related_name="messages",
+        verbose_name="Yuboruvchi (xodim)",
+    )
+    user = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, null=True, blank=True, related_name="messages",
+        verbose_name="Yuboruvchi (admin)",
+    )
+    text = models.TextField(blank=True, default="", verbose_name="Matn")
+    media_type = models.CharField(
+        max_length=20, choices=MediaType.choices, default=MediaType.TEXT, verbose_name="Media turi"
+    )
+    media_file = models.FileField(upload_to="chat_media/", null=True, blank=True, verbose_name="Media fayl")
+    media_duration = models.PositiveIntegerField(null=True, blank=True, verbose_name="Audiodavomiylik (soniya)")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yuborilgan vaqt")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+
+    objects = models.Manager()
+
+    def __str__(self):
+        return f"{self.chat} - {self.get_media_type_display()} (#{self.pk})"
+
+    class Meta:
+        verbose_name = "Xabar"
+        verbose_name_plural = "Xabarlar"
+        ordering = ["created_at", "id"]
+
+
+def normalize_username(text):
+    """Transliteratsiya: o'zbekcha harflarni ASCII'ga aylantiradi va @username formatga keltiradi."""
+    import re
+    mapping = {
+        "o'": "o", "g'": "g", "sh": "sh", "ch": "ch", "ts": "ts",
+        "O'": "O", "G'": "G", "Sh": "Sh", "Ch": "Ch", "Ts": "Ts",
+        "ь": "", "ъ": "", "ў": "u", "қ": "k", "ғ": "g", "ҳ": "h", "ж": "j",
+        "ц": "c", "ч": "ch", "ш": "sh", "щ": "sh", "э": "e", "ю": "yu", "я": "ya",
+    }
+    out = text
+    for k, v in mapping.items():
+        out = out.replace(k, v)
+    out = re.sub(r"[^a-zA-Z0-9_]+", "", out).strip("_").lower()
+    return out
+
+
+def ensure_student_username(student, force=False):
+    """O'quvchiga noyob @username beradi (agar bo'sh bo'lsa)."""
+
+    def _pick(base, student_id):
+        cand = base or f"user{student_id}"
+        for i in range(0, 100):
+            if i == 0:
+                c = cand
+            else:
+                c = f"{cand}_{i}"
+            if not Student.objects.filter(username=c, is_active=True).exclude(pk=student_id).exists():
+                return c
+        return f"{cand}_{student_id}_{random.randint(1000, 9999)}"
+
+    import random
+    if not student.pk:
+        return ""
+    if student.username and not force:
+        return student.username
+    base = normalize_username(f"{student.first_name}{student.last_name}") or f"student{student.pk}"
+    uname = _pick(base, student.pk)
+    student.username = uname
+    Student.objects.filter(pk=student.pk).update(username=uname)
+    return uname

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, Wallet, TrendingUp, Clock, BookOpen } from "lucide-react"
+import { ArrowLeft, Wallet, TrendingUp, Clock, BookOpen, type LucideIcon } from "lucide-react"
 import { api } from "../api"
+import { useAppSettings } from "../AppSettings"
 import type { Transaction } from "../types"
 
-const typeColors: Record<string, { bg: string; text: string; icon: any }> = {
+const typeColors: Record<string, { bg: string; text: string; icon: LucideIcon }> = {
   lesson: { bg: "bg-red-50", text: "text-red-600", icon: BookOpen },
   payment: { bg: "bg-green-50", text: "text-green-600", icon: TrendingUp },
   correction: { bg: "bg-amber-50", text: "text-amber-600", icon: Clock },
@@ -12,6 +13,7 @@ const typeColors: Record<string, { bg: string; text: string; icon: any }> = {
 
 export default function TransactionsPage() {
   const navigate = useNavigate()
+  const { tr } = useAppSettings()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -32,7 +34,7 @@ export default function TransactionsPage() {
           >
             <ArrowLeft size={16} className="text-gray-700" />
           </button>
-          <h1 className="text-base font-bold text-gray-900">So'nggi tranzaksiyalar</h1>
+          <h1 className="text-base font-bold text-gray-900">{tr("So'nggi tranzaksiyalar")}</h1>
         </header>
 
         {loading ? (
@@ -42,7 +44,7 @@ export default function TransactionsPage() {
         ) : transactions.length === 0 ? (
           <div className="card-premium px-5 py-10 text-center">
             <Wallet size={32} className="mx-auto text-gray-300 mb-2" />
-            <p className="text-xs font-medium text-gray-400">Tranzaksiyalar mavjud emas</p>
+            <p className="text-xs font-medium text-gray-400">{tr("Tranzaksiyalar mavjud emas")}</p>
           </div>
         ) : (
           <div className="card-premium divide-y divide-gray-50 overflow-hidden">

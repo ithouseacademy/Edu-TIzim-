@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+{% block title %}Xabarlar | Edu Tizim{% endblock %}
+{% block content %}
+<style>
+  .msg-wrap { display: flex; height: calc(100vh - 150px); min-height: 480px; background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.12); overflow: hidden; margin-top: 6px; }
+  .msg-sidebar { width: 320px; min-width: 280px; border-right: 1px solid #e8eaed; display: flex; flex-direction: column; background: #f9fafb; }
+  .msg-main { flex: 1; display: flex; flex-direction: column; background: #eef1f5; }
+  .msg-sidebar-head { padding: 14px 12px 8px; border-bottom: 1px solid #e8eaed; }
+  .msg-sidebar-head h3 { margin: 0 0 10px; font-size: 17px; font-weight: 700; color: #0f172a; display: flex; justify-content: space-between; align-items: center; }
+  .msg-new-btn { border: none; background: var(--primary, #2563eb); color: #fff; border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .msg-search { width: 100%; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px; outline: none; background: #fff; }
+  .msg-chats { flex: 1; overflow-y: auto; padding: 6px 0; }
+  .msg-chat-item { display: flex; gap: 10px; padding: 10px 12px; cursor: pointer; border-left: 3px solid transparent; }
+  .msg-chat-item:hover { background: #eef2f7; }
+  .msg-chat-item.active { background: #e0e7ff; border-left-color: var(--primary, #2563eb); }
+  .msg-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 16px; }
+  .msg-chat-mid { flex: 1; min-width: 0; }
+  .msg-chat-title { font-size: 13.5px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; justify-content: space-between; gap: 6px; }
+  .msg-chat-title .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msg-time { font-size: 11px; color: #94a3b8; flex-shrink: 0; }
+  .msg-prev { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; display: flex; justify-content: space-between; gap: 6px; }
+  .msg-prev .b { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; border-radius: 10px; background: var(--primary, #2563eb); color: #fff; font-size: 11px; font-weight: 700; padding: 0 5px; }
+  .msg-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; gap: 8px; }
+  .msg-main-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+  .msg-main-title { font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 10px; }
+  .msg-main-sub { font-size: 12px; color: #94a3b8; }
+  .msg-tools { display: flex; gap: 8px; }
+  .msg-tool-btn { border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer; color: #334155; }
+  .msg-body { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; }
+  .msg-date-sep { align-self: center; background: #fff; border-radius: 12px; padding: 3px 12px; font-size: 11.5px; color: #64748b; margin: 8px 0; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .msg-row { display: flex; margin: 3px 0; }
+  .msg-row.me { justify-content: flex-end; }
+  .msg-bubble { max-width: 68%; padding: 8px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.45; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,.08); position: relative; }
+  .msg-row.me .msg-bubble { background: #2563eb; color: #fff; border-bottom-right-radius: 4px; }
+  .msg-row.other .msg-bubble { background: #fff; color: #0f172a; border-bottom-left-radius: 4px; }
+  .msg-sender { font-size: 11.5px; font-weight: 700; margin-bottom: 2px; color: #7c3aed; }
+  .msg-bubble img { max-width: 260px; max-height: 220px; border-radius: 10px; display: block; }
+  .msg-bubble video { max-width: 260px; max-height: 240px; border-radius: 10px; display: block; }
+  .msg-bubble audio { max-width: 240px; }
+  .msg-meta { display: flex; gap: 5px; align-items: center; font-size: 10.5px; margin-top: 3px; justify-content: flex-end; }
+  .msg-row.me .msg-meta { color: rgba(255,255,255,.85); }
+  .msg-row.other .msg-meta { color: #94a3b8; }
+  .msg-composer { background: #fff; border-top: 1px solid #e5e7eb; padding: 10px 14px; display: flex; align-items: flex-end; gap: 8px; }
+  .msg-composer textarea { flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; font-size: 13.5px; resize: none; outline: none; height: 42px; max-height: 120px; font-family: inherit; }
+  .msg-composer textarea:focus { border-color: var(--primary, #2563eb); }
+  .msg-icon-btn { width: 40px; height: 40px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; background: #f1f5f9; color: #334155; flex-shrink: 0; position: relative; }
+  .msg-icon-btn.send { background: var(--primary, #2563eb); color: #fff; }
+  .msg-icon-btn input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .msg-attach-name { font-size: 11px; color: #2563eb; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg-typing { font-size: 12px; color: #64748b; padding: 6px 14px; }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: none; align-items: center; justify-content: center; z-index: 999; }
+  .modal-backdrop.open { display: flex; }
+  .msg-modal { background: #fff; border-radius: 14px; width: 440px; max-width: 92vw; max-height: 82vh; display: flex; flex-direction: column; overflow: hidden; }
+  .msg-modal-head { padding: 14px 16px; border-bottom: 1px solid #e8eaed; display: flex; justify-content: space-between; align-items: center; }
+  .msg-modal-head h4 { margin: 0; font-size: 15px; font-weight: 700; }
+  .msg-modal-body { padding: 14px 16px; overflow-y: auto; flex: 1; }
+  .msg-result { display: flex; gap: 10px; align-items: center; padding: 8px 6px; border-radius: 8px; cursor: pointer; }
+  .msg-result:hover { background: #f1f5f9; }
+  .msg-result.sel { background: #e0e7ff; }
+  .msg-chip { display: inline-flex; align-items: center; gap: 6px; background: #e0e7ff; color: #1e3a8a; border-radius: 16px; padding: 3px 10px; font-size: 12px; margin: 3px; }
+  .msg-chip button { border: none; background: none; color: #1e3a8a; font-size: 13px; cursor: pointer; line-height: 1; }
+  .msg-modal-foot { padding: 12px 16px; border-top: 1px solid #e8eaed; display: flex; gap: 8px; justify-content: flex-end; }
+  .msg-save-btn { background: var(--primary, #2563eb); color: #fff; border: none; border-radius: 9px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .msg-cancel-btn { background: #f1f5f9; color: #334155; border: none; border-radius: 9px; padding: 8px 16px; font-size: 13px; cursor: pointer; }
+  .msg-group-mode { display: flex; gap: 8px; margin-bottom: 12px; }
+  .msg-group-mode button { flex: 1; border: 1.5px solid #e2e8f0; background: #fff; border-radius: 10px; padding: 8px; font-size: 12.5px; cursor: pointer; color: #475569; }
+  .msg-group-mode button.on { border-color: var(--primary, #2563eb); background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+</style>
+
+<div class="msg-wrap" id="msgWrap">
+  <div class="msg-sidebar">
+    <div class="msg-sidebar-head">
+      <h3><span><i class="fas fa-comments"></i> Xabarlar</span><button class="msg-new-btn" onclick="openNewChat()"><i class="fas fa-plus"></i> Yangi</button></h3>
+      <input class="msg-search" id="msgSearch" placeholder="Qidirish..." oninput="onSearch(this.value)">
+    </div>
+    <div class="msg-chats" id="msgChats"></div>
+  </div>
+  <div class="msg-main">
+    <div class="msg-main-head">
+      <div>
+        <div class="msg-main-title" id="msgMainTitle">Chat tanlanmagan</div>
+        <div class="msg-main-sub" id="msgMainSub"></div>
+      </div>
+      <div class="msg-tools" id="msgToolbar"></div>
+    </div>
+    <div class="msg-body" id="msgBody">
+      <div class="msg-empty"><i class="fas fa-comment-dots" style="font-size:44px"></i>Chapdan suhbat tanlang yoki yangisini boshlang</div>
+    </div>
+    <div class="msg-typing" id="msgTyping"></div>
+    <div class="msg-composer">
+      <button class="msg-icon-btn" id="attachBtn" title="Rasm / video / ovoz"><i class="fas fa-paperclip"></i><input type="file" id="attachInput" accept="image/*,video/*,audio/*,.webm"></button>
+      <textarea id="msgInput" placeholder="Xabar yozing..." onkeydown="onComposerKey(event)" oninput="autoGrow(this)"></textarea>
+      <button class="msg-icon-btn send" id="sendBtn" title="Yuborish" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="newChatModal">
+  <div class="msg-modal">
+    <div class="msg-modal-head">
+      <h4>Yangi suhbat</h4>
+      <button class="msg-icon-btn" style="width:30px;height:30px;background:transparent" onclick="closeNewChat()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="msg-modal-body">
+      <div class="msg-group-mode">
+        <button id="modePrivate" class="on">Shaxsiy chat</button>
+        <button id="modeGroup" onclick="setGroupMode()">Guruh chat</button>
+      </div>
+      <input class="msg-search" id="newChatSearch" placeholder="Ism, @username yoki telefon..." oninput="onNewSearch(this.value)">
+      <div id="groupModeBox" style="margin-top:10px;display:none">
+        <input class="msg-search" id="groupTitle" placeholder="Guruh nomi (masalan: Matematika 07:00)">
+        <div style="margin:8px 0" id="groupChips"></div>
+      </div>
+      <div id="searchResults" style="margin-top:12px"></div>
+    </div>
+    <div class="msg-modal-foot">
+      <button class="msg-cancel-btn" onclick="closeNewChat()">Bekor qilish</button>
+      <button class="msg-save-btn" onclick="startChatFromSelection()">Boshlash</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var CS = {};  // current state
+var POLL_ID = null;
+
+function esc(s) { var d = document.createElement('div'); d.textContent = (s || ''); return d.innerHTML; }
+function avatarColor(seed) { var h = 0; for (var i = 0; i < (seed || 'x').length; i++) h = (h * 31 + (seed || 'x').charCodeAt(i)) % 360; return 'hsl(' + h + ',58%,48%)'; }
+function initials(name) { if (!name) return '?'; var p = name.trim().split(/\s+/); return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase(); }
+function timeStr(iso) { var d = new Date(iso); var h = d.getHours(); var m = d.getMinutes(); var hh = h < 10 ? '0' + h : h; var mm = m < 10 ? '0' + m : m; return hh + ':' + mm; }
+function dayKey(iso) { return new Date(iso).toDateString(); }
+function dayLabel(iso) { var d = new Date(iso); var today = new Date(); var yest = new Date(); yest.setDate(today.getDate() - 1); if (dayKey(iso) === dayKey(today.toISOString())) return 'Bugun'; if (dayKey(iso) === dayKey(yest.toISOString())) return 'Kecha'; return d.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long', year: 'numeric' }); }
+function mediaText(m) { if (m.media_type === 'photo') return 'Foto'; if (m.media_type === 'video') return 'Video'; if (m.media_type === 'voice') return 'Ovozli xabar'; if (m.media_type === 'file') return 'Fayl'; return m.text || ''; }
+function durationStr(s) { if (!s) return ''; var m = Math.floor(s / 60); var sec = s % 60; return m + ':' + (sec < 10 ? '0' : '') + sec; }
+
+function api(path, options) {
+  options = options || {};
+  return fetch(path, options).then(function (res) {
+    return res.json().then(function (data) { return res.ok ? data : Promise.reject(data); });
+  });
+}
+
+/* ---------- chat list ---------- */
+function loadChats() {
+  api('/api/messaging/chats/').then(function (data) {
+    renderChats(data.chats || []);
+    if (CS.settingsDisplayed === undefined) {
+      document.getElementById('msgMainTitle').textContent = 'Xabarlar';
+      document.getElementById('msgMainSub').textContent = (data.chats || []).length ? (data.chats.length + ' ta suhbat') : 'Suhbatlar yo\'q';
+    }
+  }).catch(function (err) {
+    if (!CS.chatId && err && err.error) {
+      document.getElementById('msgMainTitle').textContent = err.error;
+      document.getElementById('msgMainSub').textContent = '';
+    }
+  });
+}
+
+function renderChats(chats) {
+  var box = document.getElementById('msgChats');
+  if (!chats.length) { box.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Suhbatlar hali yo\'q</div>'; return; }
+  box.innerHTML = chats.map(function (c) {
+    var last = c.last_message ? (c.last_message.media_type !== 'text' && c.last_message.media_type ? mediaText(c.last_message) : c.last_message.text || ' ') : 'Suhbat boshlandi';
+    var time = c.last_msg_at ? '<span class="msg-time">' + timeStr(c.last_msg_at) + '</span>' : '';
+    var unread = c.unread_count > 0 ? '<span class="b">' + c.unread_count + '</span>' : '';
+    var subName = (c.chat_type === 'group' ? (c.members_preview[0] || '') : (c.members_preview[0] || ''));
+    var av = initials(c.title || 'G');
+    return '<div class="msg-chat-item' + (CS.chatId == c.id ? ' active' : '') + '" onclick="openChat(' + c.id + ')">' +
+      '<div class="msg-avatar" style="background:' + avatarColor(c.title || String(c.id)) + '">' + esc(av) + '</div>' +
+      '<div class="msg-chat-mid">' +
+        '<div class="msg-chat-title"><span class="t">' + esc(c.title) + '</span>' + time + '</div>' +
+        '<div class="msg-prev"><span>' + esc(subName ? subName + ': ' : '') + esc(last) + '</span>' + unread + '</div>' +
+      '</div></div>';
+  }).join('');
+}
+
+/* ---------- conversation ---------- */
+function openChat(id) {
+  CS.chatId = id;
+  document.getElementById('msgBody').innerHTML = '<div style="color:#94a3b8;text-align:center;padding:30px;font-size:13px">Yuklanmoqda...</div>';
+  api('/api/messaging/chats/' + id + '/').then(function (data) {
+    CS.chat = data;
+    document.getElementById('msgMainTitle').textContent = data.title || 'Chat';
+    var members = (data.members || []).map(function (m) { return m.name + (m.kind === 'student' && m.username ? ' @' + m.username : ''); });
+    document.getElementById('msgMainSub').textContent = (data.chat_type === 'group' ? data.members.length + ' a\'zo — ' : '') + members.join(', ');
+    var isAdmin = !!(data.is_group_admin);
+    var tb = document.getElementById('msgToolbar');
+    tb.innerHTML = '';
+    if (data.chat_type === 'group' && isAdmin) {
+      var btn = document.createElement('button');
+      btn.className = 'msg-tool-btn';
+      btn.innerHTML = '<i class="fas fa-user-plus"></i> A\'zo qo\'shish';
+      btn.onclick = function () { openNewChat(true); };
+      tb.appendChild(btn);
+    }
+    renderMessages(data.messages || [], data.members || []);
+    markRead(id);
+    CS.hadMessages = (data.messages || []).length > 0;
+    scrollBottom(true);
+  }).catch(function (err) {
+    document.getElementById('msgBody').innerHTML = '<div class="msg-empty">' + esc((err && err.error) || 'Xatolik') + '</div>';
+  });
+}
+
+function renderMessages(msgs, members) {
+  var body = document.getElementById('msgBody');
+  if (!msgs || !msgs.length) {
+    document.getElementById('msgMainSub').textContent = CS.chat ? (document.getElementById('msgMainSub').textContent.split(' — ')[0] + ' — Xabarlar yo\'q') : '';
+    body.innerHTML = '<div class="msg-empty"><i class="fas fa-comments" style="font-size:44px"></i>Birinchi xabar yozing!</div>';
+    return;
+  }
+  var wasNearBottom = isNearBottom();
+  var html = ''; var lastDay = '';
+  var memberName = {};
+  (members || []).forEach(function (m) { memberName[m.kind + ':' + m.id] = m.name; });
+  msgs.forEach(function (m) {
+    var dk = dayKey(m.created_at);
+    if (dk !== lastDay) { html += '<div class="msg-date-sep">' + dayLabel(m.created_at) + '</div>'; lastDay = dk; }
+    var content = '';
+    if (m.media_type === 'photo') content = '<img src="' + esc(m.media_url) + '" alt="" loading="lazy">';
+    else if (m.media_type === 'video') content = '<video controls preload="metadata"><source src="' + esc(m.media_url) + '"></video>';
+    else if (m.media_type === 'voice') { if (m.media_duration) content = '<audio controls preload="metadata"><source src="' + esc(m.media_url) + '"></audio>'; }
+    else if (m.media_type === 'file') content = '<a href="' + esc(m.media_url) + '" target="_blank" style="display:flex;align-items:center;gap:6px"><i class="fas fa-paperclip"></i> ' + esc(m.text || 'Fayl') + '</a>';
+    var label = '';
+    if (CS.chat && CS.chat.chat_type === 'group' && !m.is_me) label = '<div class="msg-sender">' + esc(m.sender_name || memberName[m.sender_kind + ':' + m.sender_id] || '') + '</div>';
+    if (m.text) content += (content ? '<div style="margin-top:4px">' : '') + esc(m.text) + (content ? '</div>' : '');
+    var meta = '<div class="msg-meta">' + timeStr(m.created_at) + (m.is_me ? '<i class="fas fa-check-double"></i>' : '') + '</div>';
+    html += '<div class="msg-row ' + (m.is_me ? 'me' : 'other') + '"><div class="msg-bubble">' + label + content + meta + '</div></div>';
+  });
+  body.innerHTML = html;
+  if (wasNearBottom) scrollBottom();
+}
+
+function isNearBottom() {
+  var b = document.getElementById('msgBody');
+  return b.scrollHeight - b.scrollTop - b.clientHeight < 140;
+}
+function scrollBottom(force) {
+  var b = document.getElementById('msgBody');
+  if (force) b.scrollTop = b.scrollHeight;
+}
+
+function pollActiveChat() {
+  if (!CS.chatId) return;
+  api('/api/messaging/chats/' + CS.chatId + '/').then(function (data) {
+    var prevLen = (CS.msgs || []).length;
+    CS.msgs = data.messages || [];
+    var myCount = CS.msgs.filter(function (m) { return m.is_me; }).length;
+    if (document.getElementById('msgBody').dataset.rendered !== String(CS.chatId) || CS.msgs.length !== prevLen) {
+      renderMessages(CS.msgs, data.members || []);
+      document.getElementById('msgBody').dataset.rendered = String(CS.chatId);
+    }
+    if (CS.msgs.length !== prevLen) {
+      markRead(CS.chatId);
+      if ((data.messages || []).length && data.messages[0].is_me) {} // noop
+      loadChats();
+    }
+    var myLen = document.getElementById('msgBody').querySelectorAll('.msg-row.me').length;
+    if (isNearBottom()) scrollBottom();
+  }).catch(function () {});
+}
+
+function markRead(id) {
+  api('/api/messaging/chats/' + id + '/read/', { method: 'POST' }).then(function () {
+    if (CS.chatId == id) loadChats();
+  }).catch(function () {});
+}
+
+function autoGrow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }
+function onComposerKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
+
+/* ---------- sending ---------- */
+function sendMsg() {
+  var text = document.getElementById('msgInput').value.trim();
+  var file = document.getElementById('attachInput').files[0];
+  if ((!text && !file) || !CS.chatId) return;
+  var fd = new FormData();
+  fd.append('chat_id', CS.chatId);
+  if (text) fd.append('text', text);
+  if (file) { fd.append('media_file', file); fd.append('media_type', 'auto'); }
+  document.getElementById('msgTyping').textContent = 'Yuborilmoqda...';
+  api('/api/messaging/send/', { method: 'POST', body: fd }).then(function (data) {
+    document.getElementById('msgTyping').textContent = '';
+    document.getElementById('msgInput').value = '';
+    document.getElementById('attachInput').value = '';
+    autoGrow(document.getElementById('msgInput'));
+    var attach = document.getElementById('msgAttachName'); if (attach) attach.remove();
+    if (data.message) {
+      CS.msgs = CS.msgs || [];
+      CS.msgs.push(data.message);
+      renderMessages(CS.msgs, CS.chat ? CS.chat.members : []);
+      scrollBottom();
+      loadChats();
+    }
+  }).catch(function (err) {
+    document.getElementById('msgTyping').textContent = (err && err.error) || 'Yuborishda xatolik';
+  });
+}
+
+document.getElementById('attachInput').addEventListener('change', function () {
+  var file = this.files[0];
+  var old = document.getElementById('msgAttachName'); if (old) old.remove();
+  if (file) {
+    var s = document.createElement('div');
+    s.id = 'msgAttachName'; s.className = 'msg-attach-name'; s.textContent = file.name;
+    document.getElementById('msgTyping').appendChild(s);
+  }
+});
+
+/* ---------- new chat ---------- */
+var NEW = { results: [], selected: new Set(), mode: 'private', addToGroup: false };
+
+function openNewChat(addToGroup) {
+  NEW = { results: [], selected: new Set(), mode: addToGroup ? 'group' : 'private', addToGroup: !!addToGroup };
+  document.getElementById('newChatModal').classList.add('open');
+  document.getElementById('newChatSearch').value = '';
+  document.getElementById('groupTitle').value = '';
+  setModeButtons();
+  renderChips();
+  onNewSearch('');
+}
+function closeNewChat() { document.getElementById('newChatModal').classList.remove('open'); }
+function setModeButtons() {
+  document.getElementById('modePrivate').className = NEW.mode === 'private' ? 'on' : '';
+  document.getElementById('modeGroup').className = NEW.mode === 'group' ? 'on' : '';
+  document.getElementById('groupModeBox').style.display = NEW.mode === 'group' ? 'block' : 'none';
+  document.getElementById('groupTitle').placeholder = NEW.mode === 'group' ? 'Guruh nomi (masalan: Matematika 07:00)' : 'Qidirmoq: ism, @username, telefon';
+}
+function setGroupMode() { NEW.mode = NEW.mode === 'group' ? 'private' : 'group'; NEW.selected.clear(); setModeButtons(); renderChips(); onNewSearch(document.getElementById('newChatSearch').value); }
+document.getElementById('modePrivate').addEventListener('click', function () { NEW.mode = 'private'; setModeButtons(); renderChips(); onNewSearch(document.getElementById('newChatSearch').value); });
+
+function onNewSearch(q) {
+  if (NEW.mode === 'group') {
+    loadGroupsIntoResults();
+    return;
+  }
+  api('/api/messaging/users/search/?q=' + encodeURIComponent(q || '')).then(function (data) {
+    NEW.results = (data.results || []);
+    renderResults();
+  }).catch(function () { NEW.results = []; renderResults(); });
+}
+
+function loadGroupsIntoResults() {
+  api('/api/messaging/study-groups/').then(function (data) {
+    NEW.results = ((data.groups || [])).map(function (g) {
+      return { id: g.id, kind: 'group', name: g.name, sub: g.course + (g.members_count ? ' · ' + g.members_count + ' o\'quvchi' : ''), initials: 'G' };
+    });
+    renderResults();
+  }).catch(function () { NEW.results = []; renderResults(); });
+}
+
+function renderChips() {
+  var box = document.getElementById('groupChips');
+  if (NEW.mode !== 'group') { box.innerHTML = ''; return; }
+  var ids = Array.from(NEW.selected);
+  if (!ids.length) { box.innerHTML = '<div style="font-size:12px;color:#94a3b8">O\'quvchilarni tanlang (agar guruh chatsi so\'rov bo\'lsa o\'quvchilar avtomatik qo\'shiladi)</div>'; return; }
+  box.innerHTML = ids.map(function (id) {
+    var r = NEW.results.find(function (x) { return String(x.id) === String(id); });
+    var name = r ? r.name : id;
+    return '<span class="msg-chip">' + esc(name) + '<button onclick="toggleSel(\'' + id + '\')">&times;</button></span>';
+  }).join('');
+}
+
+function toggleSel(id) {
+  if (NEW.selected.has(String(id))) NEW.selected.delete(String(id));
+  else NEW.selected.add(String(id));
+  renderChips(); renderResults();
+}
+
+function renderResults() {
+  var box = document.getElementById('searchResults');
+  if (!NEW.results.length) { box.innerHTML = '<div style="font-size:12.5px;color:#94a3b8;padding:10px 4px">Natija yo\'q</div>'; return; }
+  box.innerHTML = NEW.results.map(function (r) {
+    if (r.kind === 'group') {
+      var on = NEW.selected.has(String(r.id));
+      return '<div class="msg-result ' + (on ? 'sel' : '') + '" onclick="' + (r.kind === 'group' ? 'openStudyGroup(' + r.id + ')' : 'toggleSel(' + r.id + ')') + '">' +
+        '<div class="msg-avatar" style="width:38px;height:38px;background:' + avatarColor(r.name) + '">' + esc(initials(r.name)) + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">' + esc(r.name) + '</div><div style="font-size:11.5px;color:#94a3b8">' + esc(r.sub || '') + '</div></div>' +
+        '<i class="fas fa-arrow-right" style="color:#94a3b8"></i></div>';
+    }
+    var isSel = NEW.selected.has(String(r.id));
+    var kindTag = r.kind === 'employee' ? ' <span style="font-size:10px;color:#7c3aed">Xodim</span>' : '';
+    return '<div class="msg-result ' + (isSel ? 'sel' : '') + '" onclick="toggleSel(' + r.id + ')">' +
+      '<div class="msg-avatar" style="width:38px;height:38px;background:' + avatarColor(r.name) + '">' + esc(r.initials || initials(r.name)) + '</div>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">' + esc(r.name) + kindTag + '</div>' +
+      '<div style="font-size:11.5px;color:#94a3b8">' + esc(r.username ? '@' + r.username : (r.phone || '')) + '</div></div>' +
+      '<i class="fas fa-' + (isSel ? 'check-circle' : 'plus-circle') + '" style="color:' + (isSel ? '#2563eb' : '#94a3b8') + '"></i></div>';
+  }).join('');
+}
+
+function openStudyGroup(id) {
+  api('/api/messaging/chats/group/', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ study_group_id: id })
+  }).then(function (data) {
+    closeNewChat();
+    openChat(data.chat.id);
+  }).catch(function (err) { alert((err && err.error) || 'Xatolik'); });
+}
+
+function startChatFromSelection() {
+  var ids = Array.from(NEW.selected);
+  if (NEW.mode === 'private') {
+    if (!ids.length || ids.length > 1) { alert('Shaxsiy chat uchun bitta o\'quvchini tanlang'); return; }
+    api('/api/messaging/chats/private/' + ids[0] + '/', { method: 'POST' }).then(function (data) {
+      closeNewChat();
+      openChat(data.chat.id);
+    }).catch(function (err) { alert((err && err.error) || 'Xatolik'); });
+  } else if (NEW.addToGroup) {
+    if (!CS.chatId) { alert('Chat topilmadi'); return; }
+    if (!ids.length) { alert('Kamida bitta o\'quvchini tanlang'); return; }
+    api('/api/messaging/chats/' + CS.chatId + '/members/', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ student_ids: ids })
+    }).then(function (data) {
+      closeNewChat();
+      if (data.chat) CS.chatId = data.chat.id;
+      openChat(CS.chatId);
+    }).catch(function (err) { alert((err && err.error) || 'Xatolik'); });
+  } else {
+    var title = document.getElementById('groupTitle').value.trim();
+    if (!title) { alert('Guruh nomini kiriting'); return; }
+    api('/api/messaging/chats/group/', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: title, student_ids: ids })
+    }).then(function (data) {
+      closeNewChat();
+      openChat(data.chat.id);
+    }).catch(function (err) { alert((err && err.error) || 'Xatolik'); });
+  }
+}
+
+function onSearch(q) {
+  loadChats();
+}
+
+/* ---------- init ---------- */
+loadChats();
+setInterval(function () { if (!document.hidden) { loadChats(); pollActiveChat(); } }, 3000);
+</script>
+{% endblock %}

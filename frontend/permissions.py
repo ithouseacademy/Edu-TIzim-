@@ -177,6 +177,15 @@ PERMISSION_REGISTRY = {
 
     # ===== TOPSHIRIQLAR / ESLATMALAR (Tasks & Reminders) =====
     "task.manage": ("task", "manage", "Topshiriq va eslatma berish (tayinlash)"),
+
+    # ===== TAKLIF VA SHIKOYATLAR (Feedback) =====
+    "feedback.view": ("feedback", "view", "Taklif va shikoyatlarni ko'rish"),
+    "feedback.respond": ("feedback", "respond", "Taklif va shikoyatlarga javob yozish"),
+
+    # ===== XABARLAR (Messaging) =====
+    "messaging.view": ("messaging", "view", "Xabarlar (chat) bo'limini ko'rish"),
+    "messaging.send": ("messaging", "send", "Chatga xabar yuborish"),
+    "messaging.settings": ("messaging", "settings", "Xabarlar sozlamalarini boshqarish"),
 }
 
 # Human-friendly module names for grouping in the UI
@@ -207,6 +216,8 @@ MODULE_LABELS = {
     "sms": "SMS",
     "audit": "Audit",
     "task": "Topshiriqlar va eslatmalar",
+    "feedback": "Taklif va shikoyatlar",
+    "messaging": "Xabarlar",
 }
 
 

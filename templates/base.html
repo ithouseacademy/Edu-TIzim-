@@ -135,10 +135,28 @@
                     <i class="fas fa-puzzle-piece"></i>
                     <span>Qo'shimcha funksiyalar</span>
                 </a>
+                {% if can_messaging %}
+                <a href="{% url 'messaging' %}" class="nav-item {% if request.resolver_match.url_name == 'messaging' %}active{% endif %}">
+                    <i class="fas fa-comments"></i>
+                    <span>Xabarlar</span>
+                    {% if messaging_unread > 0 %}
+                    <span class="nav-badge" style="margin-left:auto;background:#2001FF;color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:1px 7px;min-width:18px;text-align:center;display:inline-block" title="O'qilmagan xabarlar">{{ messaging_unread }}</span>
+                    {% endif %}
+                </a>
+                {% endif %}
                 {% if 'admin.view' in permissions or is_super_admin %}
                 <a href="{% url 'admin_list' %}" class="nav-item {% if request.resolver_match.url_name == 'admin_list' or request.resolver_match.url_name == 'admin_create' or request.resolver_match.url_name == 'admin_permissions' or request.resolver_match.url_name == 'admin_update' or request.resolver_match.url_name == 'admin_delete' %}active{% endif %}">
                     <i class="fas fa-user-shield"></i>
                     <span>Adminlar</span>
+                </a>
+                {% endif %}
+                {% if 'feedback.view' in permissions or is_super_admin %}
+                <a href="{% url 'feedback_list' %}" class="nav-item {% if request.resolver_match.url_name == 'feedback_list' or request.resolver_match.url_name == 'feedback_detail' %}active{% endif %}">
+                    <i class="fas fa-comment-dots"></i>
+                    <span>Taklif va shikoyatlar</span>
+                    {% if feedback_new_count > 0 %}
+                    <span class="nav-badge" style="margin-left:auto;background:#e53935;color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:1px 7px;min-width:18px;text-align:center;display:inline-block" title="Yangi taklif / shikoyatlar">{{ feedback_new_count }}</span>
+                    {% endif %}
                 </a>
                 {% endif %}
                 {% if 'audit.view' in permissions or is_super_admin %}
@@ -314,6 +332,40 @@
                 fetch('/api/site/notifications-badge/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(function (r) { return r.json(); })
                     .then(updateBadges)
+                    .catch(function () {});
+            }
+            setInterval(poll, 30000);
+        })();
+    </script>
+    <script>
+        // Taklif va shikoyatlar bo'limi bandasini real-time yangilab turish
+        (function () {
+            var NAV = document.querySelector('a[href="/feedback/"]');
+            if (!NAV) return;
+
+            function getBadge() { return document.getElementById('feedback-nav-badge'); }
+
+            function updateBadge(count) {
+                var badge = getBadge();
+                if (count > 0) {
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.id = 'feedback-nav-badge';
+                        badge.className = 'nav-badge';
+                        badge.style.cssText = 'margin-left:auto;background:#e53935;color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:1px 7px;min-width:18px;text-align:center;display:inline-block';
+                        badge.title = 'Yangi taklif / shikoyatlar';
+                        NAV.appendChild(badge);
+                    }
+                    badge.textContent = count;
+                } else if (badge) {
+                    badge.remove();
+                }
+            }
+
+            function poll() {
+                fetch('/api/feedback/badge/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) { updateBadge(d.count || 0); })
                     .catch(function () {});
             }
             setInterval(poll, 30000);

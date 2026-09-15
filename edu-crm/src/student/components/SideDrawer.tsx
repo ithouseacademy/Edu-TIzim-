@@ -6,6 +6,8 @@ import {
 } from "lucide-react"
 import { api } from "../api"
 import { useDrawer } from "../context/DrawerContext"
+import { useAppSettings } from "../AppSettings"
+import { useMessagingSettings } from "../messaging"
 import type { StudentProfile } from "../types"
 
 const navItems = [
@@ -19,20 +21,29 @@ const navItems = [
 
 export default function SideDrawer() {
   const { isOpen, close } = useDrawer()
+  const { avatar, tr } = useAppSettings()
+  const ms = useMessagingSettings()
   const navigate = useNavigate()
   const [animating, setAnimating] = useState(false)
   const [visible, setVisible] = useState(false)
   const [student, setStudent] = useState<StudentProfile | null>(null)
 
+  const visibleNav = ms && !ms.enabled ? navItems.filter((item) => item.path !== "/messages") : navItems
+
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+  if (prevOpen !== isOpen) {
+    setPrevOpen(isOpen)
+    if (isOpen) setVisible(true)
+    else setAnimating(false)
+  }
+
   useEffect(() => {
     if (isOpen) {
-      setVisible(true)
       requestAnimationFrame(() => setAnimating(true))
       api.profile().then((res) => {
         setStudent(res.student)
       }).catch(() => {})
     } else {
-      setAnimating(false)
       const timer = setTimeout(() => setVisible(false), 250)
       return () => clearTimeout(timer)
     }
@@ -49,7 +60,7 @@ export default function SideDrawer() {
 
   const fullName = student
     ? `${student.first_name || ""} ${student.last_name || ""}`.trim()
-    : "O'quvchi"
+    : tr("O'quvchi")
 
   if (!visible) return null
 
@@ -67,8 +78,12 @@ export default function SideDrawer() {
           <div className="px-4 pt-10 pb-3">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-11 h-11 bg-gradient-to-br from-[#2001FF] to-[#4361FF] rounded-full flex items-center justify-center shadow-lg shadow-[#2001FF]/20">
-                  <span className="text-base font-bold text-white">{initials}</span>
+                <div className="w-11 h-11 bg-gradient-to-br from-[#2001FF] to-[#4361FF] rounded-full flex items-center justify-center shadow-lg shadow-[#2001FF]/20 overflow-hidden">
+                  {avatar ? (
+                    <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-base font-bold text-white">{initials}</span>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-900">{fullName}</p>
@@ -81,7 +96,7 @@ export default function SideDrawer() {
             </div>
 
             <div className="bg-gray-50 rounded-xl p-3 mb-4">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Balans</p>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tr("Balans")}</p>
               {student?.balance_str ? (
                 <>
                   <p className={`text-xl font-bold mt-0.5 ${(student.balance ?? 0) >= 0 ? "text-gray-900" : "text-red-600"}`}>
@@ -90,7 +105,7 @@ export default function SideDrawer() {
                   <div className="flex items-center gap-1 mt-0.5">
                     <Wallet size={12} className={(student.balance ?? 0) >= 0 ? "text-green-500" : "text-red-500"} />
                     <span className={`text-[11px] font-medium ${(student.balance ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {(student.balance ?? 0) >= 0 ? "To'lov muddati o'tmagan" : "Qarzingiz mavjud"}
+                      {(student.balance ?? 0) >= 0 ? tr("To'lov muddati o'tmagan") : tr("Qarzingiz mavjud")}
                     </span>
                   </div>
                 </>
@@ -101,7 +116,7 @@ export default function SideDrawer() {
           </div>
 
           <div className="px-3 space-y-0.5">
-            {navItems.map((item) => (
+            {visibleNav.map((item) => (
               <button
                 key={item.path}
                 onClick={() => handleNav(item.path)}
@@ -111,7 +126,7 @@ export default function SideDrawer() {
                   <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
                     <item.icon size={15} className="text-gray-600" />
                   </div>
-                  <span className="text-xs font-semibold text-gray-700">{item.label}</span>
+                  <span className="text-xs font-semibold text-gray-700">{tr(item.label)}</span>
                 </div>
                 <ChevronRight size={14} className="text-gray-300" />
               </button>
@@ -123,7 +138,7 @@ export default function SideDrawer() {
           <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-gray-50">
             <div className="flex items-center gap-2.5">
               <Building2 size={15} className="text-gray-500" />
-              <span className="text-xs font-semibold text-gray-700">Filialni tanlash</span>
+              <span className="text-xs font-semibold text-gray-700">{tr("Filialni tanlash")}</span>
             </div>
             <ChevronDown size={14} className="text-gray-400" />
           </div>

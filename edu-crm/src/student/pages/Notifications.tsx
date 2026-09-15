@@ -1,4 +1,5 @@
 import { Bell, BookOpen, CalendarCheck, AlertTriangle, CreditCard, Megaphone, RefreshCw } from "lucide-react"
+import { useAppSettings } from "../AppSettings"
 
 const notifications = [
   { id: 1, type: "assignment", title: "Yangi topshiriq", desc: "Matematika fanidan uy vazifasi berildi", time: "10 min oldin", icon: BookOpen, color: "text-blue-500", bg: "bg-blue-50" },
@@ -11,6 +12,7 @@ const notifications = [
 ]
 
 export default function Notifications() {
+  const { tr } = useAppSettings()
   return (
     <div className="min-h-screen bg-[#F5F7FF] pb-20">
       <div className="max-w-lg mx-auto px-2.5 pt-8">
@@ -20,8 +22,8 @@ export default function Notifications() {
               <Bell size={16} className="text-[#2001FF]" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-gray-900">Bildirishnomalar</h1>
-              <p className="text-[10px] text-gray-500">So'nggi yangiliklar</p>
+              <h1 className="text-base font-bold text-gray-900">{tr("Bildirishnomalar")}</h1>
+              <p className="text-[10px] text-gray-500">{tr("So'nggi yangiliklar")}</p>
             </div>
           </div>
           <div className="relative">
@@ -46,10 +48,10 @@ export default function Notifications() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold text-gray-900">{n.title}</h3>
-                    <span className="text-[9px] text-gray-400 whitespace-nowrap ml-2">{n.time}</span>
+                    <h3 className="text-xs font-semibold text-gray-900">{tr(n.title)}</h3>
+                    <span className="text-[9px] text-gray-400 whitespace-nowrap ml-2">{tr(n.time)}</span>
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-0.5">{n.desc}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">{tr(n.desc)}</p>
                 </div>
                 <div className="w-1 h-1 bg-[#2001FF] rounded-full mt-1.5 shrink-0" />
               </div>

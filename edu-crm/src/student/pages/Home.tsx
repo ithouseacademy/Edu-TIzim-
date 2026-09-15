@@ -6,7 +6,8 @@ import {
 } from "lucide-react"
 import { api } from "../api"
 import { useDrawer } from "../context/DrawerContext"
-import type { ScheduleDay } from "../types"
+import { useAppSettings } from "../AppSettings"
+import type { AttendanceStats, ScheduleDay, ScheduleLesson, TodayClass } from "../types"
 
 const DAYS_UZ = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"]
 const MONTHS_UZ = [
@@ -38,14 +39,17 @@ const statusConfig: Record<string, { label: string; bg: string; text: string }> 
   finished: { label: "Tugagan", bg: "bg-gray-50", text: "text-gray-500" },
 }
 
+type CalendarLesson = ScheduleLesson & { id?: string; status?: TodayClass["status"]; attendance_status?: string }
+
 export default function Home() {
   const navigate = useNavigate()
   const { open: openDrawer } = useDrawer()
-  const [classes, setClasses] = useState<any[]>([])
+  const { avatar, tr } = useAppSettings()
+  const [classes, setClasses] = useState<TodayClass[]>([])
   const [studentName, setStudentName] = useState("")
   const [groupName, setGroupName] = useState("")
   const [groupStart, setGroupStart] = useState("")
-  const [stats, setStats] = useState<any>(null)
+  const [stats, setStats] = useState<AttendanceStats | null>(null)
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
   const [calMonth, setCalMonth] = useState(new Date().getMonth())
   const [calYear, setCalYear] = useState(new Date().getFullYear())
@@ -55,7 +59,7 @@ export default function Home() {
 
   useEffect(() => {
     api.profile().then((res) => {
-      setStudentName(res.student.first_name || "O'quvchi")
+      setStudentName(res.student.first_name || "")
       if (res.groups.length > 0) {
         setGroupName(res.groups[0].name || "")
         setGroupStart(res.groups[0].start_date || "")
@@ -80,7 +84,7 @@ export default function Home() {
   const now = new Date()
   const today = now.getDate()
   const hour = now.getHours()
-  const greeting = hour < 12 ? "Xayrli tong" : hour < 18 ? "Xayrli kun" : "Xayrli kech"
+  const greeting = tr(hour < 12 ? "Xayrli tong" : hour < 18 ? "Xayrli kun" : "Xayrli kech")
 
   const todayClasses = classes || []
 
@@ -147,12 +151,16 @@ export default function Home() {
         <section className="mb-3 animate-scale-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-[#2001FF] rounded-xl flex items-center justify-center shadow-lg shadow-[#2001FF]/20">
-                <span className="text-base font-bold text-white">{initials}</span>
+              <div className="w-9 h-9 bg-[#2001FF] rounded-xl flex items-center justify-center shadow-lg shadow-[#2001FF]/20 overflow-hidden">
+                {avatar ? (
+                  <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-base font-bold text-white">{initials}</span>
+                )}
               </div>
               <div>
                 <p className="text-[10px] font-medium text-gray-400">{greeting}</p>
-                <p className="text-sm font-bold text-gray-900 leading-tight">{studentName || "O'quvchi"}</p>
+                <p className="text-sm font-bold text-gray-900 leading-tight">{studentName || tr("O'quvchi")}</p>
                 {groupName && (
                   <p className="text-[10px] font-medium text-gray-400 mt-0.5">{groupName}</p>
                 )}
@@ -160,7 +168,7 @@ export default function Home() {
             </div>
             <div className="text-right">
               <p className="text-xl font-bold text-gray-900">{stats?.percentage || 0}%</p>
-              <p className="text-[10px] font-medium text-gray-400">Davomat</p>
+              <p className="text-[10px] font-medium text-gray-400">{tr("Davomat")}</p>
             </div>
           </div>
         </section>
@@ -171,7 +179,7 @@ export default function Home() {
               <ChevronLeft size={14} className="text-gray-500" />
             </button>
             <h2 className="text-sm font-bold text-gray-900">
-              {MONTHS_UZ[calMonth]} {calYear}
+              {tr(MONTHS_UZ[calMonth])} {calYear}
             </h2>
             <button onClick={nextMonth} className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow-sm btn-hover">
               <ChevronRight size={14} className="text-gray-500" />
@@ -240,12 +248,12 @@ export default function Home() {
             const afterStart = !groupStart || ds >= groupStart
 
             if (hasLesson && afterStart) {
-              const dayClasses = isTodaySel ? todayClasses : scheduleLessons
+              const dayClasses: CalendarLesson[] = isTodaySel ? todayClasses : scheduleLessons
               return (
                 <div className="mt-2.5 space-y-2.5 animate-scale-in">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-bold text-gray-900">
-                      {selectedDay} {MONTHS_UZ[calMonth]} - Darslar
+                      {selectedDay} {tr(MONTHS_UZ[calMonth])} - {tr("Darslar")}
                     </h3>
                     {att && (
                       <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
@@ -253,12 +261,12 @@ export default function Home() {
                         att === "absent" ? "bg-red-50 text-red-600" :
                         "bg-yellow-50 text-yellow-700"
                       }`}>
-                        {att === "present" ? "Darsga qatnashgan" :
-                         att === "absent" ? "Kelmagan" : "Sababli Kelmagan"}
+                        {att === "present" ? tr("Darsga qatnashgan") :
+                         att === "absent" ? tr("Kelmagan") : tr("Sababli Kelmagan")}
                       </span>
                     )}
                   </div>
-                  {dayClasses.map((cls: any, idx: number) => (
+                  {dayClasses.map((cls: CalendarLesson, idx: number) => (
                     <div key={cls.id || cls.group_id || idx} className="card-premium p-3.5">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2.5">
@@ -274,7 +282,7 @@ export default function Home() {
                           <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-lg ${
                             (statusConfig[cls.status]?.bg || "bg-gray-50") + " " + (statusConfig[cls.status]?.text || "text-gray-500")
                           }`}>
-                            {statusConfig[cls.status]?.label || cls.status}
+                            {tr(statusConfig[cls.status]?.label || cls.status)}
                           </span>
                         )}
                       </div>
@@ -285,7 +293,7 @@ export default function Home() {
                             <Clock size={12} className="text-[#2001FF]" />
                           </div>
                           <div>
-                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Vaqt</p>
+                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">{tr("Vaqt")}</p>
                             <p className="text-xs font-bold text-gray-900">{cls.start_time} - {cls.end_time}</p>
                           </div>
                         </div>
@@ -294,8 +302,8 @@ export default function Home() {
                             <MapPin size={12} className="text-[#2001FF]" />
                           </div>
                           <div>
-                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Xona</p>
-                            <p className="text-xs font-bold text-gray-900">{cls.room || "Aniqlanmagan"}-xona</p>
+                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">{tr("Xona")}</p>
+                            <p className="text-xs font-bold text-gray-900">{cls.room || tr("Aniqlanmagan")}-xona</p>
                           </div>
                         </div>
                       </div>
@@ -308,8 +316,8 @@ export default function Home() {
                             </span>
                           </div>
                           <div>
-                            <p className="text-[10px] font-medium text-gray-400">O'qituvchi</p>
-                            <p className="text-xs font-bold text-gray-900">{cls.teacher || "O'qituvchi"}</p>
+                            <p className="text-[10px] font-medium text-gray-400">{tr("O'qituvchi")}</p>
+                            <p className="text-xs font-bold text-gray-900">{cls.teacher || tr("O'qituvchi")}</p>
                           </div>
                         </div>
                         {cls.attendance_status && (
@@ -318,8 +326,8 @@ export default function Home() {
                             cls.attendance_status === "absent" ? "bg-red-50 text-red-600" :
                             "bg-yellow-50 text-yellow-700"
                           }`}>
-                            {cls.attendance_status === "present" ? "Bor" :
-                             cls.attendance_status === "absent" ? "Yo'q" : "Kechikkan"}
+                            {cls.attendance_status === "present" ? tr("Bor") :
+                             cls.attendance_status === "absent" ? tr("Yo'q") : tr("Kechikkan")}
                           </div>
                         )}
                       </div>
@@ -332,7 +340,7 @@ export default function Home() {
             return (
               <div className="mt-2.5 card-premium p-4 animate-scale-in">
                 <p className="text-xs font-semibold text-gray-400 text-center">
-                  {selectedDay} {MONTHS_UZ[calMonth]} - Bu kunda dars yo'q edi
+                  {selectedDay} {tr(MONTHS_UZ[calMonth])} - {tr("Bu kunda dars yo'q edi")}
                 </p>
               </div>
             )
@@ -341,9 +349,9 @@ export default function Home() {
 
         {todayClasses.length > 1 && (
           <section className="mb-3 animate-scale-in stagger-2">
-            <h2 className="text-xs font-bold text-gray-900 mb-2">Barcha darslar</h2>
+            <h2 className="text-xs font-bold text-gray-900 mb-2">{tr("Barcha darslar")}</h2>
             <div className="space-y-2">
-              {todayClasses.slice(1).map((cls: any, idx: number) => {
+              {todayClasses.slice(1).map((cls: TodayClass, idx: number) => {
                 const sc = statusConfig[cls.status]
                 return (
                   <div
@@ -364,7 +372,7 @@ export default function Home() {
                     </div>
                     {sc && (
                       <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-lg shrink-0 ${sc.bg} ${sc.text}`}>
-                        {sc.label}
+                        {tr(sc.label)}
                       </span>
                     )}
                   </div>
@@ -384,8 +392,8 @@ export default function Home() {
                 <BookOpen size={18} className="text-[#2001FF]" />
               </div>
               <div className="text-left">
-                <p className="text-xs font-bold text-gray-900">Uy vazifalari</p>
-                <p className="text-[10px] font-medium text-gray-400 mt-0.5">3 ta topshiriq</p>
+                <p className="text-xs font-bold text-gray-900">{tr("Uy vazifalari")}</p>
+                <p className="text-[10px] font-medium text-gray-400 mt-0.5">3 {tr("ta topshiriq")}</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5">

@@ -137,7 +137,7 @@ class StudentCreateForm(forms.ModelForm):
     class Meta:
         model = Student
         fields = [
-            "first_name", "last_name", "phone", "desired_course", "groups",
+            "first_name", "last_name", "username", "phone", "desired_course", "groups",
             "marketing_survey", "additional_info",
             "father_full_name", "father_phone",
             "mother_full_name", "mother_phone",
@@ -148,6 +148,7 @@ class StudentCreateForm(forms.ModelForm):
         widgets = {
             "first_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ismini kiriting"}),
             "last_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Familyasini kiriting"}),
+            "username": forms.TextInput(attrs={"class": "form-control", "placeholder": "@username (bo'sh qolsa, avtomatik)"}),
             "phone": forms.TextInput(attrs={"class": "form-control phone-input", "placeholder": "90 123 45 67", "maxlength": "17", "data-phone": "true"}),
             "desired_course": forms.SelectMultiple(attrs={"class": "form-control", "size": 5}),
             "groups": forms.SelectMultiple(attrs={"class": "form-control", "size": 6}),
@@ -221,7 +222,7 @@ class StudentEditForm(forms.ModelForm):
     class Meta:
         model = Student
         fields = [
-            "first_name", "last_name", "phone", "desired_course", "groups",
+            "first_name", "last_name", "username", "phone", "desired_course", "groups",
             "marketing_survey", "additional_info",
             "father_full_name", "father_phone",
             "mother_full_name", "mother_phone",
@@ -232,6 +233,7 @@ class StudentEditForm(forms.ModelForm):
         widgets = {
             "first_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ismini kiriting"}),
             "last_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Familyasini kiriting"}),
+            "username": forms.TextInput(attrs={"class": "form-control", "placeholder": "@username (bo'sh qolsa, avtomatik)"}),
             "phone": forms.TextInput(attrs={"class": "form-control phone-input", "placeholder": "90 123 45 67", "maxlength": "17", "data-phone": "true"}),
             "desired_course": forms.SelectMultiple(attrs={"class": "form-control", "size": 5}),
             "groups": forms.SelectMultiple(attrs={"class": "form-control", "size": 6}),

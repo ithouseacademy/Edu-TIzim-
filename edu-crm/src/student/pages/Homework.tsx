@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { BookOpen, Clock, AlertCircle, CheckCircle, Hourglass, FileText } from "lucide-react"
+import { BookOpen, Clock, AlertCircle, CheckCircle, Hourglass, FileText, type LucideIcon } from "lucide-react"
+import { useAppSettings } from "../AppSettings"
 
 const mockHomework = [
   {
@@ -24,7 +25,7 @@ const mockHomework = [
   },
 ]
 
-const statusStyles: Record<string, { label: string; bg: string; text: string; icon: any }> = {
+const statusStyles: Record<string, { label: string; bg: string; text: string; icon: LucideIcon }> = {
   submitted: { label: "Topshirilgan", bg: "bg-green-50", text: "text-green-600", icon: CheckCircle },
   pending: { label: "Kutilmoqda", bg: "bg-yellow-50", text: "text-yellow-600", icon: Hourglass },
   late: { label: "Kechiktirilgan", bg: "bg-red-50", text: "text-red-600", icon: AlertCircle },
@@ -32,6 +33,7 @@ const statusStyles: Record<string, { label: string; bg: string; text: string; ic
 
 export default function Homework() {
   const [filter, setFilter] = useState("all")
+  const { tr } = useAppSettings()
 
   const filtered = filter === "all"
     ? mockHomework
@@ -45,17 +47,17 @@ export default function Homework() {
             <FileText size={16} className="text-[#2001FF]" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-gray-900">Topshiriqlar</h1>
-            <p className="text-[10px] text-gray-500">Uy vazifalari va topshiriqlar</p>
+            <h1 className="text-base font-bold text-gray-900">{tr("Topshiriqlar")}</h1>
+            <p className="text-[10px] text-gray-500">{tr("Uy vazifalari va topshiriqlar")}</p>
           </div>
         </div>
 
         <div className="flex gap-1 my-3 overflow-x-auto pb-1 scrollbar-hide animate-fade-in">
           {[
-            { key: "all", label: "Barchasi" },
-            { key: "pending", label: "Kutilmoqda" },
-            { key: "submitted", label: "Topshirilgan" },
-            { key: "late", label: "Kechiktirilgan" },
+            { key: "all", label: tr("Barchasi") },
+            { key: "pending", label: tr("Kutilmoqda") },
+            { key: "submitted", label: tr("Topshirilgan") },
+            { key: "late", label: tr("Kechiktirilgan") },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -92,13 +94,13 @@ export default function Homework() {
                   </div>
                   <span className={`px-1.5 py-0.5 rounded-lg text-[9px] font-medium flex items-center gap-1 whitespace-nowrap ${st.bg} ${st.text}`}>
                     <Icon size={10} />
-                    {st.label}
+                    {tr(st.label)}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-1.5 ml-5">
                   <span className="flex items-center gap-1">
                     <Clock size={10} />
-                    Muddat: {hw.deadline}
+                    {tr("Muddat")}: {hw.deadline}
                   </span>
                   <span>👨‍🏫 {hw.teacher}</span>
                 </div>
@@ -112,7 +114,7 @@ export default function Homework() {
             <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center mx-auto mb-2">
               <FileText size={18} className="text-gray-300" />
             </div>
-            <p className="text-gray-400 text-xs">Topshiriqlar mavjud emas</p>
+            <p className="text-gray-400 text-xs">{tr("Topshiriqlar mavjud emas")}</p>
           </div>
         )}
       </div>

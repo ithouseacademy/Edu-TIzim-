@@ -2,9 +2,11 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Eye, EyeOff, ShieldCheck } from "lucide-react"
 import { api } from "../api"
+import { useAppSettings } from "../AppSettings"
 
 export default function PasswordLogin() {
   const navigate = useNavigate()
+  const { tr } = useAppSettings()
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -27,11 +29,11 @@ export default function PasswordLogin() {
   const handleSubmit = async () => {
     const raw = phone.replace(/\s/g, "")
     if (raw.length !== 9) {
-      setError("Telefon raqamni to'liq kiriting")
+      setError(tr("Telefon raqamni to'liq kiriting"))
       return
     }
     if (!password) {
-      setError("Parolni kiriting")
+      setError(tr("Parolni kiriting"))
       return
     }
     setLoading(true)
@@ -39,8 +41,8 @@ export default function PasswordLogin() {
       const res = await api.login("+998" + raw, password)
       localStorage.setItem("student_token", res.token)
       navigate("/home", { replace: true })
-    } catch (err: any) {
-      setError(err.message || "Xatolik yuz berdi")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tr("Xatolik yuz berdi"))
     } finally {
       setLoading(false)
     }
@@ -71,13 +73,13 @@ export default function PasswordLogin() {
         {/* Title */}
         <div className="mb-10">
           <h1 className="text-[#111827] font-bold text-[28px] leading-[1.25] tracking-[-0.5px]">
-            Hisobingizga kiring
+            {tr("Hisobingizga kiring")}
           </h1>
         </div>
 
         {/* Phone input */}
         <label className="text-gray-400 text-[11px] font-semibold uppercase tracking-[1.5px] mb-3 block">
-          Telefon raqami
+          {tr("Telefon raqami")}
         </label>
         <div
           className={`flex items-center rounded-xl px-4 h-14 border transition-all duration-200 ${
@@ -118,7 +120,7 @@ export default function PasswordLogin() {
 
         {/* Password input */}
         <label className="text-gray-400 text-[11px] font-semibold uppercase tracking-[1.5px] mb-3 mt-5 block">
-          Parol
+          {tr("Parol")}
         </label>
         <div
           className={`flex items-center rounded-xl px-4 h-14 border transition-all duration-200 ${
@@ -132,7 +134,7 @@ export default function PasswordLogin() {
           <input
             type={showPassword ? "text" : "password"}
             className="flex-1 bg-transparent text-[#111827] text-base font-medium outline-none placeholder:text-gray-300 tracking-[0.3px]"
-            placeholder="Parolingizni kiriting"
+            placeholder={tr("Parolingizni kiriting")}
             value={password}
             onChange={(e) => { setPassword(e.target.value); if (error) setError("") }}
             onFocus={() => setFocused({ ...focused, password: true })}
@@ -160,7 +162,7 @@ export default function PasswordLogin() {
             onClick={() => navigate("/")}
             className="text-[#2001FF] text-xs font-semibold hover:opacity-80 transition-opacity"
           >
-            Parolni unutdingizmi?
+            {tr("Parolni unutdingizmi?")}
           </button>
         </div>
 
@@ -173,22 +175,22 @@ export default function PasswordLogin() {
           {loading ? (
             <div className="flex items-center justify-center gap-2.5">
               <div className="w-5 h-5 border-2 border-white/30 rounded-full animate-spin border-t-white" />
-              <span className="text-white/80 font-medium">Kirish...</span>
+              <span className="text-white/80 font-medium">{tr("Kirish...")}</span>
             </div>
           ) : (
-            "Kirish"
+            tr("Kirish")
           )}
         </button>
 
         {/* Register link */}
         <div className="flex justify-center mt-8">
           <p className="text-gray-400 text-sm font-medium">
-            Hisobingiz yo'qmi?{" "}
+            {tr("Hisobingiz yo'qmi? ")}
             <button
               onClick={() => navigate("/")}
               className="text-[#2001FF] font-semibold hover:opacity-80 transition-opacity"
             >
-              Ro'yxatdan o'tish
+              {tr("Ro'yxatdan o'tish")}
             </button>
           </p>
         </div>
@@ -197,7 +199,7 @@ export default function PasswordLogin() {
         <div className="flex items-center justify-center gap-2 mt-10 shrink-0">
           <ShieldCheck size={14} className="text-gray-300 shrink-0" />
           <p className="text-gray-300 text-[11px] font-medium text-center leading-relaxed">
-            Ma'lumotlaringiz xavfsiz saqlanadi va uchinchi shaxslarga berilmaydi
+            {tr("Ma'lumotlaringiz xavfsiz saqlanadi va uchinchi shaxslarga berilmaydi")}
           </p>
         </div>
 

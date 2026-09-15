@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "../api"
+import { useAppSettings } from "../AppSettings"
+import type { AttendanceRecord, AttendanceStats } from "../types"
 import { CheckCircle2, XCircle, AlertCircle, TrendingUp, ChevronLeft } from "lucide-react"
 
 export default function AttendanceHistory() {
   const navigate = useNavigate()
-  const [stats, setStats] = useState<any>(null)
+  const { tr } = useAppSettings()
+  const [stats, setStats] = useState<AttendanceStats | null>(null)
 
   useEffect(() => {
     api.attendanceHistory().then(setStats).catch(() => {})
@@ -20,9 +23,9 @@ export default function AttendanceHistory() {
   }
 
   const statusMap: Record<string, { label: string; dot: string; bg: string; text: string }> = {
-    present: { label: "Qatnashgan", dot: "bg-green-500", bg: "bg-green-50", text: "text-green-600" },
-    absent: { label: "Kelmagan", dot: "bg-red-500", bg: "bg-red-50", text: "text-red-600" },
-    excused: { label: "Uzrli", dot: "bg-yellow-500", bg: "bg-yellow-50", text: "text-yellow-600" },
+    present: { label: tr("Qatnashgan"), dot: "bg-green-500", bg: "bg-green-50", text: "text-green-600" },
+    absent: { label: tr("Kelmagan"), dot: "bg-red-500", bg: "bg-red-50", text: "text-red-600" },
+    excused: { label: tr("Uzrli"), dot: "bg-yellow-500", bg: "bg-yellow-50", text: "text-yellow-600" },
   }
 
   return (
@@ -33,7 +36,7 @@ export default function AttendanceHistory() {
           className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-3 transition-all font-medium"
         >
           <ChevronLeft size={15} />
-          Profile
+          {tr("Profile")}
         </button>
 
         <div className="flex items-center gap-2.5 mb-3 animate-fade-in">
@@ -41,8 +44,8 @@ export default function AttendanceHistory() {
             <TrendingUp size={18} className="text-[#2001FF]" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-gray-900 tracking-tight">Davomat</h1>
-            <p className="text-[10px] text-gray-400 font-medium">Oylik hisobot</p>
+            <h1 className="text-base font-bold text-gray-900 tracking-tight">{tr("Davomat")}</h1>
+            <p className="text-[10px] text-gray-400 font-medium">{tr("Oylik hisobot")}</p>
           </div>
         </div>
 
@@ -63,7 +66,7 @@ export default function AttendanceHistory() {
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
                   <span className="text-xl font-bold text-gray-900">{stats.percentage}%</span>
-                  <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider">Davomat</p>
+                  <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider">{tr("Davomat")}</p>
                 </div>
               </div>
             </div>
@@ -75,21 +78,21 @@ export default function AttendanceHistory() {
                 <CheckCircle2 size={15} />
                 <span className="text-base font-bold">{stats.present}</span>
               </div>
-              <p className="text-[9px] font-medium text-gray-400">Qatnashgan</p>
+              <p className="text-[9px] font-medium text-gray-400">{tr("Qatnashgan")}</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-red-500">
                 <XCircle size={15} />
                 <span className="text-base font-bold">{stats.absent}</span>
               </div>
-              <p className="text-[9px] font-medium text-gray-400">Kelmagan</p>
+              <p className="text-[9px] font-medium text-gray-400">{tr("Kelmagan")}</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-yellow-500">
                 <AlertCircle size={15} />
                 <span className="text-base font-bold">{stats.excused}</span>
               </div>
-              <p className="text-[9px] font-medium text-gray-400">Uzrli</p>
+              <p className="text-[9px] font-medium text-gray-400">{tr("Uzrli")}</p>
             </div>
           </div>
         </div>
@@ -97,8 +100,8 @@ export default function AttendanceHistory() {
         {/* Progress Bar */}
         <div className="bg-white rounded-2xl p-3.5 card-shadow mb-3 animate-fade-in">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-900">Umumiy davomat</span>
-            <span className="text-xs font-bold text-gray-900">{stats.total} kun</span>
+            <span className="text-xs font-bold text-gray-900">{tr("Umumiy davomat")}</span>
+            <span className="text-xs font-bold text-gray-900">{stats.total} {tr("kun")}</span>
           </div>
           <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
             <div
@@ -111,16 +114,16 @@ export default function AttendanceHistory() {
         {/* Records */}
         <div className="flex items-center gap-1.5 mb-2 animate-fade-in">
           <TrendingUp size={13} className="text-[#2001FF]" />
-          <p className="text-xs font-bold text-gray-900">Yozuvlar</p>
+          <p className="text-xs font-bold text-gray-900">{tr("Yozuvlar")}</p>
           <span className="text-[11px] font-medium text-gray-400 ml-1">({stats.records?.length || 0})</span>
         </div>
         <div className="space-y-1.5 animate-slide-up">
           {stats.records?.length === 0 && (
             <div className="bg-white rounded-2xl p-6 text-center card-shadow">
-              <p className="text-xs font-medium text-gray-400">Hozircha yozuvlar mavjud emas</p>
+              <p className="text-xs font-medium text-gray-400">{tr("Hozircha yozuvlar mavjud emas")}</p>
             </div>
           )}
-          {stats.records?.map((rec: any, idx: number) => {
+          {stats.records?.map((rec: AttendanceRecord, idx: number) => {
             const st = statusMap[rec.status] || { label: rec.status, dot: "bg-gray-400", bg: "bg-gray-50", text: "text-gray-600" }
             return (
               <div

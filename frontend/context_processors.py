@@ -1,6 +1,7 @@
 from frontend.permissions import get_permissions, is_super_admin
-from frontend.models import Task
+from frontend.models import Task, Feedback
 from frontend.reminder_state import unread_count_for
+from frontend import messaging_api
 
 
 def perms_context(request):
@@ -17,10 +18,31 @@ def perms_context(request):
     def can(codename):
         return codename in permissions or is_admin_super
 
+    feedback_new_count = 0
+    if is_admin_super or "feedback.view" in permissions:
+        feedback_new_count = Feedback.objects.filter(status=Feedback.Status.NEW).count()
+
     return {
         "permissions": permissions,
         "is_super_admin": is_admin_super,
         "can": can,
+        "feedback_new_count": feedback_new_count,
+    }
+
+
+def messaging_context(request):
+    """Messaging uchun: sidebar'da ko'rsatish, badge (o'qilmaganlar) soni."""
+    user = getattr(request, "user", None)
+    can_messaging = False
+    messaging_unread = 0
+    if user is not None and getattr(user, "is_authenticated", False):
+        can_messaging = messaging_api.can_access_messaging(user)
+        if can_messaging:
+            actor = messaging_api._actor_from_user(user)
+            messaging_unread = messaging_api.unread_total(actor)
+    return {
+        "can_messaging": can_messaging,
+        "messaging_unread": messaging_unread,
     }
 
 

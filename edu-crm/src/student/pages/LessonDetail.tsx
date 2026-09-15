@@ -5,11 +5,13 @@ import {
   FileText, CalendarDays, GraduationCap,
 } from "lucide-react"
 import { api } from "../api"
+import { useAppSettings } from "../AppSettings"
 import type { GroupInfo } from "../types"
 
 export default function LessonDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { tr } = useAppSettings()
   const [group, setGroup] = useState<GroupInfo | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -39,18 +41,18 @@ export default function LessonDetail() {
           <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-2">
             <BookOpen size={24} className="text-gray-300" />
           </div>
-          <p className="text-xs font-medium text-gray-400">Ma'lumot topilmadi</p>
+          <p className="text-xs font-medium text-gray-400">{tr("Ma'lumot topilmadi")}</p>
         </div>
       </div>
     )
   }
 
   const details = [
-    { icon: User, label: "O'qituvchi", value: group.teacher },
-    { icon: BookOpen, label: "Fan", value: group.course },
-    { icon: MapPin, label: "Xona", value: group.room },
-    { icon: CalendarDays, label: "Boshlanish", value: group.start_date },
-    { icon: CalendarDays, label: "Tugash", value: group.end_date },
+    { icon: User, label: tr("O'qituvchi"), value: group.teacher },
+    { icon: BookOpen, label: tr("Fan"), value: group.course },
+    { icon: MapPin, label: tr("Xona"), value: group.room },
+    { icon: CalendarDays, label: tr("Boshlanish"), value: group.start_date },
+    { icon: CalendarDays, label: tr("Tugash"), value: group.end_date },
   ]
 
   return (
@@ -61,7 +63,7 @@ export default function LessonDetail() {
           className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-3 transition-all font-medium"
         >
           <ArrowLeft size={15} />
-          Orqaga
+          {tr("Orqaga")}
         </button>
 
         <div className="bg-white rounded-2xl overflow-hidden card-shadow animate-scale-in">
@@ -71,7 +73,7 @@ export default function LessonDetail() {
             <div className="relative">
               <div className="flex items-center gap-1.5 mb-1">
                 <GraduationCap size={13} className="text-white/70" />
-                <span className="text-[9px] font-semibold text-white/70 uppercase tracking-wider">Guruh</span>
+                <span className="text-[9px] font-semibold text-white/70 uppercase tracking-wider">{tr("Guruh")}</span>
               </div>
               <h1 className="text-base font-bold text-white tracking-tight">{group.name}</h1>
               <p className="text-white/70 text-xs font-medium mt-0.5">{group.course}</p>
@@ -99,7 +101,7 @@ export default function LessonDetail() {
                   <div className="p-1 bg-blue-50 rounded-lg">
                     <Clock size={12} className="text-blue-500" />
                   </div>
-                  <span className="text-xs font-medium text-gray-500">Dars vaqti</span>
+                  <span className="text-xs font-medium text-gray-500">{tr("Dars vaqti")}</span>
                 </div>
                 <span className="text-xs font-bold text-[#2001FF]">
                   {lt.days} | {lt.start_time} - {lt.end_time}
@@ -109,10 +111,10 @@ export default function LessonDetail() {
 
             <div className="pt-1.5 flex gap-2">
               <button className="flex-1 py-2.5 bg-gradient-to-r from-[#2001FF] to-[#4361FF] text-white rounded-xl font-semibold text-xs shadow-lg shadow-[#2001FF]/20 hover:shadow-xl hover:shadow-[#2001FF]/30 transition-all duration-300 btn-scale">
-                Uy vazifasi
+                {tr("Uy vazifasi")}
               </button>
               <button className="flex-1 py-2.5 bg-gray-50 text-gray-700 rounded-xl font-semibold text-xs hover:bg-gray-100 transition-all btn-scale">
-                Dars yozuvlari
+                {tr("Dars yozuvlari")}
               </button>
             </div>
           </div>
@@ -121,21 +123,21 @@ export default function LessonDetail() {
         <div className="mt-3 bg-white rounded-2xl p-3.5 card-shadow animate-fade-in">
           <h2 className="text-xs font-bold text-gray-900 mb-2 flex items-center gap-1.5">
             <FileText size={13} className="text-[#2001FF]" />
-            Uy vazifasi
+            {tr("Uy vazifasi")}
           </h2>
           <div className="bg-gray-50 rounded-xl p-3 text-center">
-            <p className="text-xs font-medium text-gray-400">Hozircha topshiriqlar mavjud emas</p>
+            <p className="text-xs font-medium text-gray-400">{tr("Hozircha topshiriqlar mavjud emas")}</p>
           </div>
         </div>
 
         <div className="mt-3 bg-white rounded-2xl p-3.5 card-shadow mb-4 animate-fade-in">
           <h2 className="text-xs font-bold text-gray-900 mb-2 flex items-center gap-1.5">
             <FileText size={13} className="text-[#2001FF]" />
-            O'qituvchi eslatmalari
+            {tr("O'qituvchi eslatmalari")}
           </h2>
           <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
             <p className="text-xs font-medium text-amber-700">
-              Keyingi darsga darslikning 5-bobini o'qib keling
+              {tr("Keyingi darsga darslikning 5-bobini o'qib keling")}
             </p>
           </div>
         </div>

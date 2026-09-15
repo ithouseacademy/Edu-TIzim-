@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import BottomNav from "./components/BottomNav"
 import SideDrawer from "./components/SideDrawer"
 import { DrawerProvider } from "./context/DrawerContext"
+import { AppSettingsProvider } from "./AppSettings"
 import LoginPhone from "./pages/LoginPhone"
 import VerifyCode from "./pages/VerifyCode"
 import SetPassword from "./pages/SetPassword"
@@ -17,6 +18,10 @@ import AttendanceHistory from "./pages/AttendanceHistory"
 import TransactionsPage from "./pages/TransactionsPage"
 import GroupsPage from "./pages/GroupsPage"
 import BalancePage from "./pages/BalancePage"
+import Suggestions from "./pages/Suggestions"
+import FeedbackHistory from "./pages/FeedbackHistory"
+import SettingsPage from "./pages/SettingsPage"
+import ProfileInfo from "./pages/ProfileInfo"
 
 function ProtectedLayout({ children, showNav = true }: { children: React.ReactNode; showNav?: boolean }) {
   const token = localStorage.getItem("student_token")
@@ -31,11 +36,12 @@ function ProtectedLayout({ children, showNav = true }: { children: React.ReactNo
 
 export default function StudentApp() {
   return (
-    <DrawerProvider>
-      <BrowserRouter>
-        <SideDrawer />
-        <Routes>
-          <Route path="/" element={<LoginPhone />} />
+    <AppSettingsProvider>
+      <DrawerProvider>
+        <BrowserRouter>
+          <SideDrawer />
+          <Routes>
+            <Route path="/" element={<LoginPhone />} />
           <Route path="/verify-code" element={<VerifyCode />} />
           <Route path="/set-password" element={<SetPassword />} />
           <Route path="/password-login" element={<PasswordLogin />} />
@@ -80,6 +86,22 @@ export default function StudentApp() {
             }
           />
           <Route
+            path="/profile/settings/info"
+            element={
+              <ProtectedLayout showNav={false}>
+                <ProfileInfo />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/profile/settings"
+            element={
+              <ProtectedLayout showNav={false}>
+                <SettingsPage />
+              </ProtectedLayout>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <ProtectedLayout>
@@ -112,6 +134,22 @@ export default function StudentApp() {
             }
           />
           <Route
+            path="/profile/feedback"
+            element={
+              <ProtectedLayout showNav={false}>
+                <Suggestions />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/profile/feedback/history"
+            element={
+              <ProtectedLayout showNav={false}>
+                <FeedbackHistory />
+              </ProtectedLayout>
+            }
+          />
+          <Route
             path="/lesson/:id"
             element={
               <ProtectedLayout>
@@ -130,6 +168,7 @@ export default function StudentApp() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </DrawerProvider>
+      </DrawerProvider>
+    </AppSettingsProvider>
   )
 }

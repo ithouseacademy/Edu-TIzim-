@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { Lock, Eye, EyeOff, ArrowLeft, Check, X } from "lucide-react"
 import { api } from "../api"
+import { useAppSettings } from "../AppSettings"
 
 type Strength = "weak" | "medium" | "strong"
 
@@ -14,6 +15,7 @@ const strengthConfig: Record<Strength, { label: string; color: string; bg: strin
 export default function SetPassword() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { tr } = useAppSettings()
   const { phone, tempToken } = location.state || {}
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -29,16 +31,16 @@ export default function SetPassword() {
   const st = strengthConfig[strength]
 
   const rules = [
-    { label: "Kamida 6 ta belgi", passed: hasMinLength },
+    { label: tr("Kamida 6 ta belgi"), passed: hasMinLength },
   ]
 
   const handleSubmit = async () => {
     if (!password || password.length < 6) {
-      setError("Parol kamida 6 belgidan iborat bo'lishi kerak")
+      setError(tr("Parol kamida 6 belgidan iborat bo'lishi kerak"))
       return
     }
     if (password !== confirmPassword) {
-      setError("Parollar mos kelmadi")
+      setError(tr("Parollar mos kelmadi"))
       return
     }
     setLoading(true)
@@ -46,8 +48,8 @@ export default function SetPassword() {
       await api.setPassword(phone, password, confirmPassword)
       localStorage.setItem("student_token", tempToken)
       navigate("/home")
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
@@ -71,15 +73,15 @@ export default function SetPassword() {
                 <Lock size={36} className="text-white" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Yangi parol</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{tr("Yangi parol")}</h1>
             <p className="text-gray-500 mt-2 text-sm font-medium">
-              Hisobingizni himoyalash uchun parol o'rnating
+              {tr("Hisobingizni himoyalash uchun parol o'rnating")}
             </p>
           </div>
 
           <div className="space-y-4 animate-fade-in">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Parol</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">{tr("Parol")}</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -88,7 +90,7 @@ export default function SetPassword() {
                     setPassword(e.target.value)
                     setError("")
                   }}
-                  placeholder="Kamida 6 belgi"
+                  placeholder={tr("Kamida 6 belgi")}
                   className="w-full h-[56px] px-4 bg-[#F7F9FC] border-2 border-gray-200 rounded-[18px] text-base font-medium focus:outline-none transition-all duration-300 focus:border-[#2001FF] focus:shadow-[0_0_0_3px_rgba(32,1,255,0.1),0_0_20px_rgba(32,1,255,0.05)] pr-12"
                 />
                 <button
@@ -104,8 +106,8 @@ export default function SetPassword() {
             {password.length > 0 && (
               <div className="animate-slide-up">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-gray-500">Parol kuchi</span>
-                  <span className={`text-xs font-bold ${st.color}`}>{st.label}</span>
+                  <span className="text-xs font-semibold text-gray-500">{tr("Parol kuchi")}</span>
+                  <span className={`text-xs font-bold ${st.color}`}>{tr(st.label)}</span>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div className={`h-full rounded-full transition-all duration-500 ${st.bg} ${st.width}`} />
@@ -114,7 +116,7 @@ export default function SetPassword() {
             )}
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Parolni tasdiqlang</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">{tr("Parolni tasdiqlang")}</label>
               <div className="relative">
                 <input
                   type={showConfirm ? "text" : "password"}
@@ -123,7 +125,7 @@ export default function SetPassword() {
                     setConfirmPassword(e.target.value)
                     setError("")
                   }}
-                  placeholder="Parolni qayta kiriting"
+                  placeholder={tr("Parolni qayta kiriting")}
                   className="w-full h-[56px] px-4 bg-[#F7F9FC] border-2 border-gray-200 rounded-[18px] text-base font-medium focus:outline-none transition-all duration-300 focus:border-[#2001FF] focus:shadow-[0_0_0_3px_rgba(32,1,255,0.1),0_0_20px_rgba(32,1,255,0.05)] pr-12"
                 />
                 <button
@@ -135,7 +137,7 @@ export default function SetPassword() {
                 </button>
               </div>
               {confirmPassword.length > 0 && password !== confirmPassword && (
-                <p className="text-xs text-red-500 mt-1.5 ml-1 font-medium">Parollar mos kelmadi</p>
+                <p className="text-xs text-red-500 mt-1.5 ml-1 font-medium">{tr("Parollar mos kelmadi")}</p>
               )}
             </div>
 
@@ -173,10 +175,10 @@ export default function SetPassword() {
               {loading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Yaratilmoqda...</span>
+                  <span>{tr("Yaratilmoqda...")}</span>
                 </div>
               ) : (
-                "Parolni saqlash"
+                tr("Parolni saqlash")
               )}
             </button>
           </div>

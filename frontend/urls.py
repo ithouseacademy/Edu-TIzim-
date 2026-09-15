@@ -5,6 +5,8 @@ from . import employee_api
 from . import teacher_salary_api
 from . import kassa_urls
 from . import admin_permission_views
+from . import feedback_views
+from . import messaging_api
 
 urlpatterns = [
     path("", views.login_view, name="login"),
@@ -158,13 +160,30 @@ urlpatterns = [
     path("api/student/set-password/", student_api.set_password, name="student_set_password"),
     path("api/student/login/", student_api.student_login, name="student_login"),
     path("api/student/profile/", student_api.profile, name="student_api_profile"),
+    path("api/student/profile/update/", student_api.update_profile, name="student_api_update_profile"),
     path("api/student/today-classes/", student_api.today_classes, name="student_today_classes"),
     path("api/student/schedule/", student_api.schedule, name="student_schedule"),
     path("api/student/attendance-history/", student_api.attendance_history, name="student_attendance_history"),
     path("api/student/monthly-calendar/", student_api.monthly_calendar, name="student_monthly_calendar"),
     path("api/student/balance/", student_api.student_balance_api, name="student_balance_api"),
     path("api/student/transactions/", student_api.student_transactions_api, name="student_transactions_api"),
+    path("api/student/feedback/", student_api.my_feedbacks, name="student_feedback_list"),
+    path("api/student/feedback/create/", student_api.create_feedback, name="student_feedback_create"),
     path("api/student/sms/send/", views.student_send_sms, name="student_send_sms"),
+    # === Xabarlar (Messaging) ===
+    path("api/messaging/settings/", messaging_api.settings_api, name="messaging_settings_api"),
+    path("api/messaging/chats/", messaging_api.chats_list, name="messaging_chats_list"),
+    path("api/messaging/chats/<int:chat_id>/messages/", messaging_api.chat_messages, name="messaging_chat_messages"),
+    path("api/messaging/chats/<int:chat_id>/read/", messaging_api.mark_read, name="messaging_chat_read"),
+    path("api/messaging/chats/private/<int:student_id>/", messaging_api.open_private, name="messaging_open_private"),
+    path("api/messaging/chats/group/", messaging_api.open_group, name="messaging_open_group"),
+    path("api/messaging/chats/<int:chat_id>/members/", messaging_api.add_members, name="messaging_add_members"),
+    path("api/messaging/send/", messaging_api.send_message, name="messaging_send"),
+    path("api/messaging/users/search/", messaging_api.search_users, name="messaging_users_search"),
+    path("api/messaging/study-groups/", messaging_api.my_study_groups, name="messaging_study_groups"),
+    path("api/messaging/unread/", messaging_api.unread_count_api, name="messaging_unread_count"),
+    path("messaging/", views.messaging, name="messaging"),
+    path("settings/messaging/", views.messaging_settings, name="messaging_settings"),
     # Payment views
     path("groups/<int:group_pk>/student-price/<int:student_pk>/", views.update_student_lesson_price, name="update_student_lesson_price"),
     path("payments/", views.payments_all, name="payments"),
@@ -205,4 +224,9 @@ urlpatterns = [
     path("admins/<int:pk>/block/", admin_permission_views.admin_block, name="admin_block"),
     path("admins/<int:pk>/unblock/", admin_permission_views.admin_unblock, name="admin_unblock"),
     path("audit-log/", admin_permission_views.audit_log, name="audit_log"),
+    # === Taklif va shikoyatlar (Feedback) ===
+    path("feedback/", feedback_views.feedback_list, name="feedback_list"),
+    path("feedback/<int:pk>/", feedback_views.feedback_detail, name="feedback_detail"),
+    path("feedback/<int:pk>/delete/", feedback_views.feedback_delete, name="feedback_delete"),
+    path("api/feedback/badge/", feedback_views.feedback_badge, name="feedback_badge"),
 ]

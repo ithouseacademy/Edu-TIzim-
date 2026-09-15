@@ -12,6 +12,10 @@ export interface StudentProfile {
   balance_str?: string
   debt?: number
   debt_str?: string
+  to_pay?: number
+  to_pay_str?: string
+  total_to_pay?: number
+  total_to_pay_str?: string
   remaining_lessons?: number
   has_password?: boolean
 }
@@ -95,4 +99,80 @@ export interface ScheduleLesson {
   room: string
   start_time: string
   end_time: string
+}
+
+export interface Feedback {
+  id: number
+  category: string
+  category_display: string
+  message: string
+  status: string
+  status_display: string
+  admin_response: string
+  responded_at: string
+  created_at: string
+}
+
+export interface MessagingSettings {
+  enabled: boolean
+  private_chats: boolean
+  group_chats: boolean
+  teachers_in_group_chats: boolean
+  role: string
+}
+
+export interface ChatMemberInfo {
+  id: number
+  kind: string
+  name: string
+  username: string
+  phone: string
+  is_admin: boolean
+}
+
+export interface MessageInfo {
+  id: number
+  chat_id: number
+  text: string
+  media_type: string
+  media_url: string
+  media_duration: number | null
+  sender_id: number
+  sender_kind: string
+  sender_name: string
+  is_me: boolean
+  created_at: string
+}
+
+export interface ChatInfo {
+  id: number
+  chat_type: string
+  title: string
+  group_id: number | null
+  members_count: number
+  members_preview: string[]
+  members?: ChatMemberInfo[]
+  last_message: MessageInfo | null
+  unread_count: number
+  last_msg_at: string
+  is_group_admin: boolean
+  is_me?: boolean
+}
+
+export interface ChatData {
+  id: number
+  chat_type: string
+  title: string
+  members: ChatMemberInfo[]
+  messages: MessageInfo[]
+  is_group_admin: boolean
+}
+
+export interface SearchUser {
+  id: number
+  kind: string
+  name: string
+  username: string
+  phone: string
+  initials: string
 }
