@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { KeyRound, Send, LogOut, User, Wallet, ChevronRight, Camera, Download, Users, Pencil } from "lucide-react"
+import { KeyRound, Send, LogOut, User, Wallet, ChevronRight, Camera, Users } from "lucide-react"
 import { api, fixPhotoUrl } from "../api"
 import type { SalaryData, TeacherGroup } from "../types"
 import WaveHeader from "../components/WaveHeader"
@@ -80,9 +80,6 @@ export default function Profile({ onNavigate, onLogout }: ProfileProps) {
       : g.status === "frozen"
         ? "bg-amber-50 text-amber-600"
         : "bg-slate-100 text-slate-500"
-
-  const amountCls = (n: number) => (n >= 0 ? "text-green-600" : "text-red-500")
-  const sign = (n: number) => (n >= 0 ? "+" : "-")
 
   const PhotoAvatar = ({ size = "lg", className = "" }: { size?: "sm" | "lg"; className?: string }) => {
     const sz = size === "lg" ? "w-20 h-20" : "w-12 h-12"

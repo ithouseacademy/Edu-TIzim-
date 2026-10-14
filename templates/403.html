@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruxsat yo'q (403) — Edu Tizim</title>
+    <link rel="stylesheet" href="{% static 'fontawesomefree/css/all.min.css' %}">
+    <link rel="stylesheet" href="{% static 'frontend/css/style.css' %}">
+    <style>
+        body { margin: 0; background: #f4f6fb; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .deny-wrap {
+            min-height: 100vh; display: flex; align-items: center;
+            justify-content: center; padding: 24px;
+        }
+        .deny-card {
+            background: #fff; border-radius: 16px; max-width: 560px; width: 100%;
+            padding: 36px 34px; box-shadow: 0 12px 40px rgba(20, 40, 80, .12);
+            text-align: center; border-top: 5px solid #e53935;
+        }
+        .deny-icon {
+            width: 74px; height: 74px; border-radius: 50%;
+            background: #fdecea; color: #e53935; font-size: 32px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 18px;
+        }
+        .deny-card h1 { font-size: 22px; margin: 0 0 14px; color: #1a2740; }
+        .deny-reason {
+            font-size: 15px; color: #33415c; line-height: 1.55;
+            background: #f7f9fd; border-radius: 10px; padding: 14px 16px;
+            margin: 0 0 16px; text-align: left;
+        }
+        .deny-fix {
+            font-size: 14px; color: #1b5e20; line-height: 1.55;
+            background: #eaf6ec; border-radius: 10px; padding: 14px 16px;
+            margin: 0 0 22px; text-align: left;
+        }
+        .deny-fix strong { display: block; margin-bottom: 4px; color: #1b5e20; }
+        .deny-btn {
+            display: inline-block; background: #2f6fed; color: #fff;
+            text-decoration: none; font-weight: 600; font-size: 14px;
+            padding: 11px 24px; border-radius: 9px;
+            transition: background .15s;
+        }
+        .deny-btn:hover { background: #1f57c9; }
+    </style>
+</head>
+<body>
+    <div class="deny-wrap">
+        <div class="deny-card">
+            <div class="deny-icon"><i class="fas fa-ban"></i></div>
+            <h1>Ruxsat yo'q (403)</h1>
+            {% if reason %}
+            <div class="deny-reason">
+                <strong>Sabab:</strong> {{ reason }}
+            </div>
+            {% else %}
+            <div class="deny-reason">
+                <strong>Sabab:</strong> Sizga bu sahifaga kirish ruxsati berilmagan.
+            </div>
+            {% endif %}
+            {% if fix %}
+            <div class="deny-fix">
+                <strong><i class="fas fa-wrench"></i> Qanday tuzatish mumkin:</strong>
+                {{ fix }}
+            </div>
+            {% endif %}
+            <a href="{% url 'dashboard' %}" class="deny-btn">
+                <i class="fas fa-arrow-left"></i> Bosh sahifaga qaytish
+            </a>
+        </div>
+    </div>
+</body>
+</html>

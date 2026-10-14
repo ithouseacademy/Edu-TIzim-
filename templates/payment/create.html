@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load dict_filters %}
 {% load static %}
 {% load humanize %}
 {% block title %}To'lov qilish | Edu Tizim{% endblock %}
@@ -352,7 +353,7 @@ tbody tr.selected .pay-action-btn{background:var(--blue);color:#fff;}
           <div class="kl-icon {% if k.pk == main_kassa.pk %}active-icon{% else %}inactive-icon{% endif %}">K{{ forloop.counter }}</div>
           <div class="kl-info">
             <div class="kl-name">{{ k.name }}</div>
-            <div class="kl-owner">{{ k.owner.get_full_name|default:k.owner.username }}</div>
+            <div class="kl-owner">{{ k.owner|user_name }}</div>
           </div>
           <div class="kl-bal {% if k.balance > 0 %}pos{% elif k.balance < 0 %}neg{% else %}zero{% endif %}">{{ k.balance|floatformat:"0"|intcomma }}</div>
         </div>
@@ -600,7 +601,7 @@ tbody tr.selected .pay-action-btn{background:var(--blue);color:#fff;}
       <select id="transferToKassa" onchange="document.getElementById('transferToPMWrap').style.display=this.value?'block':'none'" style="width:100%;height:40px;padding:0 12px;border:1px solid #E9EDF5;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;outline:none;color:#111;background:#fff;">
         <option value="">Tanlang</option>
         {% for k in all_kassalar %}
-        <option value="{{ k.pk }}">{{ k.name }} — {{ k.owner.get_full_name|default:k.owner.username }}</option>
+        <option value="{{ k.pk }}">{{ k.name }} — {{ k.owner|user_name }}</option>
         {% endfor %}
       </select>
     </div>

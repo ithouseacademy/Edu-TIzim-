@@ -131,8 +131,102 @@ def _member_q(actor):
     return Q(user=actor["user"])
 
 
+def _scoped(request, queryset, path):
+    """Xabarlar API'sida filial chegarasi (messaging_api import qilmaydi)."""
+    from . import branch_scope
+
+    return branch_scope.scope_related(request, queryset, path)
+
+
 def _find_member(chat, actor):
     return ChatMember.objects.filter(chat=chat).filter(_member_q(actor)).first()
+
+
+def get_study_group_chat(group):
+    """Guruh uchun chatni oladi; bo'lmasa yaratadi."""
+    chat = group.chats.filter(chat_type="group").first()
+    if not chat:
+        chat = Chat.objects.create(chat_type="group", title=(group.name or "")[:255], group=group)
+    return chat
+
+
+def _group_teachers(group):
+    """Guruh o'qituvchilari (bosh o'qituvchi + tayinlanganlar)."""
+    teachers = []
+    if group.teacher and group.teacher.is_active and not group.teacher.is_deleted:
+        teachers.append(group.teacher)
+    for ta in group.teacher_assignments.select_related("teacher"):
+        if ta.teacher and ta.teacher.is_active and not ta.teacher.is_deleted:
+            teachers.append(ta.teacher)
+    return teachers
+
+
+def _group_admin_users():
+    """Xabarlar bo'limiga kirish huquqi bor adminlar:
+    boss admin (superuser) + 'messaging.view' huquqi berilganlar."""
+    from django.contrib.auth.models import User
+    from .permissions import has_permission, is_super_admin
+    admins = []
+    qs = User.objects.filter(is_active=True).filter(Q(is_staff=True) | Q(is_superuser=True))
+    for u in qs.iterator():
+        if not (is_super_admin(u) or has_permission(u, "messaging.view")):
+            continue
+        emp = None
+        try:
+            emp = u.employee_profile
+        except Exception:
+            emp = None
+        if emp and emp.is_active and not emp.is_deleted:
+            admins.append({"user": u, "employee": emp})
+        else:
+            admins.append({"user": u, "employee": None})
+    return admins
+
+
+def sync_group_chat(group, request=None):
+    """Guruh a'zoligi o'zgarganida chatni avto yangilaydi:
+    - yangi o'quvchi qo'shilsa -> chatga qo'shiladi (chat yo'q bo'lsa yaratiladi)
+    - guruhdan chiqib ketsa -> chatdan o'chiriladi
+    - guruh o'qituvchilari (bosh o'qituvchi + tayinlanganlar) avto qo'shiladi
+    - xabarlar huquqi bor adminlar va boss admin avto qo'shiladi
+    """
+    if not group or not group.pk or not group.is_active:
+        return None
+    cfg = GlobalConfig.get_instance()
+    chat = get_study_group_chat(group)
+
+    active_students = list(group.students.filter(is_active=True, is_deleted=False))
+    want_students = {st.pk for st in active_students}
+    for st in active_students:
+        _add_member(chat, student=st)
+
+    now_members = list(chat.members.filter(student__isnull=False).select_related("student"))
+    for m in now_members:
+        if m.student_id not in want_students:
+            m.delete()
+
+    if cfg.teachers_in_group_chats:
+        teachers = _group_teachers(group)
+        for i, t in enumerate(teachers):
+            _add_member(chat, employee=t, is_admin=(i == 0))
+        teacher_ids = {t.pk for t in teachers}
+
+        admins = _group_admin_users()
+        admin_emp_ids = {a["employee"].pk for a in admins if a["employee"]}
+        for a in admins:
+            if a["employee"]:
+                _add_member(chat, employee=a["employee"], is_admin=True)
+            else:
+                _add_member(chat, user=a["user"], is_admin=True)
+
+        for m in chat.members.filter(employee__isnull=False).select_related("employee", "employee__role"):
+            emp = m.employee
+            if (
+                emp and emp.role and emp.role.name == "O'qituvchi"
+                and emp.pk not in teacher_ids and emp.pk not in admin_emp_ids
+            ):
+                m.delete()
+    return chat
 
 
 def _add_member(chat, *, student=None, employee=None, user=None, is_admin=False):
@@ -445,7 +539,7 @@ def search_users(request):
     results = []
 
     def _search_students():
-        qs = Student.objects.filter(is_active=True, is_deleted=False)
+        qs = _scoped(request, Student.objects.filter(is_active=True, is_deleted=False), "branch")
         if actor["kind"] == "student":
             qs = qs.exclude(pk=actor["pk"])
         if q:
@@ -456,7 +550,7 @@ def search_users(request):
         return qs[:20]
 
     def _search_employees():
-        qs = Employee.objects.filter(is_active=True, is_deleted=False)
+        qs = _scoped(request, Employee.objects.filter(is_active=True, is_deleted=False), "branches")
         if q:
             qs = qs.filter(Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(phone__icontains=q))
         return qs[:20]
@@ -488,9 +582,21 @@ def my_study_groups(request):
     if actor["kind"] == "student":
         groups = actor["student"].groups.filter(status__in=["aktiv", "kutilyotgan"], is_active=True).distinct()
     else:
-        emp_groups = Group.objects.filter(status__in=["aktiv", "kutilyotgan"], is_active=True, teacher=actor["employee"])
-        assign_groups = Group.objects.filter(
-            status__in=["aktiv", "kutilyotgan"], is_active=True, teacher_assignments__teacher=actor["employee"]
+        emp_groups = _scoped(
+            request,
+            Group.objects.filter(
+                status__in=["aktiv", "kutilyotgan"], is_active=True,
+                teacher=actor["employee"],
+            ),
+            "branch",
+        )
+        assign_groups = _scoped(
+            request,
+            Group.objects.filter(
+                status__in=["aktiv", "kutilyotgan"], is_active=True,
+                teacher_assignments__teacher=actor["employee"],
+            ),
+            "branch",
         )
         groups = (emp_groups | assign_groups).distinct() if actor["employee"] else Group.objects.none()
     data = []
@@ -519,7 +625,9 @@ def open_private(request, student_id):
         return JsonResponse({"error": "Xabarlar bo'limi hozircha yopiq"}, status=403)
     if actor["kind"] == "student" and not cfg.student_private_chats:
         return JsonResponse({"error": "Shaxsiy chatlar hozircha yopiq"}, status=403)
-    target = Student.objects.filter(pk=student_id, is_active=True, is_deleted=False).first()
+    target = _scoped(
+        request, Student.objects.filter(pk=student_id, is_active=True, is_deleted=False), "branch"
+    ).first()
     if not target:
         return JsonResponse({"error": "O'quvchi topilmadi"}, status=404)
     if target == actor.get("student"):
@@ -556,7 +664,9 @@ def open_group(request):
 
     group_id = data.get("study_group_id")
     if group_id:
-        group = Group.objects.filter(pk=group_id, is_active=True).first()
+        group = _scoped(
+        request, Group.objects.filter(pk=group_id, is_active=True), "branch"
+    ).first()
         if not group:
             return JsonResponse({"error": "Guruh topilmadi"}, status=404)
         if actor["kind"] == "student" and not group.students.filter(pk=actor["pk"]).exists():
@@ -594,7 +704,9 @@ def open_group(request):
     chat = Chat.objects.create(chat_type="group", title=title[:100], group=None)
     _add_member(chat, **_actor_member_kwargs(actor), is_admin=True)
     for sid in student_ids:
-        st = Student.objects.filter(pk=sid, is_active=True, is_deleted=False).first()
+        st = _scoped(
+        request, Student.objects.filter(pk=sid, is_active=True, is_deleted=False), "branch"
+    ).first()
         if st:
             _add_member(chat, student=st)
     return JsonResponse({"chat": _chat_dict(chat, actor)})
@@ -620,7 +732,15 @@ def add_members(request, chat_id):
         return JsonResponse({"error": "Faqat guruh admini a'zo qo'sha oladi"}, status=403)
     added = 0
     for sid in data.get("student_ids") or []:
-        st = Student.objects.filter(pk=int(sid), is_active=True, is_deleted=False).first() if str(sid).isdigit() else None
+        (
+            _scoped(
+                request,
+                Student.objects.filter(pk=int(sid), is_active=True, is_deleted=False),
+                "branch",
+            ).first()
+            if str(sid).isdigit()
+            else None
+        )
         if st and _add_member(chat, student=st):
             added += 1
     return JsonResponse({"ok": True, "added": added, "chat": _chat_dict(chat, actor)})

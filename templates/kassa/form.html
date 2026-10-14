@@ -13,6 +13,29 @@
     <div style="margin-bottom:16px;">
       <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;">{{ field.label }}</label>
       {{ field }}
+      {% if field.name == "owner" %}
+      <div style="color:var(--text-muted);font-size:0.78rem;margin-top:4px;">
+        Ro'yxatda faqat tanlangan filialga biriktirilgan administratorlar ko'rinadi.
+        <a id="assign-admin-link" href="{% url 'branch_list' %}">Bu filialga administrator biriktirish →</a>
+      </div>
+      <div id="no-admin-hint" style="display:none;margin-top:6px;padding:8px 10px;border-radius:6px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:0.78rem;">
+        <i class="fas fa-triangle-exclamation"></i>
+        Bu filialga biriktirilgan administrator topilmadi.
+        <a id="assign-admin-link-2" href="{% url 'branch_list' %}">Hozir biriktiring →</a>
+      </div>
+      {% endif %}
+      {% if field.name == "is_main" %}
+      <div style="color:#92400e;font-size:0.78rem;margin-top:4px;padding:6px 10px;border-radius:6px;background:#fef3c7;border:1px solid #fcd34d;">
+        <i class="fas fa-star"></i> Belgilansa, bu asosiy (bosh) kassa hisoblanadi:
+        uni faqat <strong>cashbox.view_main</strong> huquqi bor xodimlar ko'radi,
+        unga pul faqat <strong>cashbox.transfer_main</strong> huquqi borlar o'tkaza oladi.
+        <br>
+        <strong>Filial</strong> tanlansa — o'sha filialning asosiy kassasi;
+        bo'sh qoldirilsa — <strong>barcha filiallar</strong> uchun asosiy kassa.
+        Kirim uchun <strong>cashbox.main_income</strong>, chiqim uchun
+        <strong>cashbox.main_expense</strong> ruxsati kerak.
+      </div>
+      {% endif %}
       {% if field.errors %}
       <div style="color:#dc2626;font-size:0.8rem;margin-top:4px;">{{ field.errors.0 }}</div>
       {% endif %}
@@ -27,4 +50,63 @@
     </div>
   </form>
 </div>
+{{ owner_branch_map|json_script:"owner-branch-map" }}
+{{ branch_admin_urls|json_script:"branch-admin-urls" }}
+<script>
+(function () {
+  var mapEl = document.getElementById("owner-branch-map");
+  var urlsEl = document.getElementById("branch-admin-urls");
+  if (!mapEl || !urlsEl) return;
+  var branchSel = document.getElementById("id_branch");
+  var ownerSel = document.getElementById("id_owner");
+  if (!branchSel || !ownerSel) return;
+
+  var map = JSON.parse(mapEl.textContent || "{}");
+  var urls = JSON.parse(urlsEl.textContent || "{}");
+
+  var hint = document.getElementById("no-admin-hint");
+  var links = [
+    document.getElementById("assign-admin-link"),
+    document.getElementById("assign-admin-link-2"),
+  ];
+
+  function refresh() {
+    var branchId = parseInt(branchSel.value, 10);
+    var options = Array.prototype.slice.call(ownerSel.options);
+    var visible = [];
+
+    options.forEach(function (opt) {
+      if (!opt.value) return; // "--- Admin tanlang ---"
+      var allowed = map[opt.value];
+      // superuser -> null (barchasi), filialga biriktirilgan -> massiv,
+      // biriktirilmagan admin -> undefined (hech qanday filialga tegishli emas).
+      // Filial tanlanmagan bo'lsa hammasi ko'rinadi, aks holda faqat o'sha
+      // filialni boshqara oladigan adminlar qoladi.
+      var show = allowed === null
+        || branchId <= 0
+        || (allowed !== undefined && allowed.indexOf(branchId) !== -1);
+      opt.hidden = !show;
+      opt.disabled = !show;
+      if (show) visible.push(opt);
+    });
+
+    // Tanlangan admin yashirilgan bo'lsa — birinchisini tanlaymiz.
+    if (ownerSel.selectedOptions[0] && ownerSel.selectedOptions[0].disabled) {
+      ownerSel.value = "";
+    }
+    if (!ownerSel.value && visible.length) {
+      ownerSel.value = visible[0].value;
+    }
+
+    var url = urls[String(branchId)] || "";
+    links.forEach(function (a) { if (a) a.href = url; });
+    if (hint) {
+      hint.style.display = (branchId > 0 && visible.length === 0) ? "block" : "none";
+    }
+  }
+
+  branchSel.addEventListener("change", refresh);
+  refresh();
+})();
+</script>
 {% endblock %}

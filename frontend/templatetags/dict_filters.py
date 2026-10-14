@@ -23,6 +23,21 @@ def has_key(dictionary, key):
     return key in dictionary
 
 @register.filter
+def user_name(user):
+    """Foydalanuvchini «Ism Familiya» ko'rinishida ko'rsatadi.
+
+    Ustuvorlik: Employee ismi -> User ismi -> username.
+    Misol: {{ kassa.owner|user_name }}
+    """
+    from ..branch_scope import user_display_name
+
+    if user is None:
+        return "Noma'lum"
+    name = user_display_name(user)
+    return name or "Noma'lum"
+
+
+@register.filter
 def spacesep(value):
     """Add space as thousand separator: 10000000 -> 10 000 000"""
     try:

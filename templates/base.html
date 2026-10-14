@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
+{% load dict_filters %}
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
@@ -99,20 +100,71 @@
                         </div>
                     </div>
                 </div>
-                <a href="#" class="nav-item">
-                    <i class="fas fa-trophy"></i>
-                    <span>Gamifikatsiya</span>
-                </a>
+                {% if 'coin.manage_reasons' in permissions or 'coin.view_history' in permissions or 'shop.view' in permissions or is_super_admin %}
+                <div class="nav-group">
+                    <div class="nav-group-head">
+                        <i class="fas fa-chevron-right nav-chevron nav-toggle{% if request.resolver_match.url_name == 'coin_reason_list' or request.resolver_match.url_name == 'coin_history_list' or request.resolver_match.url_name == 'shop_product_list' or request.resolver_match.url_name == 'shop_category_list' or request.resolver_match.url_name == 'shop_order_list' %} open{% endif %}" onclick="toggleAccordion(this)"></i>
+                        <a href="{% url 'coin_reason_list' %}" class="nav-item {% if request.resolver_match.url_name == 'coin_reason_list' or request.resolver_match.url_name == 'coin_history_list' or request.resolver_match.url_name == 'shop_product_list' or request.resolver_match.url_name == 'shop_category_list' or request.resolver_match.url_name == 'shop_order_list' %}active{% endif %}" onclick="event.stopPropagation()">
+                            <i class="fas fa-trophy"></i>
+                            <span>Gamifikatsiya</span>
+                        </a>
+                    </div>
+                    <div class="nav-sub-items-wrap{% if request.resolver_match.url_name == 'coin_reason_list' or request.resolver_match.url_name == 'coin_history_list' or request.resolver_match.url_name == 'shop_product_list' or request.resolver_match.url_name == 'shop_category_list' or request.resolver_match.url_name == 'shop_order_list' %} open{% endif %}">
+                        <div class="nav-sub-items">
+                            {% if 'coin.manage_reasons' in permissions or is_super_admin %}
+                            <a href="{% url 'coin_reason_list' %}" class="nav-item sub-item {% if request.resolver_match.url_name == 'coin_reason_list' %}active{% endif %}">
+                                <i class="fas fa-coins"></i>
+                                <span>Coin sabablari</span>
+                            </a>
+                            {% endif %}
+                            {% if 'coin.view_history' in permissions or is_super_admin %}
+                            <a href="{% url 'coin_history_list' %}" class="nav-item sub-item {% if request.resolver_match.url_name == 'coin_history_list' %}active{% endif %}">
+                                <i class="fas fa-clock-rotate-left"></i>
+                                <span>Coin tarixi</span>
+                            </a>
+                            {% endif %}
+                            {% if 'shop.view' in permissions or is_super_admin %}
+                            <a href="{% url 'shop_product_list' %}" class="nav-item sub-item {% if request.resolver_match.url_name == 'shop_product_list' %}active{% endif %}">
+                                <i class="fas fa-shopping-bag"></i>
+                                <span>Shop mahsulotlari</span>
+                            </a>
+                            <a href="{% url 'shop_category_list' %}" class="nav-item sub-item {% if request.resolver_match.url_name == 'shop_category_list' %}active{% endif %}">
+                                <i class="fas fa-tags"></i>
+                                <span>Shop kategoriyalari</span>
+                            </a>
+                            <a href="{% url 'shop_order_list' %}" class="nav-item sub-item {% if request.resolver_match.url_name == 'shop_order_list' %}active{% endif %}">
+                                <i class="fas fa-receipt"></i>
+                                <span>Shop buyurtmalari</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
                 <a href="#" class="nav-item">
                     <i class="fas fa-book-open"></i>
                     <span>O'quv bo'limi</span>
                 </a>
 
                 <div class="nav-section-label">Moliya va nazorat</div>
+                {% if 'cashbox.view' in permissions or 'cashbox.create' in permissions or is_super_admin %}
                 <a href="{% url 'kassa_dashboard' %}" class="nav-item {% if 'kassa' in request.resolver_match.url_name %}active{% endif %}">
                     <i class="fas fa-cash-register"></i>
                     <span>Kassa boshqaruvi</span>
                 </a>
+                {% endif %}
+                {% if 'cashbox.view' in permissions or is_super_admin %}
+                <a href="{% url 'kassa_transfer_list' %}" class="nav-item {% if request.resolver_match.url_name == 'kassa_transfer_list' %}active{% endif %}">
+                    <i class="fas fa-right-left"></i>
+                    <span>O'tkazmalar{% if 'cashbox.approve' in permissions or is_super_admin %} <span class="badge badge-yellow" title="Tasdiqlash kutilmoqda">tasdiqlash</span>{% endif %}</span>
+                </a>
+                {% endif %}
+                {% if is_super_admin or 'branch.monitor' in permissions or 'cashbox.manage_all' in permissions %}
+                <a href="{% url 'branch_monitor' %}" class="nav-item {% if request.resolver_match.url_name == 'branch_monitor' %}active{% endif %}">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Filial kuzatuvi</span>
+                </a>
+                {% endif %}
                 <a href="{% url 'payment_create' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_create' %}active{% endif %}">
                     <i class="fas fa-coins"></i>
                     <span>To'lov qilish</span>
@@ -187,6 +239,28 @@
                         IT House Akademiyasi
                         <i class="fas fa-chevron-down"></i>
                     </div>
+                    {% if can_switch_branch and branch_options %}
+                    <form method="post" action="{% url 'branch_switch' %}" class="topbar-branch-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <i class="fas fa-building" title="Filial"></i>
+                        <select name="branch" class="topbar-branch-select" onchange="this.form.submit()"
+                                title="Faqat tanlangan filial ma'lumotlarini ko'rsatish">
+                            {% if can_add_to_all_branches %}
+                            <option value="0" {% if not branch_filter_active %}selected{% endif %}>Barcha filiallar</option>
+                            {% endif %}
+                            {% for b in branch_options %}
+                            <option value="{{ b.id }}" {% if current_branch and current_branch.id == b.id %}selected{% elif not current_branch and not can_add_to_all_branches and forloop.first %}selected{% endif %}>{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <noscript><button type="submit" class="topbar-branch-apply">OK</button></noscript>
+                    </form>
+                    {% elif branch_locked and current_branch %}
+                    <div class="topbar-branch-form" title="Sizning filialingiz">
+                        <i class="fas fa-building"></i>
+                        <span class="topbar-branch-label">{{ current_branch.name }}</span>
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="topbar-center">
                     <i class="fas fa-search topbar-search-icon"></i>

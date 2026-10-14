@@ -6,8 +6,11 @@ It provides:
   - PERMISSION_REGISTRY: the full list of all permissions (codename -> module/action/label)
   - has_permission(user, codename)               : backend authorization check
   - get_permissions(user)                        : set of granted codenames
+  - get_grantable_codenames(user)                : set an admin may DELEGATE
+  - can_grant(actor, codename, branch=None)      : can `actor` grant this perm?
   - grant_permission / revoke_permission         : single grant/revoke (with audit log)
-  - grant_all / revoke_all                       : grant/revoke every permission for a user
+  - grant_all / revoke_all                       : grant/revoke every *delegable* perm
+  - set_permissions                              : replace perms (delegable only)
   - sync_permissions()                            : sync DB Permission rows from registry
   - has_any(request, *codenames)                 : template-friendly helper
   - can_manage_admin(user)                        : whether a user may manage another admin's perms
@@ -16,11 +19,17 @@ Rules:
   - A superuser (is_superuser) implicitly has every permission.
   - The 'admin.permissions.manage' permission gates permission management itself.
   - Regular admins can NEVER modify a superuser's permissions.
+  - An admin can only DELEGATE permissions they themselves hold: hech bir
+    admin o'z vakolatidan yuqoriroq vakolat bera olmaydi. 'manage' huquqi
+    o'z-o'zidan yangi vakolat bermaydi — berish faqat actorda mavjud bo'lgan
+    huquqlar doirasida amalga oshadi. Ruxsatsiz urinishlar audit logda
+    "deny" holatida qayd etiladi.
 """
 
 from functools import wraps
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import HttpResponseForbidden
 
 from .models import Permission, AdminPermission, PermissionAuditLog
@@ -37,12 +46,18 @@ PERMISSION_REGISTRY = {
 
     # ===== KASSA (Cashbox) =====
     "cashbox.view": ("cashbox", "view", "Kassani ko'rish"),
-    "cashbox.create": ("cashbox", "create", "Kassaga pul yoki ma'lumot qo'shish"),
-    "cashbox.update": ("cashbox", "update", "Kassadagi ma'lumotni tahrirlash"),
-    "cashbox.delete": ("cashbox", "delete", "Kassadagi ma'lumotni o'chirish"),
+    "cashbox.create": ("cashbox", "create", "Kassani ochish (yaratish) va kassaga kirim qo'shish"),
+    "cashbox.update": ("cashbox", "update", "Kassani tahrirlash va xodimga biriktirish"),
+    "cashbox.delete": ("cashbox", "delete", "Kassani yopish (o'chirish)"),
     "cashbox.transfer": ("cashbox", "transfer", "Kassalar orasida pul o'tkazish"),
     "cashbox.withdraw": ("cashbox", "withdraw", "Kassadan pul chiqarish"),
     "cashbox.report": ("cashbox", "report", "Kassa hisobotlarini ko'rish"),
+    "cashbox.approve": ("cashbox", "approve", "Kassalar o'tkazmasini tasdiqlash"),
+    "cashbox.manage_all": ("cashbox", "manage_all", "Barcha kassalarni boshqarish"),
+    "cashbox.view_main": ("cashbox", "view_main", "Asosiy (bosh) kassani ko'rish"),
+    "cashbox.transfer_main": ("cashbox", "transfer_main", "Asosiy (bosh) kassaga pul o'tkazish"),
+    "cashbox.main_income": ("cashbox", "main_income", "Asosiy (bosh) kassaga kirim qilish"),
+    "cashbox.main_expense": ("cashbox", "main_expense", "Asosiy (bosh) kassadan chiqim qilish"),
 
     # ===== TO'LOVLAR (Payments) =====
     "payment.view": ("payment", "view", "To'lovlarni ko'rish"),
@@ -142,6 +157,8 @@ PERMISSION_REGISTRY = {
     "branch.create": ("branch", "create", "Yangi filial qo'shish"),
     "branch.update": ("branch", "update", "Filial ma'lumotlarini tahrirlash"),
     "branch.delete": ("branch", "delete", "Filialni o'chirish"),
+    "branch.monitor": ("branch", "monitor", "Filial kuzatuvini ko'rish"),
+    "branch.assign_admin": ("branch", "assign_admin", "Filialga administrator biriktirish"),
     "room.view": ("room", "view", "Xonalarni ko'rish"),
     "room.create": ("room", "create", "Yangi xona qo'shish"),
     "room.update": ("room", "update", "Xona ma'lumotlarini tahrirlash"),
@@ -186,6 +203,24 @@ PERMISSION_REGISTRY = {
     "messaging.view": ("messaging", "view", "Xabarlar (chat) bo'limini ko'rish"),
     "messaging.send": ("messaging", "send", "Chatga xabar yuborish"),
     "messaging.settings": ("messaging", "settings", "Xabarlar sozlamalarini boshqarish"),
+
+    # ===== GAMIFIKATSIYA / COIN =====
+    "coin.view": ("coin", "view", "Coin hisobotlarini ko'rish"),
+    "coin.settings": ("coin", "settings", "Coin sozlamalarini boshqarish"),
+    "coin.manage_reasons": ("coin", "manage_reasons", "Coin sabablarini boshqarish"),
+    "coin.manage_teacher": ("coin", "manage_teacher", "O'qituvchi coin limitlarini boshqarish"),
+    "coin.view_history": ("coin", "view_history", "Coin tarixini ko'rish"),
+    "coin.add": ("coin", "add", "O'quvchiga coin berish"),
+    "coin.remove": ("coin", "remove", "O'quvchidan coin olish"),
+    "coin.adjust": ("coin", "adjust", "Coin balansini tahrirlash"),
+    "coin.reports": ("coin", "reports", "Coin hisobotlarini ko'rish"),
+
+    # ===== SHOP (Coin do'koni) =====
+    "shop.view": ("shop", "view", "Shopni ko'rish"),
+    "shop.product_create": ("shop", "product_create", "Shop mahsuloti qo'shish"),
+    "shop.product_edit": ("shop", "product_edit", "Shop mahsulotini tahrirlash"),
+    "shop.product_delete": ("shop", "product_delete", "Shop mahsulotini o'chirish"),
+    "shop.order_approve": ("shop", "order_approve", "Shop buyurtmasini tasdiqlash"),
 }
 
 # Human-friendly module names for grouping in the UI
@@ -218,6 +253,8 @@ MODULE_LABELS = {
     "task": "Topshiriqlar va eslatmalar",
     "feedback": "Taklif va shikoyatlar",
     "messaging": "Xabarlar",
+    "coin": "Gamifikatsiya (Coin)",
+    "shop": "Coin do'koni (Shop)",
 }
 
 
@@ -234,13 +271,19 @@ def is_super_admin(user):
     return bool(getattr(user, "is_superuser", False))
 
 
-def has_permission(user, codename):
+def has_permission(user, codename, branch=None):
     """
     Returns True if the given user (or anonymous) has the given permission.
 
     - Anonymous / inactive users never have permission.
     - Super users implicitly have *every* permission.
     - Otherwise the user's explicitly granted AdminPermission rows are checked.
+
+    `branch` — filialga xos ruxsat tekshiruvi:
+      - `None` (aniqlanmagan): global YOKI istalgan filialga berilgan
+        ruxsat yetarli (masalan, middleware darajasida).
+      - Branch objektki yoki id: global ruxsat YOKI aynan shu filialga
+        berilgan ruxsat mos keladi.
     """
     if user is None or not getattr(user, "is_authenticated", False):
         return False
@@ -250,16 +293,41 @@ def has_permission(user, codename):
         return True
     if codename not in PERMISSION_REGISTRY:
         return False
-    # cached per-request set stored on the user instance
+    branch_pk = getattr(branch, "pk", branch)
+    # cached per-request set stored on the user instance:
+    # {(codename, branch_id|None), ...}
     perms = getattr(user, "_cached_perms", None)
     if perms is None:
         perms = set(
             AdminPermission.objects
             .filter(user=user, permission__codename__in=all_codenames(), permission__is_active=True)
-            .values_list("permission__codename", flat=True)
+            .values_list("permission__codename", "branch_id")
         )
         user._cached_perms = perms
-    return codename in perms
+    for code, row_branch in perms:
+        if code != codename:
+            continue
+        if row_branch is None:
+            return True  # global ruxsat
+        if branch_pk is None or row_branch == branch_pk:
+            return True
+    return False
+
+
+def get_branch_permissions(user, branch=None):
+    """Foydalanuvchining berilgan filial uchun amal qiladigan ruxsat to'plami.
+
+    Global (filialsiz) ruxsatlar barcha filiallar uchun amal qiladi.
+    """
+    if is_super_admin(user):
+        return set(all_codenames())
+    if user is None or not getattr(user, "is_authenticated", False):
+        return set()
+    qs = AdminPermission.objects.filter(user=user, permission__is_active=True)
+    if branch is not None:
+        branch_pk = getattr(branch, "pk", branch)
+        qs = qs.filter(Q(branch__isnull=True) | Q(branch_id=branch_pk))
+    return set(qs.values_list("permission__codename", flat=True))
 
 
 def get_permissions(user):
@@ -279,6 +347,66 @@ def get_permission_codes_db():
     """Return dict of codename -> Permission object from the registry."""
     codes = {(p.codename): p for p in Permission.objects.filter(codename__in=all_codenames())}
     return codes
+
+
+# ============================================================
+# DELEGATION (GRANTABLE) AUTHORIZATION
+# ============================================================
+#
+# Asosiy xavfsizlik qoidasi: hech bir admin o'zida mavjud bo'lmagan
+# huquqni boshqasiga bera olmaydi. "Xodimlarga huquq berish va o'zgartirish"
+# (admin.permissions.manage) — bu faqat boshqa xodimlarning huquqlarini
+# boshqarish imkoniyati; u adminning o'zida bo'lmagan huquqlarni berish
+# vakolatini bermaydi.
+
+def get_grantable_codenames(user):
+    """Foydalanuvchi boshqalarga bera oladigan ruxsat kodlari to'plami.
+
+    - Super admin -> barcha 128 ta ruxsat.
+    - Oddiy admin -> faqat o'zida mavjud (global yoki filialga xos) ruxsatlar.
+    """
+    if is_super_admin(user):
+        return set(all_codenames())
+    if user is None or not getattr(user, "is_authenticated", False):
+        return set()
+    return set(
+        AdminPermission.objects
+        .filter(user=user, permission__is_active=True)
+        .values_list("permission__codename", flat=True)
+    )
+
+
+def can_grant(actor, codename, branch=None):
+    """`actor` shu ruxsatni boshqasiga bera oladimi?
+
+    - Super admin har doim.
+    - Global (`branch=None`) ruxsat berish uchun actorda global (filialsiz)
+      ruxsat bo'lishi shart — filialga xos ruxsat globalga aylanmaydi.
+    - Filialga xos ruxsat uchun actorda global ruxsat YOKI aynan shu filial
+      uchun ruxsat bo'lishi kerak.
+    """
+    if codename not in PERMISSION_REGISTRY:
+        return False
+    if is_super_admin(actor):
+        return True
+    if actor is None or not getattr(actor, "is_authenticated", False):
+        return False
+    if not getattr(actor, "is_active", False):
+        return False
+    qs = AdminPermission.objects.filter(
+        user=actor, permission__codename=codename, permission__is_active=True,
+    )
+    if branch is None:
+        return qs.filter(branch__isnull=True).exists()
+    branch_pk = getattr(branch, "pk", branch)
+    return qs.filter(Q(branch__isnull=True) | Q(branch_id=branch_pk)).exists()
+
+
+def log_denied(actor, target_user, codename, branch=None, reason=""):
+    """Ruxsatsiz urinishni audit logga yozadi (view'lar uchun ochiq)."""
+    scope = "global" if branch is None else "branch=%s" % getattr(branch, "pk", branch)
+    detail = "DENIED %s; %s" % (scope, reason or "actor does not hold this permission")
+    _audit(actor, target_user, codename, "deny", detail=detail)
 
 
 def attendance_write_check(user, is_admin, existing):
@@ -343,12 +471,23 @@ def _invalidate_cache(user):
             pass
 
 
-def grant_permission(actor, target_user, codename):
-    """Grant a single permission to target_user. Returns True if changed."""
+def grant_permission(actor, target_user, codename, branch=None, enforce=True):
+    """Grant a single permission to target_user. Returns True if changed.
+
+    `branch=None` — global (filialsiz) ruxsat; `branch=<Branch|id>` —
+    faqat shu filial doirasida amal qiladigan ruxsat.
+
+    `enforce=True` (default) — actor faqat O'ZIDA mavjud bo'lgan ruxsatni
+    bera oladi. Ruxsatsiz urinish rad etiladi va audit logga yoziladi.
+    """
     if codename not in PERMISSION_REGISTRY:
         return False
     if is_super_admin(target_user):
         return False  # Superuser already has everything; never store rows for it
+    if enforce and not can_grant(actor, codename, branch):
+        log_denied(actor, target_user, codename, branch)
+        return False
+    branch_pk = getattr(branch, "pk", branch)
     permission, _ = Permission.objects.get_or_create(
         codename=codename,
         defaults={
@@ -359,33 +498,53 @@ def grant_permission(actor, target_user, codename):
         },
     )
     created, _ = AdminPermission.objects.get_or_create(
-        user=target_user, permission=permission,
+        user=target_user, permission=permission, branch_id=branch_pk,
         defaults={"granted_by": actor},
     )
     if created:
-        _audit(actor, target_user, codename, "grant")
-    if created:
+        _audit(
+            actor, target_user, codename, "grant",
+            detail=f"branch={branch_pk}" if branch_pk else "branch=global",
+        )
         _invalidate_cache(target_user)
     return created
 
 
-def revoke_permission(actor, target_user, codename):
-    """Revoke a single permission from target_user. Returns True if changed."""
+def revoke_permission(actor, target_user, codename, branch=None, enforce=True):
+    """Revoke a single permission from target_user. Returns True if changed.
+
+    `branch=None` — faqat global (filialsiz) ruxsatni olib tashlaydi;
+    `branch=<Branch|id>` — faqat shu filial ruxsatini olib tashlaydi.
+
+    `enforce=True` (default) — actor faqat o'zi boshqara oladigan (o'zida
+    mavjud bo'lgan) ruxsatni olib tashlay oladi; aks holda rad etiladi.
+    """
     if is_super_admin(target_user):
         return False
     if codename not in PERMISSION_REGISTRY:
         return False
+    if enforce and not can_grant(actor, codename, branch):
+        log_denied(actor, target_user, codename, branch,
+              reason="actor cannot manage this permission")
+        return False
+    branch_pk = getattr(branch, "pk", branch)
     deleted, _ = AdminPermission.objects.filter(
-        user=target_user, permission__codename=codename
+        user=target_user, permission__codename=codename, branch_id=branch_pk
     ).delete()
     if deleted:
-        _audit(actor, target_user, codename, "revoke")
+        _audit(
+            actor, target_user, codename, "revoke",
+            detail=f"branch={branch_pk}" if branch_pk else "branch=global",
+        )
         _invalidate_cache(target_user)
     return bool(deleted)
 
 
 def grant_all(actor, target_user):
-    """Grant every permission in the registry to target_user."""
+    """Grant every permission the *actor* is allowed to delegate.
+
+    Super admin -> all 128. Oddiy admin -> faqat o'zidagi ruxsatlar.
+    """
     if is_super_admin(target_user):
         return 0
     granted = 0
@@ -396,22 +555,45 @@ def grant_all(actor, target_user):
 
 
 def revoke_all(actor, target_user):
-    """Revoke every permission from target_user."""
+    """Revoke every permission from target_user that the actor may manage.
+
+    Actor faqat o'zi boshqara oladigan (o'zida mavjud) ruxsatlarni olib
+    tashlaydi. Boshqa admin yoki super admin tomonidan berilgan, actorda
+    mavjud bo'lmagan ruxsatlar saqlanib qoladi (tasodifan o'chirilmaydi).
+    """
     if is_super_admin(target_user):
         return 0
-    revoked = 0
-    for codename in all_codenames():
-        if revoke_permission(actor, target_user, codename):
-            revoked += 1
-    return revoked
+    deleted = 0
+    rows = (
+        AdminPermission.objects
+        .filter(user=target_user, permission__codename__in=all_codenames())
+        .select_related("permission")
+    )
+    for row in rows:
+        if not can_grant(actor, row.permission.codename, row.branch):
+            continue
+        codename = row.permission.codename
+        branch_pk = row.branch_id
+        row.delete()
+        deleted += 1
+        _audit(
+            actor, target_user, codename, "revoke",
+            detail=f"branch={branch_pk}" if branch_pk else "branch=global",
+        )
+    if deleted:
+        _invalidate_cache(target_user)
+    return deleted
 
 
 def set_permissions(actor, target_user, codenames):
     """
     Replace the target user's permission set with the given set of codenames.
     Returns (granted_count, revoked_count).
+
+    Faqat actor bera oladigan ruxsatlar qo'llanadi. Actor boshqara olmaydigan
+    mavjud ruxsatlar (masalan super admin berganlari) o'zgartirilmaydi.
     """
-    target_perm_set = set(codenames) & set(all_codenames())
+    target_perm_set = set(codenames) & get_grantable_codenames(actor)
     current = set(
         AdminPermission.objects
         .filter(user=target_user, permission__is_active=True)

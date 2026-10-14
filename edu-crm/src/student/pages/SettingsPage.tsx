@@ -131,8 +131,8 @@ export default function SettingsPage() {
           className="w-full bg-white rounded-3xl px-4 py-5 flex items-center gap-3 btn-hover transition-all"
         >
           <div className="w-[56px] h-[56px] rounded-full bg-[#0868E8] flex items-center justify-center shrink-0 overflow-hidden">
-            {avatar ? (
-              <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+            {student?.photo || avatar ? (
+              <img src={student?.photo || avatar || ""} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
               <Smile size={28} className="text-white" />
             )}

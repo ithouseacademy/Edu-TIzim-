@@ -233,8 +233,9 @@
                 <th class="col-check"><div class="gc-check-wrap"><input type="checkbox" id="gcSelectAll" onclick="gcToggleSelectAll(this)"><div class="gc-check-visual"></div></div></th>
                 <th class="col-num">№</th>
                 <th class="col-name">Nomi</th>
-                <th class="col-course">Kurs</th>
-                <th class="col-level">Daraja</th>
+<th class="col-course">Kurs</th>
+                    {% if not branch_locked %}<th class="col-branch">Filial</th>{% endif %}
+                    <th class="col-level">Daraja</th>
                 <th class="col-day">Kun</th>
                 <th class="col-time">Vaqt</th>
                 <th class="col-range">Muddat</th>
@@ -255,6 +256,7 @@
                     <a href="{% url 'group_detail' group.pk %}" class="group-link">{{ group.name }}</a>
                 </td>
                 <td class="col-course"><span class="course-tag">{{ group.course.name }}</span></td>
+                {% if not branch_locked %}<td class="col-branch"><span class="muted">{{ group.branch.name|default:"Filialsiz" }}</span></td>{% endif %}
                 <td class="col-level"><span class="level-badge">{% if group.level %}{{ group.level.name }}{% else %}—{% endif %}</span></td>
                 <td class="col-day">
                     {% with lt=group.lesson_times.all|first %}

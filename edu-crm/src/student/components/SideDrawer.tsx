@@ -21,7 +21,7 @@ const navItems = [
 
 export default function SideDrawer() {
   const { isOpen, close } = useDrawer()
-  const { avatar, tr } = useAppSettings()
+  const { tr } = useAppSettings()
   const ms = useMessagingSettings()
   const navigate = useNavigate()
   const [animating, setAnimating] = useState(false)
@@ -79,8 +79,8 @@ export default function SideDrawer() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-11 h-11 bg-gradient-to-br from-[#2001FF] to-[#4361FF] rounded-full flex items-center justify-center shadow-lg shadow-[#2001FF]/20 overflow-hidden">
-                  {avatar ? (
-                    <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  {student?.photo ? (
+                    <img src={student.photo} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-base font-bold text-white">{initials}</span>
                   )}

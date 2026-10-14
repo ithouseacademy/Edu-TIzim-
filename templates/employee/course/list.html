@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Kurslar | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Kurslar</h2>
+        <span class="page-header-count">{{ courses|length }} ta kurs</span>
+    </div>
+    <div class="page-header-right">
+        <a href="{% url 'course_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Qo'shish</a>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header between">
+        <h3><i class="fas fa-book"></i> Barcha kurslar</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Kurs nomi</th>
+                    <th>Guruhlar soni</th>
+                    <th>Yaratilgan sana</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for course in courses %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ course.name }}</strong></td>
+                    <td><span class="badge badge-blue">{{ course.group_count }}</span></td>
+                    <td>{{ course.created_at|date:"d.m.Y" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'course_update' course.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'course_delete' course.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="empty">Hozircha kurslar mavjud emas</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

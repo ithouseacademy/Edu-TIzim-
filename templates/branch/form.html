@@ -8,15 +8,23 @@
     <div class="card-body">
         <form method="post">
             {% csrf_token %}
-            {% for field in form %}
             <div class="form-group">
-                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}
-                <div class="field-error">{{ field.errors.0 }}</div>
-                {% endif %}
+                <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                {{ form.name }}
+                {% if form.name.errors %}<div class="field-error">{{ form.name.errors.0 }}</div>{% endif %}
             </div>
-            {% endfor %}
+            <div class="form-group">
+                <label>To'lov usullari</label>
+                <p style="font-size:.8rem;color:#6b7280;margin:0 0 8px;">Bu filialda yoqilgan to'lov usullari. Bo'sh qoldirilsa — barcha faol usullar ishlatiladi.</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;">
+                    {% for checkbox in form.payment_methods %}
+                    <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:.85rem;cursor:pointer;">
+                        {{ checkbox.tag }} <span>{{ checkbox.choice_label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% if form.payment_methods.errors %}<div class="field-error">{{ form.payment_methods.errors.0 }}</div>{% endif %}
+            </div>
             <div class="form-actions">
                 <a href="{% url 'branch_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Bekor qilish</a>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Saqlash</button>

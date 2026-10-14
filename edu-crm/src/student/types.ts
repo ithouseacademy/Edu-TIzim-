@@ -18,6 +18,7 @@ export interface StudentProfile {
   total_to_pay_str?: string
   remaining_lessons?: number
   has_password?: boolean
+  photo?: string | null
 }
 
 export interface Transaction {
@@ -175,4 +176,92 @@ export interface SearchUser {
   username: string
   phone: string
   initials: string
+}
+
+export interface CoinSummary {
+  balance: number
+  today: number
+  today_coins: number
+  month_earned: number
+  month_spent: number
+  bonus: number
+  penalty: number
+  attendance: number
+  shop: number
+}
+
+export interface CoinTxItem {
+  id: number
+  student_id: number | null
+  student_name: string
+  amount: number
+  transaction_type: string
+  transaction_type_display: string
+  reason_name: string
+  reason_id: number | null
+  reason_type: string
+  description: string
+  created_by: string
+  created_at: string
+  date: string
+  time: string
+  group_name: string
+  attendance_id: number | null
+  attendance_status: string
+  shop_order_id: number | null
+  reversal_of: number | null
+  status: string
+}
+
+export interface ShopProduct {
+  id: number
+  name: string
+  description: string
+  category_id: number | null
+  category_name: string
+  coin_price: number
+  stock: number
+  is_active: boolean
+  is_visible: boolean
+  show_price: boolean
+  image: string | null
+  created_at: string
+}
+
+export interface ShopOrderItem {
+  id: number
+  student_id: number
+  student_name: string
+  product_id: number | null
+  product_name: string
+  product_price: number
+  quantity: number
+  total: number
+  status: string
+  status_display: string
+  created_by: string
+  given_at: string | null
+  created_at: string
+}
+
+export interface LeadeboardItem {
+  rank: number
+  student_id: number
+  student_name: string
+  phone: string
+  score: number
+}
+
+export interface NewsItem {
+  id: number
+  title: string
+  body: string
+  category: string
+  category_display: string
+  image: string
+  is_pinned: boolean
+  link: string
+  link_text: string
+  published_at: string
+  created_at: string
 }

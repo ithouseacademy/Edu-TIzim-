@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from datetime import date, timedelta, datetime
 from decimal import Decimal
 
@@ -16,6 +17,12 @@ class SoftDeleteManager(models.Manager):
 
 class Course(models.Model):
     name = models.CharField(max_length=255, verbose_name="Kurs nomi")
+    branches = models.ManyToManyField(
+        "Branch",
+        blank=True,
+        related_name="courses",
+        verbose_name="Filiallar",
+    )
     is_active = models.BooleanField(default=True, verbose_name="Faol")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -94,6 +101,10 @@ class Group(models.Model):
         EVERYDAY = "har_kun", "Har kunlik"
 
     name = models.CharField(max_length=255, verbose_name="Guruh nomi")
+    branch = models.ForeignKey(
+        "Branch", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="groups", verbose_name="Filial"
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -189,6 +200,10 @@ class Student(models.Model):
     )
     first_name = models.CharField(max_length=255, verbose_name="Ism")
     last_name = models.CharField(max_length=255, verbose_name="Familya")
+    branch = models.ForeignKey(
+        "Branch", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="students", verbose_name="Filial"
+    )
     phone = models.CharField(max_length=20, verbose_name="Telefon raqam")
     username = models.CharField(max_length=50, blank=True, null=True, unique=True, verbose_name="@username (xabarlar uchun)")
     groups = models.ManyToManyField(Group, blank=True, related_name="students", verbose_name="Guruhlar")
@@ -236,6 +251,7 @@ class Student(models.Model):
     address_house = models.CharField(max_length=50, blank=True, null=True, verbose_name="Uy raqam")
     school = models.CharField(max_length=255, blank=True, null=True, verbose_name="O'qish joyi")
     telegram_chat_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="Telegram chat ID")
+    photo = models.ImageField(upload_to="student_photos/", blank=True, null=True, verbose_name="Profil rasmi")
     is_active = models.BooleanField(default=True, verbose_name="Faol")
     is_deleted = models.BooleanField(default=False, verbose_name="O'chirilgan")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -350,6 +366,10 @@ class GroupLog(models.Model):
 
 class Branch(models.Model):
     name = models.CharField(max_length=255, verbose_name="Filial nomi")
+    payment_methods = models.ManyToManyField(
+        "PaymentMethod", blank=True, related_name="branches", verbose_name="To'lov usullari",
+        help_text="Bu filialda yoqilgan to'lov usullari. Bo'sh bo'lsa — barcha faol usullar ishlatiladi.",
+    )
     is_active = models.BooleanField(default=True, verbose_name="Faol")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -368,8 +388,44 @@ class Branch(models.Model):
         verbose_name_plural = "Filiallar"
 
 
+class AdminBranch(models.Model):
+    """Admin foydalanuvchi qaysi filiallarni boshqarishi.
+
+    Super admin (`is_superuser`) cheklovsiz — barcha filiallarni ko'radi.
+    Oddiy admin uchun bu jadvalda kamida bitta yozuv bo'lsa, u faqat
+    ko'rsatilgan filiallarning ma'lumotlarini ko'radi va tahrirlaydi.
+    Yozuv yo'q bo'lsa — cheklov yo'q (barcha filiallar).
+    """
+
+    user = models.ForeignKey(
+        "auth.User", on_delete=models.CASCADE, related_name="admin_branches",
+        verbose_name="Admin foydalanuvchi",
+    )
+    branch = models.ForeignKey(
+        Branch, on_delete=models.CASCADE, related_name="admin_users", verbose_name="Filial"
+    )
+    granted_by = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+", verbose_name="Kim bergan",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan")
+
+    def __str__(self):
+        return f"{self.user} → {self.branch}"
+
+    class Meta:
+        verbose_name = "Admin filiali"
+        verbose_name_plural = "Admin filiallari"
+        unique_together = ("user", "branch")
+        ordering = ["user__username", "branch__name"]
+
+
 class Room(models.Model):
     name = models.CharField(max_length=255, verbose_name="Xona nomi")
+    branch = models.ForeignKey(
+        "Branch", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="rooms", verbose_name="Filial"
+    )
     is_active = models.BooleanField(default=True, verbose_name="Faol")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -463,6 +519,10 @@ class Employee(models.Model):
         help_text="Administrator/Support uchun tayinlangan oylik maosh (foiz tizimidan alohida)",
     )
     branches = models.ManyToManyField(Branch, blank=True, verbose_name="Filiallar")
+    payment_methods = models.ManyToManyField(
+        "PaymentMethod", blank=True, related_name="employees", verbose_name="To'lov usullari",
+        help_text="Xodimga ruxsat berilgan to'lov usullari. Bo'sh bo'lsa — filialning barcha yoqilgan usullari.",
+    )
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Rol")
     salary_same = models.BooleanField(default=False, verbose_name="Hammaga bir xil")
     salary = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="Ish haqi")
@@ -1135,7 +1195,17 @@ class Kassa(models.Model):
         "auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="kassalar", verbose_name="Egasi"
     )
     name = models.CharField(max_length=255, verbose_name="Kassa nomi")
+    branch = models.ForeignKey(
+        "Branch", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="kassalar", verbose_name="Filial"
+    )
     is_active = models.BooleanField(default=True, verbose_name="Faol")
+    is_main = models.BooleanField(
+        default=False, verbose_name="Asosiy (bosh) kassa",
+        help_text="Asosiy kassa umumiy tizim kassasi: uni faqat rahbar (super admin) "
+        "yaratadi; uni ko'rish 'Asosiy (bosh) kassani ko'rish', unga pul o'tkazish "
+        "'Asosiy (bosh) kassaga pul o'tkazish' huquqi bilan cheklanadi.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1323,10 +1393,55 @@ class KassaTransfer(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Status(models.TextChoices):
+        PENDING = "pending", "Tasdiqlash kutilmoqda"
+        APPROVED = "approved", "Tasdiqlangan"
+        REJECTED = "rejected", "Rad etilgan"
+        CANCELLED = "cancelled", "Bekor qilingan"
+
+    status = models.CharField(
+        max_length=16, choices=Status.choices, default=Status.PENDING,
+        verbose_name="Holati",
+    )
+    from_branch = models.ForeignKey(
+        "Branch", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="transfers_out", verbose_name="Yuboruvchi filial",
+    )
+    to_branch = models.ForeignKey(
+        "Branch", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="transfers_in", verbose_name="Qabul qiluvchi filial",
+    )
+    requires_approval = models.BooleanField(
+        default=True, verbose_name="Tasdiqlash talab qiladi",
+    )
+    payment_method = models.CharField(
+        max_length=64, blank=True, default="", verbose_name="To'lov turi (yuboruvchi)",
+    )
+    to_payment_method = models.CharField(
+        max_length=64, blank=True, default="", verbose_name="To'lov turi (qabul qiluvchi)",
+    )
+    reviewed_by = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="reviewed_kassa_transfers", verbose_name="Tasdiqlagan",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="Tasdiqlangan vaqti")
+    review_note = models.TextField(blank=True, default="", verbose_name="Izoh (tasdiqlash/rad etish)")
+    completed_at = models.DateTimeField(null=True, blank=True, verbose_name="Bajarilgan vaqti")
+
     class Meta:
         verbose_name = "Kassa o'tkazmasi"
         verbose_name_plural = "Kassa o'tkazmalari"
         ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.from_kassa} → {self.to_kassa}: {self.amount:,.0f} so'm ({self.get_status_display()})"
+
+    @property
+    def is_cross_branch(self):
+        """Yuboruvchi va qabul qiluvchi filiallar boshqacha bo'lishi."""
+        if not self.from_branch_id or not self.to_branch_id:
+            return False
+        return self.from_branch_id != self.to_branch_id
 
     def __str__(self):
         return f"{self.from_kassa} → {self.to_kassa}: {self.amount} so'm"
@@ -1411,13 +1526,19 @@ class AdminPermission(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    branch = models.ForeignKey(
+        "Branch", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="permission_grants", verbose_name="Filial",
+    )
+
     class Meta:
         verbose_name = "Admin ruxsati"
         verbose_name_plural = "Admin ruxsatlari"
-        unique_together = ("user", "permission")
+        unique_together = ("user", "permission", "branch")
 
     def __str__(self):
-        return f"{self.user.username} — {self.permission.codename}"
+        scope = "barcha filiallar" if self.branch_id is None else self.branch.name
+        return f"{self.user.username} — {self.permission.codename} ({scope})"
 
 
 class PermissionAuditLog(models.Model):
@@ -1425,6 +1546,7 @@ class PermissionAuditLog(models.Model):
     ACTION_CHOICES = [
         ("grant", "Berildi"),
         ("revoke", "Olib tashlandi"),
+        ("deny", "Rad etilgan urinish"),
     ]
     actor = models.ForeignKey(
         "auth.User", on_delete=models.SET_NULL, null=True, blank=True,
@@ -1590,6 +1712,135 @@ class Message(models.Model):
         ordering = ["created_at", "id"]
 
 
+class NewsCategory(models.Model):
+    """Yangilik turlari. Admin qo'sha/o'chira oladi (dasturiy kod emas, bazadagi ro'yxat)."""
+
+    DEFAULT_CHOICES = [
+        ("yangilik", "Yangilik"),
+        ("musobaqa", "Musobaqa"),
+        ("kutubxona", "Kutubxona"),
+        ("elon", "E'lon"),
+        ("tadbir", "Tadbir"),
+        ("boshqa", "Boshqa"),
+    ]
+
+    value = models.CharField(max_length=40, unique=True, verbose_name="Kod")
+    label = models.CharField(max_length=100, verbose_name="Nomi")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    order = models.PositiveIntegerField(default=0, verbose_name="Tartib")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan")
+
+    objects = models.Manager()
+
+    class Meta:
+        verbose_name = "Yangilik turi"
+        verbose_name_plural = "Yangilik turlari"
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.label
+
+    def save(self, *args, **kwargs):
+        if not self.value:
+            import re as _re
+            base = _normalize_slug(self.label)
+            base = base or "tur"
+            slug, i = base, 2
+            while NewsCategory.objects.filter(value=slug).exclude(pk=self.pk).exists():
+                slug = f"{base}{i}"
+                i += 1
+            self.value = slug
+        super().save(*args, **kwargs)
+
+
+def _normalize_slug(text):
+    """O'zbek matnidan URL-safe kod yasaydi (o' -> o', g' -> g, bo'shliq -> -)."""
+    import re as _re
+    raw = (text or "").strip().lower()
+    raw = raw.replace("o'", "o").replace("g'", "g")
+    raw = raw.replace("oʻ", "o").replace("gʻ", "g")
+    raw = _re.sub(r"[^a-z0-9]+", "-", raw)
+    return _re.sub(r"^-+|-+$", "", raw)[:40]
+
+
+_LINK_PREFIXES = ("http://", "https://", "tg://", "mailto:")
+_UNSAFE_LINK_PREFIXES = ("javascript:", "data:", "vbscript:", "file:")
+
+
+def normalize_link(raw):
+    """Havolani tozalaydi: bo'sh qiymat "" ga, `example.com` ga `https://` qo'shadi."""
+    url = (raw or "").strip()
+    if not url:
+        return ""
+    if url.lower().startswith(_UNSAFE_LINK_PREFIXES):
+        return ""
+    if not url.lower().startswith(_LINK_PREFIXES):
+        url = "https://" + url
+    return url[:500]
+
+
+class News(models.Model):
+    """O'quvchi ilovasidagi «Barcha Yangiliklar» bo'limidagi e'lonlar.
+
+    Admin yaratadi/publish qiladi, o'quvchilar ko'radi. O'chirish soft-delete
+    (is_active=False) — tarix saqlanib qoladi.
+    """
+
+    title = models.CharField(max_length=255, verbose_name="Sarlavha")
+    body = models.TextField(blank=True, default="", verbose_name="Matn")
+    category = models.CharField(
+        max_length=40, blank=True, default="yangilik", verbose_name="Tur (kod)"
+    )
+    image = models.ImageField(upload_to="news/", blank=True, null=True, verbose_name="Rasm")
+    audience = models.CharField(
+        max_length=20,
+        choices=[("barcha", "Barcha o'quvchilar"), ("guruh", "Tanlangan guruhlar")],
+        default="barcha",
+        verbose_name="Kimlar uchun",
+    )
+    groups = models.ManyToManyField(Group, blank=True, related_name="news", verbose_name="Guruhlar")
+    link = models.URLField(max_length=500, blank=True, default="", verbose_name="Havola")
+    link_text = models.CharField(
+        max_length=60, blank=True, default="", verbose_name="Havola tugmasi matni"
+    )
+    is_published = models.BooleanField(default=True, verbose_name="Yaylangan")
+    is_pinned = models.BooleanField(default=False, verbose_name="Mahkamlangan")
+    published_at = models.DateTimeField(null=True, blank=True, verbose_name="Yaylangan vaqti")
+    created_by = models.CharField(max_length=255, blank=True, default="", verbose_name="Kim tomonidan")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Yangilangan")
+
+    objects = models.Manager()
+
+    def save(self, *args, **kwargs):
+        if self.is_published and self.published_at is None:
+            self.published_at = timezone.now()
+        self.link = normalize_link(self.link)
+        self.link_text = (self.link_text or "").strip()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title
+
+    def get_link_label(self):
+        return self.link_text or "Batafsil"
+
+    def get_category_display(self):
+        """Tur nomini NewsCategory jadvalidan oladi (eskisi kodi saqlansa ham ko'rsatadi)."""
+        cat = NewsCategory.objects.filter(value=self.category).first()
+        if cat:
+            return cat.label
+        for value, label in NewsCategory.DEFAULT_CHOICES:
+            if value == self.category:
+                return label
+        return self.category or "—"
+
+    class Meta:
+        verbose_name = "Yangilik"
+        verbose_name_plural = "Yangiliklar"
+        ordering = ["-is_pinned", "-published_at", "-created_at"]
+
+
 def normalize_username(text):
     """Transliteratsiya: o'zbekcha harflarni ASCII'ga aylantiradi va @username formatga keltiradi."""
     import re
@@ -1630,3 +1881,54 @@ def ensure_student_username(student, force=False):
     student.username = uname
     Student.objects.filter(pk=student.pk).update(username=uname)
     return uname
+def _sync_group_chat_on_membership_change(sender, instance, action, pk_set, reverse, model, **kwargs):
+    """Guruh o'quvchilari o'zgarganda chatni avto sinxronlaydi
+    (o'quvchi qo'shilsa/chiqsa -> guruh chatiga ham qo'shiladi/o'chiriladi).
+
+    Eslatma: signal `Student.groups.through` orqali ishlaydi, shuning uchun
+    guruh tomondan (`group.students.add(...)`) yoki o'quvchi tomondan
+    (`student.groups.add(...)`) o'zgarganida ham chiqadi.
+    - model is Student -> instance = Group
+    - model is Group   -> instance = Student (pk_set = guruh idlari)
+    """
+    from frontend import messaging_api
+
+    try:
+        if model is Group:
+            if action == "pre_clear":
+                instance._sync_group_ids_before_clear = list(
+                    instance.groups.values_list("pk", flat=True)
+                )
+                return
+            if action == "post_clear":
+                group_ids = getattr(instance, "_sync_group_ids_before_clear", None) or []
+                for gid in group_ids:
+                    g = Group.objects.filter(pk=gid, is_active=True).first()
+                    if g:
+                        messaging_api.sync_group_chat(g)
+                return
+            if action not in ("post_add", "post_remove"):
+                return
+            for gid in pk_set or []:
+                g = Group.objects.filter(pk=gid, is_active=True).first()
+                if g:
+                    messaging_api.sync_group_chat(g)
+            return
+
+        if action == "pre_clear":
+            instance._sync_student_ids_before_clear = list(
+                instance.students.values_list("pk", flat=True)
+            )
+            return
+        if action == "post_clear":
+            messaging_api.sync_group_chat(instance)
+            return
+        if action not in ("post_add", "post_remove"):
+            return
+        messaging_api.sync_group_chat(instance)
+    except Exception:
+        pass
+
+
+from django.db.models.signals import m2m_changed
+m2m_changed.connect(_sync_group_chat_on_membership_change, sender=Group.students.through)

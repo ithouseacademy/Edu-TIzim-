@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load dict_filters %}
 {% block title %}{{ kassa.name }} | Kassa tafsilotlari{% endblock %}
 {% block extra_css %}
 <style>
@@ -200,8 +201,8 @@
   <div class="k-detail-head-left">
     <div class="k-detail-avatar"><i class="fas fa-cash-register"></i></div>
     <div class="k-detail-info">
-      <h1>{{ kassa.name }}</h1>
-      <div class="k-owner"><i class="fas fa-user"></i> {% if kassa.owner %}{{ kassa.owner.get_full_name|default:kassa.owner.username }}{% else %}Noma'lum{% endif %}</div>
+      <h1>{{ kassa.name }}{% if kassa.is_main %} <span style="font-size:.65rem;font-weight:600;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:20px;padding:3px 10px;vertical-align:middle;margin-left:6px;"><i class="fas fa-star"></i> Asosiy kassa</span>{% endif %}</h1>
+      <div class="k-owner"><i class="fas fa-user"></i> {% if kassa.owner %}{{ kassa.owner|user_name }}{% else %}Noma'lum{% endif %}</div>
     </div>
   </div>
   <a href="{% url 'kassa_dashboard' %}" class="k-back"><i class="fas fa-arrow-left"></i> Orqaga</a>
@@ -268,11 +269,20 @@
 {% endif %}
 
 <div class="k-actions">
-  {% if 'cashbox.create' in permissions %}
-  <button class="k-act k-act-green" onclick="openKModal('incomeModal')"><i class="fas fa-plus"></i> Kirim</button>
-  {% endif %}
-  {% if 'expense.regular' in permissions or 'expense.salary' in permissions or 'expense.advance' in permissions or 'expense.advance_close' in permissions %}
-  <button class="k-act k-act-red" onclick="openKModal('expenseModal')"><i class="fas fa-minus"></i> Chiqim</button>
+  {% if kassa.is_main %}
+    {% if 'cashbox.main_income' in permissions %}
+    <button class="k-act k-act-green" onclick="openKModal('incomeModal')"><i class="fas fa-plus"></i> Kirim</button>
+    {% endif %}
+    {% if 'cashbox.main_expense' in permissions %}
+    <button class="k-act k-act-red" onclick="openKModal('expenseModal')"><i class="fas fa-minus"></i> Chiqim</button>
+    {% endif %}
+  {% else %}
+    {% if 'cashbox.create' in permissions %}
+    <button class="k-act k-act-green" onclick="openKModal('incomeModal')"><i class="fas fa-plus"></i> Kirim</button>
+    {% endif %}
+    {% if 'expense.regular' in permissions or 'expense.salary' in permissions or 'expense.advance' in permissions or 'expense.advance_close' in permissions %}
+    <button class="k-act k-act-red" onclick="openKModal('expenseModal')"><i class="fas fa-minus"></i> Chiqim</button>
+    {% endif %}
   {% endif %}
   {% if 'cashbox.transfer' in permissions %}
   <button class="k-act k-act-blue" onclick="openKModal('transferModal')"><i class="fas fa-exchange-alt"></i> O'tkazma</button>
@@ -647,7 +657,7 @@
         <select name="to_kassa" required>
           <option value="">Tanlang</option>
           {% for opt in transfer_form.to_kassa.field.queryset %}
-          <option value="{{ opt.pk }}">{{ opt.name }} ({% if opt.owner %}{{ opt.owner.get_full_name|default:opt.owner.username }}{% else %}Noma'lum{% endif %})</option>
+          <option value="{{ opt.pk }}">{{ opt.name }} ({% if opt.owner %}{{ opt.owner|user_name }}{% else %}Noma'lum{% endif %})</option>
           {% endfor %}
         </select>
         <label><i class="fas fa-credit-card"></i> Qaysi to'lov turidan</label>
@@ -661,7 +671,7 @@
         <select name="to_kassa" id="toKassaSelect" required onchange="updateToPaymentMethods(this)">
           <option value="">Tanlang</option>
           {% for opt in transfer_form.to_kassa.field.queryset %}
-          <option value="{{ opt.pk }}">{{ opt.name }} ({% if opt.owner %}{{ opt.owner.get_full_name|default:opt.owner.username }}{% else %}Noma'lum{% endif %})</option>
+          <option value="{{ opt.pk }}">{{ opt.name }} ({% if opt.owner %}{{ opt.owner|user_name }}{% else %}Noma'lum{% endif %})</option>
           {% endfor %}
         </select>
         <label><i class="fas fa-arrow-right"></i> Qabul qiluvchi to'lov usuli</label>

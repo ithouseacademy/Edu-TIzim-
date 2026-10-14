@@ -10,6 +10,7 @@
   .msg-new-btn { border: none; background: var(--primary, #2563eb); color: #fff; border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
   .msg-search { width: 100%; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px; outline: none; background: #fff; }
   .msg-chats { flex: 1; overflow-y: auto; padding: 6px 0; }
+  .msg-chat-sec { padding: 10px 12px 4px; font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .4px; }
   .msg-chat-item { display: flex; gap: 10px; padding: 10px 12px; cursor: pointer; border-left: 3px solid transparent; }
   .msg-chat-item:hover { background: #eef2f7; }
   .msg-chat-item.active { background: #e0e7ff; border-left-color: var(--primary, #2563eb); }
@@ -159,7 +160,7 @@ function loadChats() {
 function renderChats(chats) {
   var box = document.getElementById('msgChats');
   if (!chats.length) { box.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Suhbatlar hali yo\'q</div>'; return; }
-  box.innerHTML = chats.map(function (c) {
+  var item = function (c) {
     var last = c.last_message ? (c.last_message.media_type !== 'text' && c.last_message.media_type ? mediaText(c.last_message) : c.last_message.text || ' ') : 'Suhbat boshlandi';
     var time = c.last_msg_at ? '<span class="msg-time">' + timeStr(c.last_msg_at) + '</span>' : '';
     var unread = c.unread_count > 0 ? '<span class="b">' + c.unread_count + '</span>' : '';
@@ -171,14 +172,20 @@ function renderChats(chats) {
         '<div class="msg-chat-title"><span class="t">' + esc(c.title) + '</span>' + time + '</div>' +
         '<div class="msg-prev"><span>' + esc(subName ? subName + ': ' : '') + esc(last) + '</span>' + unread + '</div>' +
       '</div></div>';
-  }).join('');
+  };
+  var sec = function (title, items) {
+    return items.length ? '<div class="msg-chat-sec">' + esc(title) + '</div>' + items.join('') : '';
+  };
+  var groups = chats.filter(function (c) { return c.chat_type === 'group'; });
+  var privates = chats.filter(function (c) { return c.chat_type !== 'group'; });
+  box.innerHTML = sec('Guruhlar', groups.map(item)) + sec('Shaxsiy suhbatlar', privates.map(item));
 }
 
 /* ---------- conversation ---------- */
 function openChat(id) {
   CS.chatId = id;
   document.getElementById('msgBody').innerHTML = '<div style="color:#94a3b8;text-align:center;padding:30px;font-size:13px">Yuklanmoqda...</div>';
-  api('/api/messaging/chats/' + id + '/').then(function (data) {
+  api('/api/messaging/chats/' + id + '/messages/').then(function (data) {
     CS.chat = data;
     document.getElementById('msgMainTitle').textContent = data.title || 'Chat';
     var members = (data.members || []).map(function (m) { return m.name + (m.kind === 'student' && m.username ? ' @' + m.username : ''); });
@@ -242,7 +249,7 @@ function scrollBottom(force) {
 
 function pollActiveChat() {
   if (!CS.chatId) return;
-  api('/api/messaging/chats/' + CS.chatId + '/').then(function (data) {
+  api('/api/messaging/chats/' + CS.chatId + '/messages/').then(function (data) {
     var prevLen = (CS.msgs || []).length;
     CS.msgs = data.messages || [];
     var myCount = CS.msgs.filter(function (m) { return m.is_me; }).length;
@@ -437,5 +444,10 @@ function onSearch(q) {
 /* ---------- init ---------- */
 loadChats();
 setInterval(function () { if (!document.hidden) { loadChats(); pollActiveChat(); } }, 3000);
+
+var wantChat = new URLSearchParams(location.search).get('chat');
+if (wantChat) {
+  try { var wantId = parseInt(wantChat, 10); if (wantId) openChat(wantId); } catch (e) {}
+}
 </script>
 {% endblock %}

@@ -8,6 +8,7 @@ import VerifyCode from "./pages/VerifyCode"
 import SetPassword from "./pages/SetPassword"
 import PasswordLogin from "./pages/PasswordLogin"
 import Home from "./pages/Home"
+import NewsDetail from "./pages/NewsDetail"
 import Schedule from "./pages/Schedule"
 import Homework from "./pages/Homework"
 import Notifications from "./pages/Notifications"
@@ -18,6 +19,8 @@ import AttendanceHistory from "./pages/AttendanceHistory"
 import TransactionsPage from "./pages/TransactionsPage"
 import GroupsPage from "./pages/GroupsPage"
 import BalancePage from "./pages/BalancePage"
+import CoinsPage from "./pages/Coins"
+import ShopPage from "./pages/Shop"
 import Suggestions from "./pages/Suggestions"
 import FeedbackHistory from "./pages/FeedbackHistory"
 import SettingsPage from "./pages/SettingsPage"
@@ -48,8 +51,16 @@ export default function StudentApp() {
           <Route
             path="/home"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout showNav={false}>
                 <Home />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/news/:id"
+            element={
+              <ProtectedLayout>
+                <NewsDetail />
               </ProtectedLayout>
             }
           />
@@ -122,6 +133,22 @@ export default function StudentApp() {
             element={
               <ProtectedLayout showNav={false}>
                 <BalancePage />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/coins"
+            element={
+              <ProtectedLayout>
+                <CoinsPage />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/shop"
+            element={
+              <ProtectedLayout showNav={false}>
+                <ShopPage />
               </ProtectedLayout>
             }
           />

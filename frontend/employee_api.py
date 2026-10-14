@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from django.db.models import Count, Q, Sum
 from django.utils import timezone as tz
 from decimal import Decimal
+from . import branch_scope
 from .models import Employee, Group, LessonTime, Attendance, AbsenceReason, Student, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, Task, Reminder, PushSubscription, VerificationCode
 from .views import generate_lesson_dates, sync_lesson_teacher_salary, get_or_create_balance, get_student_lesson_price, get_student_join_date, calculate_expected_payment_up_to_today, calculate_remaining_month_payment, _calc_monthly_debts, _log_student_action
 from .sms_service import send_absence_sms
@@ -201,6 +202,7 @@ def employee_login(request):
         return JsonResponse({"error": "Siz xodim emassiz"}, status=403)
     login(request, user)
     from .permissions import get_permissions, is_super_admin, all_codenames
+    from .messaging_api import can_access_messaging
     permissions = sorted(all_codenames()) if is_super_admin(user) else sorted(get_permissions(user))
     return JsonResponse({
         "success": True,
@@ -209,6 +211,7 @@ def employee_login(request):
         "is_teacher": emp.role and emp.role.name == "O'qituvchi",
         "is_super_admin": user.is_superuser,
         "permissions": permissions,
+        "can_messaging": can_access_messaging(user),
     })
 
 
@@ -442,7 +445,7 @@ def my_groups(request):
     if emp.role.name == "O'qituvchi":
         groups = Group.objects.filter(teacher=emp, status__in=["aktiv", "kutilyotgan"])
     else:
-        groups = Group.objects.all()
+        groups = branch_scope.scope(request, Group.objects.all())
     groups = groups.select_related("course", "room").prefetch_related("lesson_times").annotate(
         student_count=Count("students")
     ).distinct().order_by("name")
@@ -905,7 +908,7 @@ def take_attendance(request):
     if not group_id or not attendance_data:
         return JsonResponse({"error": "Ma'lumotlar yetarli emas"}, status=400)
     try:
-        group = Group.objects.get(pk=group_id)
+        group = branch_scope.scope(request, Group.objects.all()).get(pk=group_id)
     except Group.DoesNotExist:
         return JsonResponse({"error": "Guruh topilmadi"}, status=404)
     # Lock attendance if group end date has passed
@@ -960,7 +963,7 @@ def take_attendance(request):
         )
         # Balansni sinxronlash
         try:
-            student_obj = Student.objects.get(pk=student_id)
+            student_obj = branch_scope.scope(request, Student.objects.all()).get(pk=student_id)
             sync_attendance_balance(
                 student_obj, group, attendance, status,
                 created_by=f"{emp.first_name} {emp.last_name}"
@@ -1210,10 +1213,12 @@ def me(request):
     data["username"] = request.user.username
     data["is_super_admin"] = request.user.is_superuser
     from .permissions import get_permissions, is_super_admin, all_codenames
+    from .messaging_api import can_access_messaging
     if is_super_admin(request.user):
         data["permissions"] = sorted(all_codenames())
     else:
         data["permissions"] = sorted(get_permissions(request.user))
+    data["can_messaging"] = can_access_messaging(request.user)
     return JsonResponse({"employee": data})
 
 
@@ -1668,3 +1673,165 @@ def branches_list(request):
     from .models import Branch
     branches = Branch.objects.all().order_by("name")
     return JsonResponse({"branches": [{"id": b.id, "name": b.name} for b in branches]})
+
+
+# ============================================================
+# YANGILIKLAR (News)
+# ============================================================
+
+
+def _news_dict(n):
+    from django.utils import timezone as _tz
+    return {
+        "id": n.id,
+        "title": n.title,
+        "body": n.body or "",
+        "category": n.category,
+        "category_display": n.get_category_display(),
+        "image": n.image.url if n.image else "",
+        "audience": n.audience,
+        "group_ids": list(n.groups.values_list("id", flat=True)),
+        "link": n.link or "",
+        "link_text": n.get_link_label(),
+        "has_link": bool(n.link),
+        "is_published": n.is_published,
+        "is_pinned": n.is_pinned,
+        "created_by": n.created_by or "",
+        "published_at": n.published_at.strftime("%d.%m.%Y") if n.published_at else "",
+        "created_at": n.created_at.astimezone(_tz.get_current_timezone()).strftime("%d.%m.%Y %H:%M"),
+    }
+
+
+def _apply_news_payload(news, data, request):
+    """Yangilik maydonlarini validatsiya qilib yangilaydi. Xato matnini qaytaradi yoki None."""
+    from .models import NewsCategory
+
+    title = (data.get("title") or "").strip()
+    if not title:
+        return "Sarlavha bo'sh bo'lishi mumkin emas"
+    if len(title) > 255:
+        return "Sarlavha juda uzun (maksimal 255 belgi)"
+
+    body = (data.get("body") or "").strip()
+    if len(body) > 20000:
+        return "Matn juda uzun (maksimal 20000 belgi)"
+
+    valid = set(NewsCategory.objects.filter(is_active=True).values_list("value", flat=True))
+    category = (data.get("category") or "").strip()
+    if not category:
+        category = "yangilik" if "yangilik" in valid else (sorted(valid)[0] if valid else "yangilik")
+    elif category not in valid:
+        return "Noto'g'ri tur tanlandi"
+
+    audience = (data.get("audience") or "").strip() or "barcha"
+    if audience not in ("barcha", "guruh"):
+        return "Noto'g'ri auditoriya tanlandi"
+
+    link = (data.get("link") or "").strip()
+    if len(link) > 500:
+        return "Havola juda uzun (maksimal 500 belgi)"
+    if link.lower().startswith(("javascript:", "data:", "vbscript:", "file:")):
+        return "Xavfsizlik uchun bu havola turi ruxsat berilmaydi"
+
+    news.title = title
+    news.body = body
+    news.category = category
+    news.audience = audience
+    news.link = link
+    news.link_text = (data.get("link_text") or "").strip()[:60]
+    news.is_published = bool(data.get("is_published", news.is_published))
+    news.is_pinned = bool(data.get("is_pinned", False))
+    return None
+
+
+@csrf_exempt
+@employee_api_required
+def news_list(request):
+    from .models import News, NewsCategory
+    items = News.objects.all().prefetch_related("groups")
+    return JsonResponse({
+        "news": [_news_dict(n) for n in items],
+        "categories": [
+            {"value": c.value, "label": c.label}
+            for c in NewsCategory.objects.filter(is_active=True)
+        ],
+    })
+
+
+@csrf_exempt
+@employee_api_required
+def news_create(request):
+    from .models import News
+    if request.method != "POST":
+        return JsonResponse({"error": "POST so'rovi kerak"}, status=405)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Noto'g'ri JSON"}, status=400)
+
+    news = News()
+    err = _apply_news_payload(news, data, request)
+    if err:
+        return JsonResponse({"error": err}, status=400)
+
+    try:
+        emp = request.user.employee_profile
+        news.created_by = f"{emp.first_name} {emp.last_name}".strip()
+    except Exception:
+        news.created_by = request.user.username
+
+    if news.is_published and news.published_at is None:
+        news.published_at = tz.now()
+    news.save()
+
+    group_ids = data.get("group_ids") or []
+    news.groups.set([g for g in Group.objects.filter(id__in=group_ids)])
+
+    return JsonResponse({
+        "success": True,
+        "message": "Yangilik yaratildi",
+        "news": _news_dict(news),
+    }, status=201)
+
+
+@csrf_exempt
+@employee_api_required
+def news_update(request, news_id):
+    from .models import News
+    if request.method not in ("POST", "PUT", "PATCH"):
+        return JsonResponse({"error": "POST so'rovi kerak"}, status=405)
+    news = News.objects.filter(pk=news_id).first()
+    if not news:
+        return JsonResponse({"error": "Yangilik topilmadi"}, status=404)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Noto'g'ri JSON"}, status=400)
+
+    err = _apply_news_payload(news, data, request)
+    if err:
+        return JsonResponse({"error": err}, status=400)
+    news.save()
+
+    if "group_ids" in data:
+        group_ids = data.get("group_ids") or []
+        news.groups.set([g for g in Group.objects.filter(id__in=group_ids)])
+
+    return JsonResponse({
+        "success": True,
+        "message": "Yangilik yangilandi",
+        "news": _news_dict(news),
+    })
+
+
+@csrf_exempt
+@employee_api_required
+def news_delete(request, news_id):
+    from .models import News
+    if request.method not in ("POST", "DELETE"):
+        return JsonResponse({"error": "POST yoki DELETE so'rovi kerak"}, status=405)
+    news = News.objects.filter(pk=news_id).first()
+    if not news:
+        return JsonResponse({"error": "Yangilik topilmadi"}, status=404)
+    news.delete()
+    return JsonResponse({"success": True, "message": "Yangilik o'chirildi"})

@@ -1,3 +1,4 @@
+from . import branch_scope
 """
 Admin (Super Admin) management views for the granular permission system.
 
@@ -15,11 +16,17 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 
-from .models import Employee, Permission, AdminPermission, PermissionAuditLog
+from .models import (
+    AdminBranch, Branch, Employee, Permission, AdminPermission,
+    PermissionAuditLog,
+)
 from .permissions import (
     has_permission,
     is_super_admin,
     can_manage_admin,
+    can_grant,
+    get_grantable_codenames,
+    log_denied,
     grant_permission,
     revoke_permission,
     grant_all,
@@ -141,24 +148,111 @@ def employee_permissions(request, pk):
 def _render_manage(request, admin, back_url=None, back_label="Orqaga"):
     granted = set(
         AdminPermission.objects
-        .filter(user=admin, permission__is_active=True)
+        .filter(user=admin, permission__is_active=True, branch__isnull=True)
         .values_list("permission__codename", flat=True)
     )
+    # Filialga xos ruxsatlar (branch_id -> {codename})
+    branch_grants = {}
+    for codename, branch_id in AdminPermission.objects.filter(
+        user=admin, branch__isnull=False, permission__is_active=True
+    ).values_list("permission__codename", "branch_id"):
+        branch_grants.setdefault(branch_id, set()).add(codename)
+
+    grantable = get_grantable_codenames(request.user)
+
     modules = []
     for mod in _admin_context():
         for p in mod["permissions"]:
             p["granted"] = p["codename"] in granted
+            p["branch_grants"] = branch_grants
+            p["grantable"] = p["codename"] in grantable
         modules.append(mod)
     return render(request, "admin_permission/manage.html", {
         "admin": admin,
         "modules": modules,
         "granted_count": len(granted),
         "total_count": len(PERMISSION_REGISTRY),
+        "grantable_count": len(grantable),
+        "can_grant_all": bool(grantable) and not is_super_admin(admin),
         "is_super_admin_user": is_super_admin(admin),
         "can_manage": True,
         "back_url": back_url,
         "back_label": back_label,
+        "branches": branch_scope.available_branches(admin),
+        "admin_branch_ids": list(
+            AdminBranch.objects.filter(user=admin)
+            .values_list("branch_id", flat=True)
+        ),
     })
+
+
+@login_required(login_url="login")
+def admin_branch_permissions(request, pk):
+    """Aniq bir filial doirasidagi ruxsatlar ro'yxati."""
+    if not _can(request):
+        return redirect("dashboard")
+    admin = get_object_or_404(User, pk=pk, is_staff=True)
+    branch = get_object_or_404(Branch, pk=request.GET.get("branch"))
+    from .permissions import get_branch_permissions
+
+    granted = get_branch_permissions(admin, branch)
+    modules = []
+    for mod in _admin_context():
+        for p in mod["permissions"]:
+            p["granted"] = p["codename"] in granted
+            p["grantable"] = can_grant(request.user, p["codename"], branch)
+        modules.append(mod)
+    return render(request, "admin_permission/branch_manage.html", {
+        "admin": admin,
+        "branch": branch,
+        "modules": modules,
+        "granted_count": len(granted),
+        "total_count": len(PERMISSION_REGISTRY),
+        "can_manage": True,
+        "back_url": reverse("admin_permissions", args=[pk]),
+        "back_label": "Umumiy ruxsatlar",
+    })
+
+
+@login_required(login_url="login")
+def admin_branch_permission_toggle(request, pk):
+    """Filialga xos ruxsatni yoqish/o'chirish (AJAX)."""
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "Method not allowed"}, status=405)
+    if not _can(request):
+        return JsonResponse({"ok": False, "error": "Ruxsat yo'q"}, status=403)
+    admin = get_object_or_404(User, pk=pk)
+    if is_super_admin(admin):
+        return JsonResponse(
+            {"ok": False, "error": "Super admin ruxsatlarini o'zgartirib bo'lmaydi"},
+            status=403,
+        )
+    codename = request.POST.get("codename", "")
+    if codename not in PERMISSION_REGISTRY:
+        return JsonResponse({"ok": False, "error": "Noma'lum ruxsat"}, status=400)
+    try:
+        branch = Branch.objects.get(pk=request.POST.get("branch"))
+    except (Branch.DoesNotExist, TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "Filial topilmadi"}, status=400)
+
+    new_state = request.POST.get("state") == "true"
+    if new_state:
+        if not can_grant(request.user, codename, branch):
+            log_denied(request.user, admin, codename, branch, "grant not allowed")
+            return JsonResponse(
+                {"ok": False, "error": "Sizda bu huquqni berish vakolati yo'q"},
+                status=403,
+            )
+        grant_permission(request.user, admin, codename, branch=branch)
+    else:
+        if not can_grant(request.user, codename, branch):
+            log_denied(request.user, admin, codename, branch, "revoke not allowed")
+            return JsonResponse(
+                {"ok": False, "error": "Siz bu huquqni o'zgartirish vakolatiga ega emassiz"},
+                status=403,
+            )
+        revoke_permission(request.user, admin, codename, branch=branch)
+    return JsonResponse({"ok": True, "granted": new_state, "branch": branch.pk})
 
 
 @login_required(login_url="login")
@@ -175,8 +269,20 @@ def admin_permission_toggle(request, pk):
         return JsonResponse({"ok": False, "error": "Noma'lum ruxsat"}, status=400)
     new_state = request.POST.get("state") == "true"
     if new_state:
+        if not can_grant(request.user, codename):
+            log_denied(request.user, admin, codename, None, "grant not allowed")
+            return JsonResponse(
+                {"ok": False, "error": "Sizda bu huquqni berish vakolati yo'q"},
+                status=403,
+            )
         grant_permission(request.user, admin, codename)
     else:
+        if not can_grant(request.user, codename):
+            log_denied(request.user, admin, codename, None, "revoke not allowed")
+            return JsonResponse(
+                {"ok": False, "error": "Siz bu huquqni o'zgartirish vakolatiga ega emassiz"},
+                status=403,
+            )
         revoke_permission(request.user, admin, codename)
     return JsonResponse({"ok": True, "granted": new_state})
 
@@ -291,7 +397,20 @@ def admin_delete(request, pk):
 def audit_log(request):
     if not _can(request) or not has_permission(request.user, "audit.view"):
         return redirect("dashboard")
-    logs = PermissionAuditLog.objects.select_related("actor", "target_user").order_by("-created_at")[:200]
+    logs = PermissionAuditLog.objects.select_related("actor", "target_user")
+    ids = branch_scope.allowed_branch_ids(request.user)
+    if ids is not None:
+        # Amal bajarilgan odam yoki uning maqsadi o'z filialiga tegishli
+        # bo'lsa ko'rinadi (masalan superadmin boshqa filial xodimiga
+        # ruxsat bersa, o'sha filial admini o'z amalini ko'radi).
+        logs = logs.filter(
+            Q(actor__employee_profile__branches__id__in=ids)
+            | Q(actor__admin_branches__branch_id__in=ids)
+            | Q(target_user__employee_profile__branches__id__in=ids)
+            | Q(target_user__admin_branches__branch_id__in=ids)
+            | Q(target_user__student_profile__branch_id__in=ids)
+        ).distinct()
+    logs = logs.order_by("-created_at")[:200]
     perm_labels = {c: v[2] for c, v in PERMISSION_REGISTRY.items()}
     return render(request, "admin_permission/audit.html", {
         "logs": logs,

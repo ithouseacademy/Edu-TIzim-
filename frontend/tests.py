@@ -12,7 +12,7 @@ from .models import (
     Employee, LessonTeacherSalary, GroupTeacherAssignment,
     TeacherTransaction, TeacherBalance,
     Kassa, KassaTransaction,
-    Role,
+    Role, Chat, ChatMember, Permission, AdminPermission,
 )
 from .views import (
     get_student_join_date,
@@ -924,6 +924,87 @@ class AdminEmployeeApiTests(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.employee.refresh_from_db()
         self.assertEqual(self.employee.phone, "901234567")
+
+
+class GroupChatAutoSyncTest(TestCase):
+    """O'quvchi guruhga qo'shilganda guruh chat avto yaratilib,
+    barcha a'zolar (o'quvchilar + o'qituvchilar) avto qo'shilishini tekshiradi."""
+
+    def setUp(self):
+        self.config = GlobalConfig.get_instance()
+        self.config.teachers_in_group_chats = True
+        self.config.save()
+        self.teacher_role = Role.objects.create(name="O'qituvchi")
+        self.course = Course.objects.create(name="Test Kursi")
+        self.teacher = Employee.objects.create(
+            first_name="Ustoz", last_name="Aliyev", phone="999000001", role=self.teacher_role
+        )
+        self.group = Group.objects.create(
+            name="Test Guruh-1", status="aktiv", course=self.course, teacher=self.teacher
+        )
+        self.group2 = Group.objects.create(
+            name="Test Guruh-2", status="aktiv", course=self.course
+        )
+        self.student_a = Student.objects.create(first_name="Aziz", last_name="Aliyev", phone="901000001")
+        self.student_b = Student.objects.create(first_name="Bobur", last_name="Bekov", phone="901000002")
+
+        self.boss = User.objects.create_superuser(username="boss", password="boss-pass")
+        self.msg_admin = User.objects.create_user(username="msg_admin", password="a-pass", is_staff=True)
+        perm, _ = Permission.objects.get_or_create(
+            codename="messaging.view",
+            defaults={"name": "Xabarlarni ko'rish", "module": "messaging", "action": "view", "is_active": True},
+        )
+        AdminPermission.objects.get_or_create(user=self.msg_admin, permission=perm)
+
+    def _chat(self, group):
+        return group.chats.filter(chat_type="group").first()
+
+    def test_group_side_add_creates_chat_and_joins_all(self):
+        self.group.students.add(self.student_a, self.student_b)
+        chat = self._chat(self.group)
+        self.assertIsNotNone(chat, "Guruhga o'quvchi qo'shilganda chat yaratilishi kerak")
+        self.assertTrue(chat.members.filter(student=self.student_a).exists())
+        self.assertTrue(chat.members.filter(student=self.student_b).exists())
+        self.assertTrue(chat.members.filter(employee=self.teacher).exists(), "O'qituvchi avto qo'shilishi kerak")
+
+    def test_student_side_add_joins_chat(self):
+        self.student_a.groups.add(self.group)
+        chat = self._chat(self.group)
+        self.assertIsNotNone(chat)
+        self.assertTrue(chat.members.filter(student=self.student_a).exists())
+
+    def test_student_removed_left_chat(self):
+        self.group.students.add(self.student_a, self.student_b)
+        chat = self._chat(self.group)
+        self.student_b.groups.remove(self.group)
+        self.assertFalse(chat.members.filter(student=self.student_b).exists())
+        self.assertTrue(chat.members.filter(student=self.student_a).exists())
+
+    def test_clear_removes_student_from_all_group_chats(self):
+        self.group.students.add(self.student_a)
+        self.group2.students.add(self.student_a)
+        self.student_a.groups.clear()
+        self.assertFalse(self._chat(self.group).members.filter(student=self.student_a).exists())
+        self.assertFalse(self._chat(self.group2).members.filter(student=self.student_a).exists())
+
+    def test_admins_auto_join(self):
+        self.group.students.add(self.student_a)
+        chat = self._chat(self.group)
+        self.assertTrue(chat.members.filter(user=self.boss).exists(), "Boss admin avto qo'shilishi kerak")
+        self.assertTrue(chat.members.filter(user=self.msg_admin).exists(), "Huquqga ega admin avto qo'shilishi kerak")
+
+    def test_teacher_change_removes_old_teacher(self):
+        teacher2 = Employee.objects.create(
+            first_name="Yangi", last_name="Ustoz", phone="999000002", role=self.teacher_role
+        )
+        self.group.students.add(self.student_a)
+        self.group.teacher = teacher2
+        self.group.save()
+        from frontend import messaging_api
+        messaging_api.sync_group_chat(self.group)
+        chat = self._chat(self.group)
+        self.assertTrue(chat.members.filter(employee=teacher2).exists())
+        self.assertFalse(chat.members.filter(employee=self.teacher).exists())
 
 
 def get_lesson_weekdays(group):

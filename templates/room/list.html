@@ -22,6 +22,7 @@
                 <tr>
                     <th>#</th>
                     <th>Xona nomi</th>
+                    {% if not branch_locked %}<th>Filial</th>{% endif %}
                     <th>Yaratilgan sana</th>
                     <th>Amallar</th>
                 </tr>
@@ -31,6 +32,7 @@
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td><strong>{{ room.name }}</strong></td>
+                    {% if not branch_locked %}<td>{{ room.branch.name|default:"—" }}</td>{% endif %}
                     <td>{{ room.created_at|date:"d.m.Y" }}</td>
                     <td class="actions">
                         <a href="{% url 'room_update' room.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
@@ -38,7 +40,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="4" class="empty">Hozircha xonalar mavjud emas</td></tr>
+                <tr><td colspan="5" class="empty">Hozircha xonalar mavjud emas</td></tr>
                 {% endfor %}
             </tbody>
         </table>

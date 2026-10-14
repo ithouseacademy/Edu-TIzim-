@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+{% block title %}Yangiliklar | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+.ngp { position: relative; }
+.ngp-box {
+    display: flex; align-items: center; gap: 8px; min-height: 44px;
+    padding: 7px 12px; background: #fff; border: 2px solid var(--border);
+    border-radius: 8px; cursor: pointer; transition: border-color .2s;
+    flex-wrap: wrap;
+}
+.ngp-box:hover { border-color: #cbd5e1; }
+.ngp.open .ngp-box { border-color: #2001FF; }
+.ngp-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; align-items: center; }
+.ngp-ph { color: var(--text-light); font-size: .88rem; }
+.ngp-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 8px 5px 10px; background: #eef2ff; color: #2001FF;
+    border-radius: 99px; font-size: .8rem; font-weight: 600;
+}
+.ngp-chip button {
+    background: none; border: none; cursor: pointer; padding: 0;
+    color: #2001FF; font-size: .72rem; line-height: 1;
+}
+.ngp-chip button:hover { color: #dc2626; }
+.ngp-caret { color: var(--text-light); font-size: .8rem; pointer-events: none; }
+.ngp.open .ngp-caret { transform: rotate(180deg); }
+.ngp-menu {
+    display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 12px 32px -8px rgba(0,0,0,.15); padding: 8px; z-index: 60;
+}
+.ngp.open .ngp-menu { display: block; }
+.ngp-search-wrap { position: relative; margin-bottom: 6px; }
+.ngp-search-wrap > i {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    color: var(--text-light); font-size: .8rem; pointer-events: none;
+}
+.ngp-search {
+    width: 100%; padding: 9px 12px 9px 32px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: .85rem; font-family: inherit; outline: none;
+}
+.ngp-search:focus { border-color: #2001FF; }
+.ngp-list { max-height: 220px; overflow-y: auto; }
+.ngp-list::-webkit-scrollbar { width: 6px; }
+.ngp-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+.ngp-item {
+    display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+    padding: 8px 10px; border-radius: 7px; border: none; background: #fff;
+    font-size: .86rem; color: var(--text); cursor: pointer; font-family: inherit;
+}
+.ngp-item:hover { background: #f7f9fc; }
+.ngp-item-name { flex: 1; }
+.ngp-check {
+    width: 17px; height: 17px; border: 2px solid var(--border); border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: .58rem; color: #fff; flex-shrink: 0;
+}
+.ngp-item.sel .ngp-check { background: #2001FF; border-color: #2001FF; }
+.ngp-item.sel { background: #eef2ff; color: #2001FF; font-weight: 600; }
+.ngp-none { padding: 14px; text-align: center; color: var(--text-light); font-size: .85rem; }
+.ngp-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 7px; margin-top: 5px; border-top: 1px solid #f1f5f9;
+}
+.ngp-clear {
+    background: none; border: none; color: var(--text-light); font-size: .78rem;
+    font-weight: 600; cursor: pointer; font-family: inherit; padding: 0;
+}
+.ngp-clear:hover { color: #dc2626; }
+.ngp-all {
+    background: none; border: none; color: #2001FF; font-size: .78rem;
+    font-weight: 600; cursor: pointer; font-family: inherit; padding: 0; margin-left: 12px;
+}
+.ngp-all:hover { text-decoration: underline; }
+.ngp-count { color: var(--text-light); font-size: .78rem; font-weight: 600; }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h2><i class="fas fa-newspaper" style="color:#2001FF;margin-right:8px;"></i>Yangiliklar</h2>
+    <span class="page-header-count">{{ news_items|length }} ta yangilik &mdash; {{ published_count }} ta yoyilgan</span>
+  </div>
+  <div class="page-header-right">
+    <a href="{% url 'additional_functions' %}" class="btn btn-secondary"><i class="fas fa-puzzle-piece"></i> Qo'shimcha funksiyalar</a>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header between">
+    <h3><i class="fas fa-plus-circle"></i> Yangi yangilik</h3>
+  </div>
+  <div class="card-body">
+    <form method="post" action="{% url 'news_create' %}">
+      {% csrf_token %}
+      <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+        <div style="grid-column:1/-1;">
+          <div class="form-group" style="margin-bottom:12px;">Sarlavha</div>
+          <input type="text" name="title" class="form-control" placeholder="Masalan: Yangi o'quv yili boshlandi!" maxlength="255" required>
+        </div>
+        <div style="grid-column:1/-1;">
+          <div class="form-group" style="margin-bottom:12px;">Matn</div>
+          <textarea name="body" class="form-control" rows="4" placeholder="Yangilik matnini yozing..."></textarea>
+        </div>
+        <div>
+          <div class="form-group" style="margin-bottom:12px;">Tur</div>
+          <select name="category" class="form-control">
+            {% for c in categories %}
+            <option value="{{ c.value }}" {% if c.value == 'yangilik' %}selected{% endif %}>{{ c.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <div class="form-group" style="margin-bottom:12px;">Kimlar uchun</div>
+          <select name="audience" class="form-control" onchange="document.getElementById('news-groups-row').style.display = this.value === 'guruh' ? '' : 'none';">
+            <option value="barcha">Barcha o'quvchilar</option>
+            <option value="guruh">Tanlangan guruhlar</option>
+          </select>
+        </div>
+        <div id="news-groups-row" style="grid-column:1/-1;display:none;">
+          <div class="form-group" style="margin-bottom:12px;">Guruhlar</div>
+          {% include "news/_group_picker.html" with picker_uid="new" picker_groups=groups %}
+          <small style="color:#6b7280;font-size:12px;">Qidirib tanlang — bir nechta guruhni belgilash mumkin.</small>
+        </div>
+        <div style="grid-column:1/-1;">
+          <div class="form-group" style="margin-bottom:12px;">
+            Havola <small style="color:#9ca3af;font-weight:400;">(ixtiyoriy — bo'sh qoldirilsa faqat ilova ichida ochiladi)</small>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <input type="url" name="link" class="form-control" style="flex:1;min-width:240px;" placeholder="https://telegram.me/... yoki sayt.manzil">
+            <input type="text" name="link_text" class="form-control" style="flex:0 1 190px;min-width:150px;" placeholder="Tugma matni: Batafsil" maxlength="60">
+          </div>
+          <small style="color:#6b7280;font-size:12px;">`https://` avtomatik qo'shiladi. O'quvchi ilovasida bu tugma ko'rinadi va link tashqi brauzerda ochiladi.</small>
+        </div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:center;margin-top:14px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" name="is_published" value="1" checked> <span>Yoylangan</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" name="is_pinned" value="1"> <span>Mahkamlash</span>
+        </label>
+        <button type="submit" class="btn btn-primary" style="margin-left:auto;"><i class="fas fa-plus"></i> Yaratish</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header between">
+    <h3><i class="fas fa-list-alt"></i> Yangiliklar ro'yxati</h3>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="table min">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Sarlavha</th>
+          <th>Tur</th>
+          <th>Kimlar uchun</th>
+          <th>Sana</th>
+          <th>Holat</th>
+          <th>Havola</th>
+          <th>Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in news_items %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>
+            <strong>{{ n.title }}</strong>
+            {% if n.is_pinned %}<i class="fas fa-thumbtack" style="color:#2001FF;margin-left:6px;" title="Mahkamlangan"></i>{% endif %}
+            {% if n.body %}<div style="color:#6b7280;font-size:12px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ n.body }}</div>{% endif %}
+            {% if n.created_by %}<div style="color:#9ca3af;font-size:11px;">{{ n.created_by }}</div>{% endif %}
+          </td>
+          <td><span class="badge" style="background:#eef2ff;color:#2001FF;">{{ n.get_category_display }}</span></td>
+          <td>
+            {% if n.audience == "guruh" %}
+              {{ n.groups.count }} ta guruh
+            {% else %}
+              Barcha o'quvchilar
+            {% endif %}
+          </td>
+          <td style="white-space:nowrap;">{% if n.published_at %}{{ n.published_at|date:"d.m.Y" }}{% else %}{{ n.created_at|date:"d.m.Y" }}{% endif %}</td>
+          <td>
+            {% if n.is_published %}
+            <span class="badge badge-green"><i class="fas fa-check-circle"></i> Yoyilgan</span>
+            {% else %}
+            <span class="badge" style="background:#f1f5f9;color:#64748b;"><i class="fas fa-pause-circle"></i> Qoralamada</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if n.link %}
+            <a href="{{ n.link }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary" title="{{ n.link }}">
+              <i class="fas fa-link"></i> Ochish
+            </a>
+            {% else %}
+            <span style="color:#cbd5e1;">—</span>
+            {% endif %}
+          </td>
+          <td class="actions">
+            <form method="post" action="{% url 'news_toggle_publish' pk=n.id %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm {% if n.is_published %}btn-danger{% else %}btn-primary{% endif %}" title="{% if n.is_published %}Qoralamaga o'tkazish{% else %}Yoyish{% endif %}">
+                <i class="fas {% if n.is_published %}fa-toggle-off{% else %}fa-toggle-on{% endif %}"></i>
+              </button>
+            </form>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit({{ n.id }})" title="Tahrirlash">
+              <i class="fas fa-pencil-alt"></i>
+            </button>
+            <form method="post" action="{% url 'news_delete' pk=n.id %}" style="display:inline;" onsubmit="return confirm('Bu yanglikni o\\'chirilsinmi?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-danger" title="O'chirish">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        <tr id="edit-{{ n.id }}" style="display:none;">
+          <td colspan="8" style="background:#f9fafb;">
+            <form method="post" action="{% url 'news_update' pk=n.id %}">
+              {% csrf_token %}
+              <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));padding:12px 0;">
+                <div style="grid-column:1/-1;">
+                  <input type="text" name="title" class="form-control" value="{{ n.title }}" maxlength="255" required>
+                </div>
+                <div style="grid-column:1/-1;">
+                  <textarea name="body" class="form-control" rows="3" placeholder="Yangilik matni...">{{ n.body }}</textarea>
+                </div>
+                <div>
+                  <select name="category" class="form-control">
+                    {% for c in categories %}
+                    <option value="{{ c.value }}" {% if c.value == n.category %}selected{% endif %}>{{ c.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div>
+                  <select name="audience" class="form-control" onchange="document.getElementById('edit-groups-{{ n.id }}').style.display = this.value === 'guruh' ? '' : 'none';">
+                    <option value="barcha" {% if n.audience == 'barcha' %}selected{% endif %}>Barcha o'quvchilar</option>
+                    <option value="guruh" {% if n.audience == 'guruh' %}selected{% endif %}>Tanlangan guruhlar</option>
+                  </select>
+                </div>
+                <div id="edit-groups-{{ n.id }}" style="grid-column:1/-1;{% if n.audience != 'guruh' %}display:none;{% endif %}">
+                  {% include "news/_group_picker.html" with picker_uid="edit"|add:n.id picker_groups=groups picker_selected=n.groups.all %}
+                </div>
+                <div style="grid-column:1/-1;">
+                  <input type="url" name="link" class="form-control" value="{{ n.link }}" placeholder="Havola (ixtiyoriy) — https://..." maxlength="500">
+                  <input type="text" name="link_text" class="form-control" value="{{ n.link_text }}" placeholder="Tugma matni: Batafsil" maxlength="60" style="margin-top:8px;">
+                </div>
+              </div>
+              <div style="display:flex;gap:18px;align-items:center;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" name="is_published" value="1" {% if n.is_published %}checked{% endif %}> <span>Yoylangan</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" name="is_pinned" value="1" {% if n.is_pinned %}checked{% endif %}> <span>Mahkamlash</span>
+                </label>
+                <button type="submit" class="btn btn-primary" style="margin-left:auto;"><i class="fas fa-save"></i> Saqlash</button>
+                <button type="button" class="btn btn-secondary" onclick="toggleEdit({{ n.id }})">Yopish</button>
+              </div>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="empty">
+            <i class="fas fa-newspaper" style="font-size:2rem;opacity:.2;display:block;margin-bottom:8px;"></i>
+            Yangiliklar mavjud emas
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // ===== GURUHLAR QIDIRUVCHI TANLAGICH =====
+  // Tanlangan guruh id'lari DOM'da saqlanadi va yashirin input'lar orqali yuboriladi.
+  function ngpItems(uid) {
+    return document.querySelectorAll('#ngp-list-' + uid + ' .ngp-item');
+  }
+
+  function ngpOpen(uid) {
+    var root = document.getElementById('ngp-' + uid);
+    document.querySelectorAll('.ngp.open').forEach(function (o) {
+      if (o !== root) o.classList.remove('open');
+    });
+    root.classList.toggle('open');
+    if (root.classList.contains('open')) {
+      var s = root.querySelector('.ngp-search');
+      s.value = '';
+      ngpFilter('', uid);
+      s.focus();
+    }
+  }
+
+  function ngpFilter(q, uid) {
+    q = (q || '').toLowerCase().trim();
+    var shown = 0;
+    ngpItems(uid).forEach(function (it) {
+      var name = (it.dataset.label || '').toLowerCase();
+      var hit = name.indexOf(q) !== -1;
+      it.style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    });
+    var none = document.getElementById('ngp-list-' + uid).querySelector('.ngp-none');
+    if (none) none.style.display = shown ? 'none' : '';
+  }
+
+  function ngpToggle(uid, item) {
+    item.classList.toggle('sel');
+    ngpSync(uid);
+  }
+
+  function ngpSync(uid) {
+    var chips = document.getElementById('ngp-chips-' + uid);
+    var ph = document.getElementById('ngp-ph-' + uid);
+    var inputs = document.getElementById('ngp-inputs-' + uid);
+    chips.innerHTML = '';
+    inputs.innerHTML = '';
+
+    var picked = [];
+    ngpItems(uid).forEach(function (it) {
+      if (!it.classList.contains('sel')) return;
+      picked.push(it.dataset.val);
+
+      var chip = document.createElement('span');
+      chip.className = 'ngp-chip';
+      chip.textContent = it.dataset.label;
+
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.innerHTML = '&times;';
+      x.title = 'O\'chirish';
+      x.addEventListener('click', function (e) {
+        e.stopPropagation();
+        it.classList.remove('sel');
+        ngpSync(uid);
+      });
+      chip.appendChild(x);
+      chips.appendChild(chip);
+
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = 'groups';
+      hidden.value = it.dataset.val;
+      inputs.appendChild(hidden);
+    });
+
+    if (ph) ph.style.display = picked.length ? 'none' : '';
+    document.getElementById('ngp-count-' + uid).textContent = picked.length + ' ta tanlangan';
+  }
+
+  function ngpClear(uid) {
+    ngpItems(uid).forEach(function (it) { it.classList.remove('sel'); });
+    ngpFilter('', uid);
+    ngpSync(uid);
+  }
+
+  function ngpToggleAll(uid, btn) {
+    // Hozir ko'rinayotgan (qidiruvga mos kelgan) itemlarni tanlaydi.
+    var items = ngpItems(uid);
+    var allOn = true;
+    items.forEach(function (it) {
+      if (it.style.display !== 'none' && !it.classList.contains('sel')) allOn = false;
+    });
+    items.forEach(function (it) {
+      if (it.style.display === 'none') return;
+      it.classList.toggle('sel', !allOn);
+    });
+    btn.textContent = allOn ? 'Barchasini tanlash' : 'Tanlashni bekor qilish';
+    ngpSync(uid);
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.ngp')) {
+      document.querySelectorAll('.ngp.open').forEach(function (o) { o.classList.remove('open'); });
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.ngp.open').forEach(function (o) { o.classList.remove('open'); });
+    }
+  });
+
+  function toggleEdit(id) {
+    var row = document.getElementById('edit-' + id);
+    if (row) {
+      var hidden = row.style.display === 'none' || !row.style.display;
+      row.style.display = hidden ? 'table-row' : 'none';
+      if (hidden) ngpSync('edit' + id);
+    }
+  }
+
+  // Sahifa yuklanganda har bir tanlagichni o'z qiymatiga keltiramiz.
+  document.querySelectorAll('.ngp').forEach(function (root) {
+    ngpSync(root.dataset.ngp);
+  });
+</script>
+
+{% endblock %}

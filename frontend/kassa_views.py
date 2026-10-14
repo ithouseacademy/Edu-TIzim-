@@ -16,11 +16,61 @@ from .models import (
     TeacherBalance, TeacherTransaction,
 )
 from .views import get_or_create_teacher_balance, add_teacher_balance_transaction
+from . import branch_scope
+from . import payment_scope
 from .forms import (
     KassaForm, KassaIncomeForm, KassaExpenseForm,
     KassaTransferForm, KassaFilterForm, ExpenseCategoryForm, IncomeCategoryForm,
 )
 from .permissions import has_permission
+
+
+def _scoped_kassalar(request):
+    """Foydalanuvchining filialiga tegishli kassalar queryset'i.
+
+    Asosiy (bosh) kassa (`is_main=True`) ro'yxatlarda ko'rinmaydi, agar
+    foydalanuvchi 'cashbox.view_main' huquqiga ega bo'lmasa. Huquqi borlar
+    uchun esa filial doirasidan qat'i nazar ko'rinadi.
+    """
+    qs = Kassa.objects.select_related("owner", "branch")
+    if not has_permission(request.user, "cashbox.view_main"):
+        return branch_scope.scope(request, qs.exclude(is_main=True))
+    condition = branch_scope.branch_condition(request)
+    if condition is None:
+        return qs
+    return qs.filter(condition | Q(is_main=True))
+
+
+def _get_kassa_or_403(request, pk):
+    kassa = get_object_or_404(Kassa.objects.select_related("owner", "branch"), pk=pk)
+    if kassa.is_main:
+        # Asosiy kassa filial doirasiga bog'lanmaydi: faqat 'cashbox.view_main'.
+        if not has_permission(request.user, "cashbox.view_main"):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        return kassa
+    if not branch_scope.ensure_access(request, kassa):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    return kassa
+
+
+def _kassa_branch_mode(user):
+    """Kassa yaratish/tahrirlashda ko'rinadigan filiallar rejimi.
+
+    Qaytaradi: (branches, hide_branch)
+      - Superuser: barcha filiallar ko'rinadi (branches=None, hide_branch=False).
+      - Biriktirilgan admin: faqat o'z filiallari (branches=<queryset>, False).
+      - Biriktirilmagan oddiy admin: faqat GLOBAL (filialsiz) kassa ocha oladi,
+        shuning uchun filial tanlovi butunlay yashiriladi (False, True).
+    """
+    if getattr(user, "is_superuser", False):
+        return None, False
+    allowed = branch_scope.allowed_branch_ids(user)
+    if allowed is None or not allowed:
+        # Hech qaysi filialga tegishli emas — boshqa filiallar tanlanmasin.
+        return None, True
+    return branch_scope.available_branches(user), False
 
 
 def _get_employee(user):
@@ -32,6 +82,22 @@ def _get_employee(user):
 
 def _is_superadmin(user):
     return user.is_superuser or user.is_staff
+
+
+def _owner_only(request, user):
+    """Faqat o'z kassalari ko'rsatiladimi?
+
+    Adminlar (superuser yoki `is_staff`) hamda `cashbox.create` /
+    `cashbox.manage_all` huquqi berilgan foydalanuvchilar kassa bo'yicha
+    barcha amallarni bajaradi, lekin ko'rish doirasi `branch_scope` bilan
+    cheklanadi: ular faqat o'z filialiga tegishli kassalarni ko'radi.
+    Oddiy xodim esa o'ziga tegishli kassani ko'radi.
+    """
+    if _is_superadmin(user):
+        return False
+    if has_permission(user, "cashbox.manage_all") or has_permission(user, "cashbox.create"):
+        return False
+    return True
 
 
 def _employee_name(user):
@@ -50,10 +116,10 @@ def kassa_dashboard(request):
     user = request.user
     is_superadmin = _is_superadmin(user)
 
-    if is_superadmin:
-        kassalar = Kassa.objects.select_related("owner").all()
+    if _owner_only(request, user):
+        kassalar = _scoped_kassalar(request).filter(owner=user)
     else:
-        kassalar = Kassa.objects.select_related("owner").filter(owner=user)
+        kassalar = _scoped_kassalar(request).all()
 
     today = date.today()
     total_balance = sum(k.balance for k in kassalar)
@@ -61,9 +127,10 @@ def kassa_dashboard(request):
     today_expense = sum(k.today_expense for k in kassalar)
 
     today_payments = KassaTransaction.objects.filter(
-        transaction_type="payment", created_at__date=today
+        transaction_type="payment", created_at__date=today,
+        kassa_id__in=kassalar.values_list("pk", flat=True),
     )
-    if not is_superadmin:
+    if _owner_only(request, user):
         today_payments = today_payments.filter(kassa__owner=user)
     today_payment_total = today_payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
@@ -89,7 +156,8 @@ def kassa_dashboard(request):
             top_expense_kassa = max(kassa_expenses, key=lambda x: x[1])
 
     recent_ops = KassaTransaction.objects.select_related("kassa", "kassa__owner").order_by("-created_at")
-    if not is_superadmin:
+    recent_ops = recent_ops.filter(kassa_id__in=kassalar.values_list("pk", flat=True))
+    if _owner_only(request, user):
         recent_ops = recent_ops.filter(kassa__owner=user)
     recent_ops = recent_ops[:15]
 
@@ -111,7 +179,7 @@ def kassa_dashboard(request):
 
     return render(request, "kassa/dashboard.html", {
         "kassalar": kassa_cards,
-        "barcha_kassalar": Kassa.objects.select_related("owner").filter(is_active=True),
+        "barcha_kassalar": _scoped_kassalar(request).filter(is_active=True),
         "total_balance": total_balance,
         "today_income": today_income,
         "today_expense": today_expense,
@@ -155,10 +223,10 @@ def kassa_dashboard_export_excel(request):
         c.alignment = center
         c.border = thin_border
 
-    if _is_superadmin(user):
-        kassalar = Kassa.objects.select_related("owner").all()
+    if _owner_only(request, user):
+        kassalar = _scoped_kassalar(request).filter(owner=user)
     else:
-        kassalar = Kassa.objects.select_related("owner").filter(owner=user)
+        kassalar = _scoped_kassalar(request).all()
 
     for i, k in enumerate(kassalar, 1):
         row = i + 1
@@ -219,10 +287,10 @@ def kassa_list(request):
     user = request.user
     is_superadmin = _is_superadmin(user)
 
-    if is_superadmin:
-        kassalar = Kassa.objects.select_related("owner").all()
+    if _owner_only(request, user):
+        kassalar = _scoped_kassalar(request).filter(owner=user)
     else:
-        kassalar = Kassa.objects.select_related("owner").filter(owner=user)
+        kassalar = _scoped_kassalar(request).all()
 
     kassa_cards = []
     for k in kassalar:
@@ -250,8 +318,8 @@ def kassa_detail(request, pk):
     user = request.user
     is_superadmin = _is_superadmin(user)
 
-    kassa = get_object_or_404(Kassa.objects.select_related("owner"), pk=pk)
-    if not is_superadmin and kassa.owner != user:
+    kassa = _get_kassa_or_403(request, pk)
+    if _owner_only(request, user) and kassa.owner != user:
         messages.error(request, "Sizning kassangiz emas!")
         return redirect("kassa_list")
 
@@ -352,13 +420,17 @@ def kassa_detail(request, pk):
 
     income_form = KassaIncomeForm()
     expense_form = KassaExpenseForm()
-    transfer_form = KassaTransferForm(exclude_kassa=kassa)
+    transfer_form = KassaTransferForm(
+        exclude_kassa=kassa,
+        branches=branch_scope.form_branches(request.user),
+        can_transfer_main=has_permission(request.user, "cashbox.transfer_main"),
+    )
 
     active_payment_methods = list(PaymentMethod.objects.filter(is_active=True).values_list("name", flat=True))
 
     import json
     all_kassa_pm_balances = {}
-    for k in Kassa.objects.filter(is_active=True):
+    for k in _scoped_kassalar(request).filter(is_active=True):
         k_tx = KassaTransaction.objects.filter(kassa=k)
         k_pm = {}
         for pm_name in active_payment_methods:
@@ -403,7 +475,7 @@ def kassa_detail(request, pk):
         "expense_breakdown": kassa.all_expense_breakdown(),
         "total_income": kassa.total_income,
         "total_expense": kassa.total_expense,
-        "payment_methods": PaymentMethod.objects.filter(is_active=True),
+        "payment_methods": payment_scope.allowed_payment_methods(request.user, kassa=kassa),
         "expense_categories": ExpenseCategory.objects.all(),
         "payment_method_balances": payment_method_balances,
         "monthly_data": monthly_data,
@@ -415,46 +487,85 @@ def kassa_detail(request, pk):
     })
 
 
+def _branch_admin_urls():
+    """Filial id -> «filial administratorlari» sahifasi URL'i."""
+    from django.urls import reverse
+
+    from .models import Branch
+
+    return {
+        str(b.pk): reverse("branch_admin_branches", args=[b.pk])
+        for b in Branch.objects.all()
+    }
+
+
 @login_required(login_url="login")
 def kassa_create(request):
-    if not _is_superadmin(request.user):
-        messages.error(request, "Faqat Super Admin kassa yaratishi mumkin!")
+    if not has_permission(request.user, "cashbox.create"):
+        messages.error(request, "Kassani ochish huquqi yo'q! Administratordan ruxsat so'rang.")
         return redirect("kassa_list")
 
-    form = KassaForm()
+    branches, hide_branch = _kassa_branch_mode(request.user)
+    initial = {"branch": branch_scope.get_current_branch(request)}
+    if not request.user.is_superuser:
+        initial["owner"] = request.user
+    form = KassaForm(
+        initial=initial, user=request.user, branches=branches,
+        hide_branch=hide_branch,
+    )
     if request.method == "POST":
-        form = KassaForm(request.POST)
+        form = KassaForm(
+            request.POST, user=request.user, branches=branches,
+            hide_branch=hide_branch,
+        )
         if form.is_valid():
             kassa = form.save()
             messages.success(request, f"'{kassa.name}' kassasi muvaffaqiyatli yaratildi")
             return redirect("kassa_list")
-    return render(request, "kassa/form.html", {"form": form, "title": "Kassa qo'shish"})
+    return render(request, "kassa/form.html", {
+        "form": form,
+        "title": "Kassa qo'shish",
+        "owner_branch_map": form.owner_branch_map,
+        "branch_admin_urls": _branch_admin_urls(),
+    })
 
 
 @login_required(login_url="login")
 def kassa_update(request, pk):
-    if not _is_superadmin(request.user):
-        messages.error(request, "Faqat Super Admin kassani tahrirlashi mumkin!")
+    if not has_permission(request.user, "cashbox.update"):
+        messages.error(request, "Kassani tahrirlash / xodimga biriktirish huquqi yo'q!")
         return redirect("kassa_list")
 
-    kassa = get_object_or_404(Kassa, pk=pk)
-    form = KassaForm(instance=kassa)
+    kassa = _get_kassa_or_403(request, pk)
+    branches, hide_branch = _kassa_branch_mode(request.user)
+    form = KassaForm(
+        instance=kassa, user=request.user, branches=branches,
+        hide_branch=hide_branch,
+    )
     if request.method == "POST":
-        form = KassaForm(request.POST, instance=kassa)
+        form = KassaForm(
+            request.POST, instance=kassa, user=request.user, branches=branches,
+            hide_branch=hide_branch,
+        )
         if form.is_valid():
             form.save()
             messages.success(request, "Kassa muvaffaqiyatli yangilandi")
             return redirect("kassa_list")
-    return render(request, "kassa/form.html", {"form": form, "title": "Kassani tahrirlash"})
+    return render(request, "kassa/form.html", {
+        "form": form,
+        "title": "Kassani tahrirlash",
+        "owner_branch_map": form.owner_branch_map,
+        "branch_admin_urls": _branch_admin_urls(),
+    })
 
 
 @login_required(login_url="login")
 def kassa_delete(request, pk):
-    if not _is_superadmin(request.user):
-        messages.error(request, "Faqat Super Admin kassani o'chirishi mumkin!")
+    if not has_permission(request.user, "cashbox.delete"):
+        messages.error(request, "Kassani yopish (o'chirish) huquqi yo'q!")
         return redirect("kassa_list")
 
-    kassa = get_object_or_404(Kassa, pk=pk)
+    kassa = _get_kassa_or_403(request, pk)
 
     balance = kassa.balance
     if balance != 0:
@@ -481,12 +592,24 @@ def kassa_delete(request, pk):
 @login_required(login_url="login")
 def kassa_add_income(request, pk):
     user = request.user
-    kassa = get_object_or_404(Kassa, pk=pk)
+    kassa = _get_kassa_or_403(request, pk)
     is_superadmin = _is_superadmin(user)
 
-    if not is_superadmin and kassa.owner != user:
+    if _owner_only(request, user) and kassa.owner != user:
         messages.error(request, "Sizning kassangiz emas!")
         return redirect("kassa_list")
+
+    # Asosiy (bosh) kassaga kirim alohida ruxsat bilan cheklanadi.
+    required_perm = "cashbox.main_income" if kassa.is_main else "cashbox.create"
+    if not has_permission(user, required_perm):
+        messages.error(
+            request,
+            "Asosiy (bosh) kassaga kirim qilish huquqingiz yo'q "
+            "('cashbox.main_income' ruxsati kerak)."
+            if kassa.is_main else
+            "Kassaga kirim qo'shish huquqingiz yo'q ('cashbox.create' ruxsati kerak).",
+        )
+        return redirect("kassa_detail", pk=pk)
 
     if request.method != "POST":
         return redirect("kassa_detail", pk=pk)
@@ -498,6 +621,9 @@ def kassa_add_income(request, pk):
         income_category = form.cleaned_data.get("income_category", "")
         custom_category = request.POST.get("custom_income_category", "").strip()
         payment_method = request.POST.get("payment_method", "").strip()
+        if not payment_scope.is_method_allowed(user, payment_method, kassa=kassa):
+            messages.error(request, "Bu to'lov turidan foydalanishga ruxsatingiz yo'q (filial/xodim sozlamalarida yoqilmagan).")
+            return redirect("kassa_detail", pk=pk)
         balance_before = kassa.balance
 
         if income_category == "boshqa" and custom_category:
@@ -529,7 +655,7 @@ def kassa_add_income(request, pk):
 @login_required(login_url="login")
 def kassa_add_expense(request, pk):
     user = request.user
-    kassa = get_object_or_404(Kassa, pk=pk)
+    kassa = _get_kassa_or_403(request, pk)
     is_superadmin = _is_superadmin(user)
 
     def _fail(msg):
@@ -538,11 +664,18 @@ def kassa_add_expense(request, pk):
         messages.error(request, msg)
         return redirect("kassa_detail", pk=pk)
 
-    if not is_superadmin and kassa.owner != user:
+    if _owner_only(request, user) and kassa.owner != user:
         return _fail("Sizning kassangiz emas!")
 
-    if not has_permission(user, "expense.regular"):
-        return _fail("Sizga oddiy chiqim qilishga ruxsat berilmagan.")
+    # Asosiy (bosh) kassadan chiqim alohida ruxsat bilan cheklanadi.
+    required_perm = "cashbox.main_expense" if kassa.is_main else "expense.regular"
+    if not has_permission(user, required_perm):
+        return _fail(
+            "Asosiy (bosh) kassadan chiqim qilish huquqingiz yo'q "
+            "('cashbox.main_expense' ruxsati kerak)."
+            if kassa.is_main else
+            "Sizga oddiy chiqim qilishga ruxsat berilmagan."
+        )
 
     if request.method != "POST":
         return redirect("kassa_detail", pk=pk)
@@ -554,6 +687,8 @@ def kassa_add_expense(request, pk):
         expense_category = form.cleaned_data.get("expense_category", "")
         custom_category = form.cleaned_data.get("custom_category", "").strip()
         payment_method = request.POST.get("payment_method", "").strip()
+        if not payment_scope.is_method_allowed(user, payment_method, kassa=kassa):
+            return _fail("Bu to'lov turidan foydalanishga ruxsatingiz yo'q.")
         balance_before = kassa.balance
 
         if balance_before < amount:
@@ -600,7 +735,7 @@ def kassa_add_employee_payout(request, pk):
     hech qachon minusga tushmaydi. Biror qadam xatoga uchrasa hammasi bekor qilinadi.
     """
     user = request.user
-    kassa = get_object_or_404(Kassa, pk=pk)
+    kassa = _get_kassa_or_403(request, pk)
     is_superadmin = _is_superadmin(user)
 
     def _fail(msg):
@@ -609,7 +744,7 @@ def kassa_add_employee_payout(request, pk):
         messages.error(request, msg)
         return redirect("kassa_detail", pk=pk)
 
-    if not is_superadmin and kassa.owner != user:
+    if _owner_only(request, user) and kassa.owner != user:
         return _fail("Sizning kassangiz emas!")
 
     if request.method != "POST":
@@ -623,10 +758,17 @@ def kassa_add_employee_payout(request, pk):
 
     if salary_type not in ("salary", "advance"):
         return _fail("Noto'g'ri berish turi! Oylik yoki avansni tanlang.")
+    if not payment_scope.is_method_allowed(user, payment_method, kassa=kassa):
+        return _fail("Bu to'lov turidan foydalanishga ruxsatingiz yo'q.")
 
     required_perm = "expense.salary" if salary_type == "salary" else "expense.advance"
     if not has_permission(user, required_perm):
         return _fail("Sizga bu turdagi chiqim qilishga ruxsat berilmagan.")
+    if kassa.is_main and not has_permission(user, "cashbox.main_expense"):
+        return _fail(
+            "Asosiy (bosh) kassadan chiqim qilish huquqingiz yo'q "
+            "('cashbox.main_expense' ruxsati kerak)."
+        )
 
     salary_type_label = "Oylik" if salary_type == "salary" else "Avans"
 
@@ -820,7 +962,7 @@ def kassa_employee_advance_close(request, pk):
     Kassaga chiqim yozilmaydi (avans puli avval berilgan bo'lgan).
     """
     user = request.user
-    kassa = get_object_or_404(Kassa, pk=pk)
+    kassa = _get_kassa_or_403(request, pk)
     is_superadmin = _is_superadmin(user)
 
     def _fail(msg):
@@ -829,7 +971,7 @@ def kassa_employee_advance_close(request, pk):
         messages.error(request, msg)
         return redirect("kassa_detail", pk=pk)
 
-    if not is_superadmin and kassa.owner != user:
+    if _owner_only(request, user) and kassa.owner != user:
         return _fail("Sizning kassangiz emas!")
 
     if not has_permission(user, "expense.advance_close"):
@@ -903,87 +1045,220 @@ def kassa_employee_advance_close(request, pk):
 
 @login_required(login_url="login")
 def kassa_transfer(request, pk):
-    user = request.user
-    from_kassa = get_object_or_404(Kassa, pk=pk)
-    is_superadmin = _is_superadmin(user)
+    """Kassa o'tkazmasi.
 
-    if not is_superadmin and from_kassa.owner != user:
+    Bitta filial ichida, o'z kassasiga yoki egasiz kassaga -> darhol bajariladi.
+    Boshqa boshqaruvchining kassasiga yoki boshqa filialga -> `pending`
+    holatda qoladi; qabul qiluvchi kassa egasi yoki qabul qiluvchi filialning
+    `cashbox.approve` huquqiga ega admini tasdiqlaydi.
+    """
+    from .kassa_transfer_service import create_transfer_request, kassa_available_balance
+
+    user = request.user
+    from_kassa = _get_kassa_or_403(request, pk)
+
+    if _owner_only(request, user) and from_kassa.owner != user:
         messages.error(request, "Sizning kassangiz emas!")
         return redirect("kassa_list")
+
+    # Asosiy kassadan pul yuborish — faqat rahbar (super admin) yoki
+    # 'cashbox.manage_all' huquqi egalariga ochiq.
+    if from_kassa.is_main and not (
+        request.user.is_superuser
+        or has_permission(request.user, "cashbox.manage_all")
+    ):
+        messages.error(
+            request,
+            "Asosiy kassadan pul o'tkazish faqat rahbar (barcha kassalarni boshqarish) "
+            "huquqiga ega xodimlar uchun ochiq.",
+        )
+        return redirect("kassa_detail", pk=pk)
 
     if request.method != "POST":
         return redirect("kassa_detail", pk=pk)
 
-    form = KassaTransferForm(request.POST, exclude_kassa=from_kassa)
+    form = KassaTransferForm(
+        request.POST,
+        exclude_kassa=from_kassa,
+        branches=branch_scope.available_branches(user),
+        can_transfer_main=has_permission(user, "cashbox.transfer_main"),
+    )
     if form.is_valid():
         to_kassa = form.cleaned_data["to_kassa"]
+        if to_kassa.is_main and not (
+            request.user.is_superuser
+            or has_permission(request.user, "cashbox.transfer_main")
+        ):
+            messages.error(
+                request,
+                "Asosiy kassaga pul o'tkazish huquqingiz yo'q "
+                "('cashbox.transfer_main' ruxsati kerak).",
+            )
+            return redirect("kassa_detail", pk=pk)
         amount = form.cleaned_data["amount"]
         payment_method = request.POST.get("payment_method", "").strip()
         to_payment_method = request.POST.get("to_payment_method", "").strip()
-        description = form.cleaned_data["description"] or f"Kassa o'tkazma: {from_kassa.name} → {to_kassa.name}"
+        description = form.cleaned_data["description"] or ""
 
+        if not payment_scope.is_method_allowed(user, payment_method, kassa=from_kassa):
+            messages.error(request, "Bu to'lov turidan foydalanishga ruxsatingiz yo'q.")
+            return redirect("kassa_detail", pk=pk)
+        if to_payment_method and not payment_scope.is_method_allowed(user, to_payment_method, kassa=to_kassa):
+            messages.error(request, "Qabul qiluvchi to'lov turidan foydalanishga ruxsatingiz yo'q.")
+            return redirect("kassa_detail", pk=pk)
+
+        # --- Yetarlilik tekshiruvi (kutilayotgan o'tkazmalar hisobga olinadi) ---
+        available = kassa_available_balance(from_kassa)
         if payment_method:
             from .models import PaymentMethod
-            active_pms = list(PaymentMethod.objects.filter(is_active=True).values_list("name", flat=True))
+
+            active_pms = list(
+                PaymentMethod.objects.filter(is_active=True).values_list("name", flat=True)
+            )
             k_tx = KassaTransaction.objects.filter(kassa=from_kassa)
-            pm_inc = k_tx.filter(transaction_type__in=["payment", "income", "transfer_in"], payment_method__iexact=payment_method).aggregate(s=Sum("amount"))["s"] or Decimal("0")
-            pm_exp = k_tx.filter(transaction_type__in=["expense", "transfer_out"], payment_method__iexact=payment_method).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+            pm_inc = k_tx.filter(
+                transaction_type__in=["payment", "income", "transfer_in"],
+                payment_method__iexact=payment_method,
+            ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+            pm_exp = k_tx.filter(
+                transaction_type__in=["expense", "transfer_out"],
+                payment_method__iexact=payment_method,
+            ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
             pm_balance = pm_inc - pm_exp
             if pm_balance < amount:
-                messages.error(request, f"'{payment_method}' to'lov turida {pm_balance:,.0f} so'm bor, {amount:,.0f} so'm yetarli emas!")
+                messages.error(
+                    request,
+                    f"'{payment_method}' to'lov turida {pm_balance:,.0f} so'm bor, "
+                    f"{amount:,.0f} so'm yetarli emas!",
+                )
                 return redirect("kassa_detail", pk=pk)
-        else:
-            if from_kassa.balance < amount:
-                messages.error(request, f"Kassada yetarli mablag' yo'q! Balans: {from_kassa.balance:,.0f} so'm")
-                return redirect("kassa_detail", pk=pk)
+        elif available < amount:
+            messages.error(
+                request,
+                f"Kassada yetarli mablag' yo'q! Balans: {from_kassa.balance:,.0f} so'm"
+                + (f" (kutilayotgan: {from_kassa.balance - available:,.0f})" if available < from_kassa.balance else ""),
+            )
+            return redirect("kassa_detail", pk=pk)
 
-        balance_before_from = from_kassa.balance
-        balance_before_to = to_kassa.balance
-
-        KassaTransaction.objects.create(
-            kassa=from_kassa,
-            transaction_type=KassaTransaction.TransactionType.TRANSFER_OUT,
-            amount=amount,
-            balance_before=balance_before_from,
-            balance_after=balance_before_from - amount,
-            description=description,
-            payment_method=payment_method,
-            created_by=_employee_name(user),
-            created_by_user=user,
-        )
-
-        KassaTransaction.objects.create(
-            kassa=to_kassa,
-            transaction_type=KassaTransaction.TransactionType.TRANSFER_IN,
-            amount=amount,
-            balance_before=balance_before_to,
-            balance_after=balance_before_to + amount,
-            description=description,
-            payment_method=to_payment_method or payment_method,
-            created_by=_employee_name(user),
-            created_by_user=user,
-        )
-
-        KassaTransfer.objects.create(
+        transfer = create_transfer_request(
             from_kassa=from_kassa,
             to_kassa=to_kassa,
             amount=amount,
+            user=user,
             description=description,
-            created_by=_employee_name(user),
-            created_by_user=user,
+            payment_method=payment_method,
+            to_payment_method=to_payment_method,
         )
 
-        msg = f"{amount:,.0f} so'm"
-        if payment_method:
-            msg += f" '{payment_method}' turidan"
-        msg += f" '{to_kassa.name}' ga o'tkazildi"
-        if to_payment_method:
-            msg += f" ({to_payment_method} sifatida)"
-        messages.success(request, msg)
+        amount_txt = f"{amount:,.0f} so'm"
+        if transfer.status == transfer.Status.PENDING:
+            messages.success(
+                request,
+                f"{amount_txt} '{to_kassa.name}' ga o'tkazish uchun so'raldi. "
+                f"Tasdiqlash kutilmoqda.",
+            )
+        else:
+            extra = f" ({to_payment_method} sifatida)" if to_payment_method else ""
+            messages.success(request, f"{amount_txt} '{to_kassa.name}' ga o'tkazildi{extra}")
     else:
         messages.error(request, "Xatolik yuz berdi. Kassa va summani kiriting.")
 
     return redirect("kassa_detail", pk=pk)
+
+
+@login_required(login_url="login")
+def kassa_transfer_list(request):
+    """O'tkazmalar: yuborilgan (outgoing) va kelgan (incoming)."""
+    from .kassa_transfer_service import scope_transfers
+
+    user = request.user
+    if not _is_superadmin(user) and not has_permission(user, "cashbox.view"):
+        messages.error(request, "Ruxsatingiz yo'q")
+        return redirect("kassa_list")
+
+    transfers = scope_transfers(request).select_related(
+        "from_kassa", "to_kassa", "from_branch", "to_branch", "reviewed_by"
+    )
+
+    tab = request.GET.get("tab", "incoming")
+    if tab == "outgoing":
+        queryset = transfers.filter(from_kassa__isnull=False)
+    elif tab == "all":
+        queryset = transfers
+    else:
+        queryset = transfers.filter(to_kassa__isnull=False)
+
+    pending_count = transfers.filter(status="pending").count()
+    incoming_count = transfers.filter(
+        status="pending", to_kassa__isnull=False
+    ).count()
+
+    return render(request, "kassa/transfer_list.html", {
+        "transfers": queryset[:200],
+        "tab": tab,
+        "pending_count": pending_count,
+        "incoming_count": incoming_count,
+        "title": "Kassa o'tkazmalari",
+    })
+
+
+@login_required(login_url="login")
+def kassa_transfer_approve(request, pk):
+    """Kelgan o'tkazmani tasdiqlash (faqat qabul qiluvchi filial admini)."""
+    from .kassa_transfer_service import can_approve_transfer, execute_transfer, scope_transfers
+
+    user = request.user
+    transfer = scope_transfers(request).select_related(
+        "from_kassa", "to_kassa", "from_branch", "to_branch"
+    ).filter(pk=pk).first()
+
+    if transfer is None:
+        messages.error(request, "O'tkazma topilmadi")
+        return redirect("kassa_transfer_list")
+
+    if not can_approve_transfer(user, transfer):
+        messages.error(request, "Siz bu o'tkazmani tasdiqlay olmaysiz")
+        return redirect("kassa_transfer_list")
+
+    if request.method != "POST":
+        return redirect("kassa_transfer_list")
+
+    note = request.POST.get("note", "").strip()
+    if execute_transfer(transfer, user=user, note=note):
+        messages.success(
+            request,
+            f"{transfer.amount:,.0f} so'm tasdiqlandi va "
+            f"'{transfer.to_kassa}' ga o'tkazildi.",
+        )
+    else:
+        messages.error(request, "Bajarib bo'lmadi: kassada yetarli mablag' yo'q")
+
+    return redirect("kassa_transfer_list")
+
+
+@login_required(login_url="login")
+def kassa_transfer_reject(request, pk):
+    """Kelgan o'tkazmani rad etish."""
+    from .kassa_transfer_service import can_approve_transfer, reject_transfer, scope_transfers
+
+    user = request.user
+    transfer = scope_transfers(request).filter(pk=pk).first()
+
+    if transfer is None:
+        messages.error(request, "O'tkazma topilmadi")
+        return redirect("kassa_transfer_list")
+
+    if not can_approve_transfer(user, transfer):
+        messages.error(request, "Siz bu o'tkazmani rad eta olmaysiz")
+        return redirect("kassa_transfer_list")
+
+    if request.method != "POST":
+        return redirect("kassa_transfer_list")
+
+    note = request.POST.get("note", "").strip()
+    if reject_transfer(transfer, user, note=note):
+        messages.success(request, f"{transfer.amount:,.0f} so'm rad etildi.")
+    return redirect("kassa_transfer_list")
 
 
 @login_required(login_url="login")
@@ -992,8 +1267,11 @@ def kassa_history(request):
     is_superadmin = _is_superadmin(user)
 
     transactions = KassaTransaction.objects.select_related("kassa", "kassa__owner", "student", "employee").order_by("-created_at")
+    transactions = transactions.filter(
+        kassa_id__in=_scoped_kassalar(request).values_list("pk", flat=True)
+    )
 
-    if not is_superadmin:
+    if _owner_only(request, user):
         transactions = transactions.filter(kassa__owner=user)
 
     date_from = request.GET.get("date_from")
@@ -1031,7 +1309,9 @@ def kassa_history(request):
     if f_employee:
         emp = Employee.objects.filter(pk=int(f_employee), is_deleted=False).first() if f_employee.isdigit() else None
         if emp:
-            base = KassaTransaction.objects.filter(kassa__owner=user) if not is_superadmin else KassaTransaction.objects.all()
+            base = KassaTransaction.objects.filter(kassa__in=_scoped_kassalar(request))
+            if _owner_only(request, user):
+                base = base.filter(kassa__owner=user)
             base = base.filter(employee=emp)
             if date_from:
                 base = base.filter(created_at__date__gte=date_from)
@@ -1077,19 +1357,29 @@ def kassa_register_payment(request):
         return redirect("payment_create")
 
     try:
-        kassa = Kassa.objects.get(pk=kassa_id)
+        kassa = _get_kassa_or_403(request, kassa_id)
     except Kassa.DoesNotExist:
         messages.error(request, "Kassa topilmadi!")
         return redirect("payment_create")
 
     user = request.user
-    is_superadmin = _is_superadmin(user)
-    user_kassa = Kassa.objects.filter(owner=user, is_active=True).first()
-    if not user_kassa:
-        messages.error(request, "Sizga kassa biriktirilmagan! To'lov qabul qilish uchun avval kassangiz bo'lishi kerak.")
-        return redirect("payment_create")
-    if kassa.owner != user:
-        messages.error(request, "Bu kassa sizga tegishli emas!")
+    # Cheklangan admin o'z filialidagi istalgan kassadan foydalanishi mumkin;
+    # xodim esa faqat o'z kassasi (branch_scope allaqachon tekshirgan).
+    if _owner_only(request, user):
+        user_kassa = Kassa.objects.filter(owner=user, is_active=True).first()
+        if not user_kassa:
+            messages.error(request, "Sizga kassa biriktirilmagan! To'lov qabul qilish uchun avval kassangiz bo'lishi kerak.")
+            return redirect("payment_create")
+        if kassa.owner != user:
+            messages.error(request, "Bu kassa sizga tegishli emas!")
+            return redirect("payment_create")
+
+    if kassa.is_main and not has_permission(user, "cashbox.main_income"):
+        messages.error(
+            request,
+            "Asosiy (bosh) kassaga kirim qilish huquqingiz yo'q "
+            "('cashbox.main_income' ruxsati kerak).",
+        )
         return redirect("payment_create")
 
     try:
@@ -1098,12 +1388,16 @@ def kassa_register_payment(request):
         messages.error(request, "Noto'g'ri summa!")
         return redirect("payment_create")
 
+    if not payment_scope.is_method_allowed(user, payment_method, kassa=kassa):
+        messages.error(request, "Bu to'lov turidan foydalanishga ruxsatingiz yo'q (filial/xodim sozlamalarida yoqilmagan).")
+        return redirect("payment_create")
+
     balance_before = kassa.balance
     student = None
     if student_id:
         from .models import Student
         try:
-            student = Student.objects.get(pk=student_id)
+            student = branch_scope.scope(request, Student.objects.all()).get(pk=student_id)
         except Student.DoesNotExist:
             pass
 
@@ -1150,12 +1444,12 @@ def kassa_overview(request):
 
     # Jadval uchun — faol yoki hammasi
     if show_inactive:
-        kassalar = Kassa.objects.select_related("owner").all()
+        kassalar = _scoped_kassalar(request).all()
     else:
-        kassalar = Kassa.objects.select_related("owner").filter(is_active=True)
+        kassalar = _scoped_kassalar(request).filter(is_active=True)
 
     # Filter dropdown uchun — dropdownda ham faol, ham nofaol ko'rinadi
-    kassalar_all = Kassa.objects.select_related("owner").all()
+    kassalar_all = _scoped_kassalar(request).all()
 
     # Apply date filters to transactions
     transactions = KassaTransaction.objects.select_related("kassa", "kassa__owner", "student")
@@ -1614,9 +1908,10 @@ def kassa_overview_export_excel(request):
 
     transactions = KassaTransaction.objects.select_related("kassa", "kassa__owner", "student")
 
-    if not is_superadmin:
-        user_kassa_ids = Kassa.objects.filter(owner=user).values_list("pk", flat=True)
-        transactions = transactions.filter(kassa_id__in=user_kassa_ids)
+    scoped_kassa_ids = list(_scoped_kassalar(request).values_list("pk", flat=True))
+    if _owner_only(request, user):
+        scoped_kassa_ids = [pk for pk in scoped_kassa_ids if Kassa.objects.filter(pk=pk, owner=user).exists()]
+    transactions = transactions.filter(kassa_id__in=scoped_kassa_ids)
 
     if f_kassa:
         transactions = transactions.filter(kassa_id=f_kassa)
@@ -1749,8 +2044,8 @@ def kassa_detail_export_excel(request, pk):
     user = request.user
     is_superadmin = _is_superadmin(user)
 
-    kassa = get_object_or_404(Kassa.objects.select_related("owner"), pk=pk)
-    if not is_superadmin and kassa.owner != user:
+    kassa = _get_kassa_or_403(request, pk)
+    if _owner_only(request, user) and kassa.owner != user:
         messages.error(request, "Sizning kassangiz emas!")
         return redirect("kassa_list")
 

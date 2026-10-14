@@ -33,6 +33,7 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
       localStorage.setItem("employee", JSON.stringify(res.employee))
       localStorage.setItem("is_admin", String(res.is_admin))
       localStorage.setItem("is_teacher", String(res.is_teacher))
+      localStorage.setItem("teacher_can_messaging", String(!!res.can_messaging))
       onLogin()
     } catch (err: any) {
       setError(err.message || "Xatolik yuz berdi")

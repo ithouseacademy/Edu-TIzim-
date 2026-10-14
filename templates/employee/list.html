@@ -158,18 +158,7 @@ mark{background:#fde047;color:#0f172a;border-radius:2px;padding:0 1px;}
                 {% endfor %}
             </select>
         </div>
-        {% if request.user.is_superuser %}
-        <div class="em-filter-item">
-            <label>Filial</label>
-            <select id="filialFilter" onchange="applyFilter()">
-                <option value="">Barcha filiallar</option>
-                {% for b in branches %}
-                <option value="{{ b.id }}" {% if request.GET.filial == b.id|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        {% endif %}
-        {% if request.GET.kasab or request.GET.rol or request.GET.filial %}
+        {% if request.GET.kasab or request.GET.rol %}
         <a href="{% url 'employee_list' %}" class="em-filter-clear"><i class="fas fa-times"></i> Tozalash</a>
         {% endif %}
     </div>
@@ -383,10 +372,8 @@ function applyFilter(){
   var params=new URLSearchParams(window.location.search);
   var k=document.getElementById('kasabFilter').value;
   var r=document.getElementById('rolFilter').value;
-  var f=document.getElementById('filialFilter')?document.getElementById('filialFilter').value:'';
   if(k)params.set('kasab',k);else params.delete('kasab');
   if(r)params.set('rol',r);else params.delete('rol');
-  if(f)params.set('filial',f);else params.delete('filial');
   var qs=params.toString();
   window.location.href=window.location.pathname+(qs?'?'+qs:'');
 }

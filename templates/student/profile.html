@@ -184,7 +184,7 @@
             <div class="pp-tab active" data-tab="pp-tab-edit">Tahrirlash</div>
             <div class="pp-tab" data-tab="pp-tab-password">Parol o'rnatish</div>
             <div class="pp-tab" data-tab="pp-tab-moderator">Moderatorni tahrirlash</div>
-            <div class="pp-tab" data-tab="pp-tab-calls">Qo'ng'iroqlar tarixi</div>
+            <div class="pp-tab" data-tab="pp-tab-coins">Coin tarixi</div>
             <div class="pp-tab" data-tab="pp-tab-groups">Guruhlar</div>
             <div class="pp-tab" data-tab="pp-tab-task">Vazifa</div>
             <div class="pp-tab" data-tab="pp-tab-block">Blok holatini tekshirish</div>
@@ -293,21 +293,21 @@
     <!-- ===== TAB: PAROL ===== -->
     <div class="pp-tab-content" id="pp-tab-password">
         <div class="pp-form-wrap">
-            <div class="pp-form-grid" style="grid-template-columns: repeat(3, 1fr);">
-                <div class="pp-field">
-                    <label>Login</label>
-                    <input type="text" value="{{ student.user.username|default:'' }}" placeholder="Login kiriting">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="change_login_password">
+                <div class="pp-form-grid" style="grid-template-columns: repeat(2, 1fr);">
+                    <div class="pp-field">
+                        <label>Login</label>
+                        <input type="text" name="login" value="{{ student.user.username|default:'' }}" placeholder="Login kiriting">
+                    </div>
+                    <div class="pp-field">
+                        <label>Yangi parol</label>
+                        <input type="password" name="new_password" placeholder="Yangi parol kiriting">
+                    </div>
                 </div>
-                <div class="pp-field">
-                    <label>Yangi parol</label>
-                    <input type="password" placeholder="Yangi parol kiriting">
-                </div>
-                <div class="pp-field">
-                    <label>Parolni tasdiqlash</label>
-                    <input type="password" placeholder="Parolni qaytadan kiriting">
-                </div>
-            </div>
-            <button class="pp-btn-blue" style="margin-top:16px;"><i class="fas fa-save" style="font-size:11px;"></i> Saqlash</button>
+                {% if 'student.update' in permissions %}<button type="submit" class="pp-btn-blue" style="margin-top:16px;"><i class="fas fa-save" style="font-size:11px;"></i> Saqlash</button>{% endif %}
+            </form>
         </div>
     </div>
 
@@ -318,10 +318,74 @@
         </div>
     </div>
 
-    <!-- ===== TAB: QO'NG'IROQLAR ===== -->
-    <div class="pp-tab-content" id="pp-tab-calls">
+    <!-- ===== TAB: COIN TARIXI ===== -->
+    <div class="pp-tab-content" id="pp-tab-coins">
         <div class="pp-form-wrap">
-            <p style="font-size:13px;color:#808080;">Qo'ng'iroqlar tarixi bu yerda ko'rsatiladi.</p>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+                <h4 style="font-size:12px;font-weight:600;color:#222;margin:0;"><i class="fas fa-coins" style="color:#f59e0b;margin-right:4px;"></i>Coin tarixi</h4>
+                <span class="pp-stat-badge" style="background:#DBEAFE;border-radius:8px;border:1.5px solid #93C5FD;">
+                    <span class="sb-label">Joriy balans:</span>
+                    <span class="sb-value" style="color:{% if coin_balance and coin_balance.balance < 0 %}#dc2626{% else %}#16a34a{% endif %};">
+                        {% if coin_balance %}{{ coin_balance.balance }}{% else %}0{% endif %}
+                    </span>
+                </span>
+            </div>
+            {% if coin_transactions %}
+            <div style="overflow-x:auto;">
+                <table class="pp-table">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Turi</th>
+                            <th>Miqdor</th>
+                            <th>Sabab</th>
+                            <th>Guruh</th>
+                            <th>Izoh</th>
+                            <th>Kim</th>
+                            <th>Holat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in coin_transactions %}
+                        <tr {% if c.status == 'reversed' %}style="opacity:.5;"{% endif %}>
+                            <td style="white-space:nowrap;">{{ c.created_at|date:"d.m.Y H:i" }}</td>
+                            <td>
+                                {% if c.transaction_type == 'BONUS' %}<span class="pp-badge pp-badge-green">Bonus</span>
+                                {% elif c.transaction_type == 'PENALTY' %}<span class="pp-badge pp-badge-red">Penalty</span>
+                                {% elif c.transaction_type == 'ATTENDANCE' %}<span class="pp-badge pp-badge-blue">Davomat</span>
+                                {% elif c.transaction_type == 'SHOP' %}<span class="pp-badge pp-badge-purple">Shop</span>
+                                {% elif c.transaction_type == 'ADJUSTMENT' %}<span class="pp-badge pp-badge-yellow">Sozlash</span>
+                                {% elif c.transaction_type == 'REVERSAL' %}<span class="pp-badge" style="background:#f5f5f5;color:#808080;">Reversal</span>
+                                {% else %}<span class="pp-badge" style="background:#f5f5f5;color:#808080;">{{ c.get_transaction_type_display }}</span>{% endif %}
+                            </td>
+                            <td style="font-weight:700;{% if c.amount > 0 %}color:#16a34a;{% else %}color:#dc2626;{% endif %};">
+                                {% if c.amount > 0 %}+{% endif %}{{ c.amount }}
+                            </td>
+                            <td>
+                                {% if c.reason_name %}{{ c.reason_name }}
+                                {% elif c.reason %}{{ c.reason.name }}
+                                {% elif c.shop_order %}{{ c.shop_order.product_name }}
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>
+                                {% if c.group %}<a href="{% url 'group_detail' c.group.pk %}" style="color:#2001FF;font-weight:600;">{{ c.group.name }}</a>
+                                {% elif c.group_name %}{{ c.group_name }}
+                                {% else %}—{% endif %}
+                            </td>
+                            <td style="color:#808080;font-size:11px;">{{ c.description|default:"-" }}</td>
+                            <td style="white-space:nowrap;">{{ c.created_by|default:"—" }}</td>
+                            <td>
+                                {% if c.status == 'active' %}<span class="pp-badge pp-badge-green">Faol</span>
+                                {% else %}<span class="pp-badge" style="background:#f5f5f5;color:#808080;">Bekor</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align:center;padding:30px;color:#A0A0A0;font-size:12px;">Coin tarixi mavjud emas</p>
+            {% endif %}
         </div>
     </div>
 
@@ -434,7 +498,47 @@
     <!-- ===== TAB: BUYURTMALAR ===== -->
     <div class="pp-tab-content" id="pp-tab-orders">
         <div class="pp-form-wrap">
-            <p style="font-size:13px;color:#808080;">Buyurtmalar bu yerda ko'rsatiladi.</p>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <h4 style="font-size:12px;font-weight:600;color:#222;margin:0;"><i class="fas fa-shopping-bag" style="color:#2563eb;margin-right:4px;"></i>Do'kon buyurtmalari</h4>
+            </div>
+            {% if coin_orders %}
+            <div style="overflow-x:auto;">
+                <table class="pp-table">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Mahsulot</th>
+                            <th>Narx</th>
+                            <th>Soni</th>
+                            <th>Jami</th>
+                            <th>Holat</th>
+                            <th>Berilgan vaqt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in coin_orders %}
+                        <tr>
+                            <td style="white-space:nowrap;">{{ o.created_at|date:"d.m.Y H:i" }}</td>
+                            <td><strong>{{ o.product_name }}</strong></td>
+                            <td style="color:#2563eb;font-weight:600;">{{ o.product_price }} coin</td>
+                            <td>{{ o.quantity }} ta</td>
+                            <td style="font-weight:700;">{% widthratio o.product_price 1 o.quantity %} coin</td>
+                            <td>
+                                {% if o.status == 'pending' %}<span class="pp-badge pp-badge-yellow">Kutilmoqda</span>
+                                {% elif o.status == 'approved' %}<span class="pp-badge pp-badge-blue">Tasdiqlangan</span>
+                                {% elif o.status == 'given' %}<span class="pp-badge pp-badge-green">Berilgan</span>
+                                {% elif o.status == 'cancelled' %}<span class="pp-badge pp-badge-red">Bekor</span>
+                                {% else %}<span class="pp-badge" style="background:#f5f5f5;color:#808080;">{{ o.get_status_display }}</span>{% endif %}
+                            </td>
+                            <td style="white-space:nowrap;">{{ o.given_at|date:"d.m.Y H:i"|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align:center;padding:30px;color:#A0A0A0;font-size:12px;">Buyurtmalar mavjud emas</p>
+            {% endif %}
         </div>
     </div>
 

@@ -12,6 +12,12 @@ import type {
   ChatData,
   SearchUser,
   MessageInfo,
+  CoinSummary,
+  CoinTxItem,
+  ShopProduct,
+  ShopOrderItem,
+  LeadeboardItem,
+  NewsItem,
 } from "./types"
 
 const BASE = import.meta.env.DEV ? "/api" : "https://it-house-academt-edu-tizim-production.up.railway.app/api"
@@ -172,5 +178,54 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ student_ids: studentIds }),
     })
+  },
+
+  coinSummary() {
+    return request<{ summary: CoinSummary }>("/coins/my-summary")
+  },
+
+  coinHistory() {
+    return request<{ transactions: CoinTxItem[] }>("/coins/my-history")
+  },
+
+  uploadPhoto(file: File) {
+    const token = localStorage.getItem("student_token")
+    const form = new FormData()
+    form.append("photo", file)
+    return fetch(`${BASE}/student/photo/`, {
+      method: "POST",
+      headers: token ? { Authorization: `Token ${token}` } : {},
+      body: form,
+    }).then(async (res) => {
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "So'rov xatoligi")
+      return data as { success: boolean; photo: string | null }
+    })
+  },
+
+  coinLeaderboard(period = "all", groupId?: number) {
+    const g = groupId ? `&group_id=${groupId}` : ""
+    return request<{ leaderboard: LeadeboardItem[]; my_rank: number | null; my_score: number }>(
+      `/coins/my-leaderboard?period=${period}${g}`,
+    )
+  },
+
+  shopProducts() {
+    return request<{ products: ShopProduct[]; balance: number; shop_enabled: boolean }>("/coins/shop/products")
+  },
+
+  shopBuy(productId: number, quantity = 1, requestId?: string) {
+    return request<{ success: boolean; order: ShopOrderItem }>("/coins/shop/buy", {
+      method: "POST",
+      body: JSON.stringify({ product_id: productId, quantity, request_id: requestId }),
+    })
+  },
+
+  shopOrders() {
+    return request<{ orders: ShopOrderItem[] }>("/coins/shop/orders")
+  },
+
+  getNews() {
+    return request<{ news: NewsItem[] }>("/news/")
   },
 }

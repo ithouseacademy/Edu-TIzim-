@@ -9,13 +9,18 @@ import type { StudentProfile } from "../types"
 export default function Profile() {
   const navigate = useNavigate()
   const { open: openDrawer } = useDrawer()
-  const { avatar, tr } = useAppSettings()
+  const { tr } = useAppSettings()
   const [student, setStudent] = useState<StudentProfile | null>(null)
+  const [coins, setCoins] = useState(0)
 
   useEffect(() => {
     api
       .profile()
       .then((res) => setStudent(res.student))
+      .catch(() => {})
+    api
+      .coinSummary()
+      .then((res) => setCoins(res.summary.balance))
       .catch(() => {})
   }, [])
 
@@ -58,8 +63,8 @@ export default function Profile() {
               aria-label={tr("Mening profilim")}
               className="w-11 h-11 bg-[#1677D2] rounded-full flex items-center justify-center overflow-hidden btn-hover shadow-md shadow-[#1677D2]/25"
             >
-              {avatar ? (
-                <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+              {student?.photo ? (
+                <img src={student.photo} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <Smile size={22} className="text-white" fill="white" />
               )}
@@ -97,22 +102,25 @@ export default function Profile() {
           </button>
 
           <section className="grid grid-cols-2 gap-4">
-            <div className="relative bg-[#6754D9] rounded-[28px] p-5 flex flex-col justify-between overflow-hidden min-h-[176px]">
+            <button
+              onClick={() => navigate("/coins")}
+              className="relative bg-[#6754D9] rounded-[28px] p-5 flex flex-col justify-between overflow-hidden min-h-[176px] text-left btn-hover"
+            >
               <div className="flex items-start justify-between">
                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
                   <Star size={18} className="text-white" fill="white" />
                 </div>
                 <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center">
-                  <span className="text-[15px] font-bold text-[#6754D9] leading-none">?</span>
+                  <ChevronRight size={16} className="text-[#6754D9]" strokeWidth={2.5} />
                 </div>
               </div>
               <div>
-                <p className="text-[40px] font-bold leading-none text-white">0</p>
+                <p className="text-[40px] font-bold leading-none text-white">{coins}</p>
                 <div className="mt-2 w-fit px-3 py-1 rounded-full bg-white/25">
                   <span className="text-[11px] font-semibold text-white">{tr("Koinlar")}</span>
                 </div>
               </div>
-            </div>
+            </button>
 
             <div className="bg-white rounded-[28px] p-5 flex flex-col justify-end min-h-[176px] shadow-sm">
               <div>
@@ -164,6 +172,19 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+
+            <button
+              onClick={() => navigate("/coins?tab=shop")}
+              className="bg-white rounded-[28px] p-5 flex flex-col justify-end text-left min-h-[176px] shadow-sm btn-hover"
+            >
+              <div>
+                <p className="text-[15px] font-bold leading-snug text-gray-900">{tr("Do'kon")}</p>
+                <div className="mt-2.5 w-fit flex items-center gap-0.5 px-3 h-8 rounded-full bg-[#2001FF]">
+                  <span className="text-[11px] font-bold text-white uppercase">{tr("Ochish")}</span>
+                  <ChevronRight size={12} className="text-white" strokeWidth={2.5} />
+                </div>
+              </div>
+            </button>
           </section>
         </main>
       </div>

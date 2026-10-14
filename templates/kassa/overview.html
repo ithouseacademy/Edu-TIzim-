@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load dict_filters %}
 {% block title %}Umumiy Kassa | Edu Tizim{% endblock %}
 {% block extra_css %}
 <style>
@@ -142,7 +143,7 @@
         <select name="kassa">
           <option value="">Barcha kassalar</option>
           {% for k in kassalar_list %}
-          <option value="{{ k.pk }}" {% if f_kassa == k.pk|stringformat:"d" %}selected{% endif %}>{{ k.name }} — {% if k.owner %}{{ k.owner.get_full_name|default:k.owner.username }}{% else %}Noma'lum{% endif %} {% if not k.is_active %}(Nofaol){% endif %}</option>
+          <option value="{{ k.pk }}" {% if f_kassa == k.pk|stringformat:"d" %}selected{% endif %}>{{ k.name }} — {% if k.owner %}{{ k.owner|user_name }}{% else %}Noma'lum{% endif %} {% if not k.is_active %}(Nofaol){% endif %}</option>
           {% endfor %}
         </select>
       </div>
@@ -230,7 +231,7 @@
           <tr>
             <td style="color:var(--k-muted);font-size:.78rem;">{{ forloop.counter }}</td>
             <td><a href="{% url 'kassa_detail' item.kassa.pk %}" class="group-link">{{ item.kassa.name }}</a>{% if not item.kassa.is_active %} <span style="font-size:.65rem;font-weight:500;padding:2px 6px;border-radius:4px;background:var(--k-red-bg);color:var(--k-red);margin-left:6px;">Nofaol</span>{% endif %}</td>
-            <td>{% if item.kassa.owner %}{{ item.kassa.owner.get_full_name|default:item.kassa.owner.username }}{% else %}Noma'lum{% endif %}</td>
+            <td>{% if item.kassa.owner %}{{ item.kassa.owner|user_name }}{% else %}Noma'lum{% endif %}</td>
             <td class="num {% if item.balance >= 0 %}amt-in{% else %}amt-out{% endif %}">{{ item.balance|floatformat:0 }} so'm</td>
             <td class="num amt-in">{{ item.total_income|floatformat:0 }}</td>
             <td class="num amt-out">{{ item.total_expense|floatformat:0 }}</td>

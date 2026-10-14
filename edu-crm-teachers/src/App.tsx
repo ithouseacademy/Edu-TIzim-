@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { Home, Users, Wallet, User, CheckSquare } from "lucide-react"
+import { Home, Users, Wallet, User, CheckSquare, MessageSquare, Coins } from "lucide-react"
 import Login from "./pages/Login"
 import TeacherDashboard from "./pages/TeacherDashboard"
 import TeacherMyGroups from "./pages/TeacherMyGroups"
@@ -11,7 +11,9 @@ import Salary from "./pages/Salary"
 import Tasks from "./pages/Tasks"
 import Profile from "./pages/Profile"
 import ChangePassword from "./pages/ChangePassword"
-import { api } from "./api"
+import Messages from "./pages/Messages"
+import TeacherCoin from "./pages/TeacherCoin"
+import { api, loadCanMessaging } from "./api"
 import { enablePush, syncExistingPush, currentPushEnabled, type PushEnabled } from "./push"
 
 type Page =
@@ -24,6 +26,8 @@ type Page =
   | { name: "employee-profile"; employeeId: number }
   | { name: "salary" }
   | { name: "tasks" }
+  | { name: "coin" }
+  | { name: "messages" }
   | { name: "profile" }
   | { name: "change-password" }
 
@@ -32,8 +36,11 @@ const teacherTabs = [
   { key: "my-groups", icon: Users, label: "Guruhlar" },
   { key: "salary", icon: Wallet, label: "Oylik" },
   { key: "tasks", icon: CheckSquare, label: "Topshiriq" },
+  { key: "coin", icon: Coins, label: "Coin" },
   { key: "profile", icon: User, label: "Profil" },
 ]
+
+const messagesTab = { key: "messages", icon: MessageSquare, label: "Xabarlar" }
 
 function parseHash(): Page | null {
   const hash = window.location.hash.replace("#", "")
@@ -42,6 +49,8 @@ function parseHash(): Page | null {
   if (hash === "employee-list") return { name: "employee-list" }
   if (hash === "salary") return { name: "salary" }
   if (hash === "tasks") return { name: "tasks" }
+  if (hash === "coin") return { name: "coin" }
+  if (hash === "messages") return { name: "messages" }
   if (hash === "profile") return { name: "profile" }
   if (hash === "change-password") return { name: "change-password" }
   const groupMatch = hash.match(/^group-detail\/(\d+)$/)
@@ -60,6 +69,8 @@ function hashForPage(page: Page): string {
     case "employee-list": return "#employee-list"
     case "salary": return "#salary"
     case "tasks": return "#tasks"
+    case "coin": return "#coin"
+    case "messages": return "#messages"
     case "profile": return "#profile"
     case "change-password": return "#change-password"
     case "group-detail": return `#group-detail/${page.groupId}`
@@ -77,6 +88,7 @@ export default function App() {
 
   const isAdmin = localStorage.getItem("is_admin") === "true"
   const isTeacher = localStorage.getItem("is_teacher") === "true"
+  const tabs = loadCanMessaging() ? [...teacherTabs, messagesTab] : teacherTabs
 
   const refreshNotifications = useCallback(async () => {
     try {
@@ -157,9 +169,9 @@ export default function App() {
   if (!loggedIn) return <Login onLogin={handleLogin} />
 
   const currentPage = page.name
-  const isTeacherPage = currentPage === "dashboard" || currentPage === "my-groups" || currentPage === "group-detail" || currentPage === "attendance-desktop" || currentPage === "salary" || currentPage === "tasks" || currentPage === "profile" || currentPage === "change-password"
+  const isTeacherPage = currentPage === "dashboard" || currentPage === "my-groups" || currentPage === "group-detail" || currentPage === "attendance-desktop" || currentPage === "salary" || currentPage === "tasks" || currentPage === "coin" || currentPage === "messages" || currentPage === "profile" || currentPage === "change-password"
 
-  const activeIndex = teacherTabs.findIndex((t) => {
+  const activeIndex = tabs.findIndex((t) => {
     if (currentPage === t.key) return true
     if (t.key === "my-groups" && (currentPage === "group-detail" || currentPage === "attendance-desktop")) return true
     return false
@@ -199,13 +211,15 @@ export default function App() {
             <div className="bg-white/90 backdrop-blur-2xl rounded-[20px] shadow-lg shadow-[#2001FF]/10 border border-[#2001FF]/20 px-1.5 py-1">
               <div className="relative">
                 <div className="flex items-center">
-                  {teacherTabs.map((tab) => {
+                  {tabs.map((tab) => {
                     const active = currentPage === tab.key || (tab.key === "my-groups" && (currentPage === "group-detail" || currentPage === "attendance-desktop"))
                     return (
                       <button
                         key={tab.key}
                         onClick={() => {
                           if (tab.key === "tasks") setPage({ name: "tasks" })
+                          else if (tab.key === "coin") setPage({ name: "coin" })
+                          else if (tab.key === "messages") setPage({ name: "messages" })
                           else if (tab.key === "profile") setPage({ name: "profile" })
                           else if (tab.key === "my-groups") setPage({ name: "my-groups" })
                           else if (tab.key === "dashboard") setPage({ name: "dashboard" })
@@ -238,7 +252,7 @@ export default function App() {
                 </div>
                 <div
                   className="absolute inset-y-0 z-0 bg-[#2001FF]/15 rounded-full pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
-                  style={{ width: `${100 / teacherTabs.length}%`, transform: `translateX(${Math.max(0, activeIndex) * 100}%)` }}
+                  style={{ width: `${100 / tabs.length}%`, transform: `translateX(${Math.max(0, activeIndex) * 100}%)` }}
                 />
               </div>
             </div>
@@ -278,6 +292,14 @@ export default function App() {
           onNotify={refreshNotifications}
           notifCount={notifCount}
         />
+      )}
+
+      {page.name === "messages" && (
+        <Messages onBack={() => setPage({ name: "dashboard" })} />
+      )}
+
+      {page.name === "coin" && (
+        <TeacherCoin onBack={() => setPage({ name: "dashboard" })} />
       )}
 
       {page.name === "group-detail" && (

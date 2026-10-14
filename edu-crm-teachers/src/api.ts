@@ -1,4 +1,4 @@
-import type { Employee, EmployeeDetail, TeacherGroup, AttendanceData, DashboardData, GroupDetailData, Role, Position, Branch, SalaryData, TasksData, RemindersData } from "./types"
+import type { Employee, EmployeeDetail, TeacherGroup, AttendanceData, DashboardData, GroupDetailData, Role, Position, Branch, SalaryData, TasksData, RemindersData, ChatDetail, ChatMessage, ChatSummary, CoinSummary, CoinReasonItem, CoinTxItem, CoinStudentRow, CoinStudentDetail, LeadeboardItem } from "./types"
 
 const BASE = import.meta.env.DEV ? "/api" : "https://it-house-academt-edu-tizim-production.up.railway.app/api"
 const MEDIA_BASE = import.meta.env.DEV ? "" : "https://it-house-academt-edu-tizim-production.up.railway.app"
@@ -21,6 +21,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     localStorage.removeItem("employee")
     localStorage.removeItem("is_admin")
     localStorage.removeItem("is_teacher")
+    localStorage.removeItem("teacher_can_messaging")
     if (hadSession) {
       window.location.hash = "#login"
       window.location.reload()
@@ -36,9 +37,39 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   throw new Error(text || `Server xatosi (${res.status})`)
 }
 
+async function msgRequest<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}/messaging${url}`, {
+    credentials: "include",
+    ...options,
+  })
+  if (res.status === 401) {
+    const hadSession = !!localStorage.getItem("employee")
+    localStorage.removeItem("employee")
+    localStorage.removeItem("is_admin")
+    localStorage.removeItem("is_teacher")
+    localStorage.removeItem("teacher_can_messaging")
+    if (hadSession) {
+      window.location.hash = "#login"
+      window.location.reload()
+    }
+  }
+  const contentType = res.headers.get("content-type")
+  if (contentType && contentType.includes("application/json")) {
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || "Xatolik yuz berdi")
+    return data as T
+  }
+  const text = await res.text()
+  throw new Error(text || `Server xatosi (${res.status})`)
+}
+
+export function loadCanMessaging(): boolean {
+  return localStorage.getItem("teacher_can_messaging") !== "false"
+}
+
 export const api = {
   login(phone: string, password: string) {
-    return request<{ success: boolean; employee: Employee; is_admin: boolean; is_teacher: boolean }>("/login/", {
+    return request<{ success: boolean; employee: Employee; is_admin: boolean; is_teacher: boolean; can_messaging: boolean }>("/login/", {
       method: "POST",
       body: JSON.stringify({ phone, password }),
     })
@@ -206,5 +237,77 @@ export const api = {
       if (!res.ok) throw new Error(data.error || "Xatolik")
       return data as { success: boolean; photo: string | null }
     })
+  },
+
+  chats() {
+    return msgRequest<{ chats: ChatSummary[] }>("/chats/")
+  },
+
+  chatMessages(chatId: number) {
+    return msgRequest<ChatDetail>(`/chats/${chatId}/messages/`)
+  },
+
+  sendMessage(chatId: number, text: string, file?: File, mediaType = "auto") {
+    const fd = new FormData()
+    fd.append("chat_id", String(chatId))
+    if (text) fd.append("text", text)
+    if (file) {
+      fd.append("media_file", file)
+      fd.append("media_type", mediaType)
+    }
+    return msgRequest<{ success: boolean; message: ChatMessage }>("/send/", {
+      method: "POST",
+      body: fd,
+    })
+  },
+
+  markRead(chatId: number) {
+    return msgRequest<{ ok: boolean }>(`/chats/${chatId}/read/`, { method: "POST" })
+  },
+
+  coinSummary() {
+    return request<CoinSummary>("/coins/summary")
+  },
+
+  coinReasons() {
+    return request<{ reasons: CoinReasonItem[] }>("/coins/reasons")
+  },
+
+  coinStudents(search = "") {
+    return request<{ students: CoinStudentRow[]; count: number }>(
+      `/coins/students?search=${encodeURIComponent(search)}`
+    )
+  },
+
+  coinStudentDetail(id: number) {
+    return request<CoinStudentDetail>(`/coins/students/${id}/`)
+  },
+
+  coinGive(body: { student_id: number; reason_id: number; description?: string }) {
+    return request<{ success: boolean; transaction: CoinTxItem }>("/coins/give", {
+      method: "POST",
+      body: JSON.stringify(body),
+    })
+  },
+
+  coinTransactions(params: Record<string, string | number | undefined> = {}) {
+    const q = new URLSearchParams()
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== "") q.set(k, String(v))
+    })
+    const qs = q.toString()
+    return request<{ transactions: CoinTxItem[]; total: number }>(
+      `/coins/transactions${qs ? `?${qs}` : ""}`
+    )
+  },
+
+  coinMyTransactions() {
+    return request<{ transactions: CoinTxItem[] }>("/coins/my-transactions")
+  },
+
+  coinLeaderboard(period = "all", limit = 20) {
+    return request<{ leaderboard: LeadeboardItem[]; enabled: boolean }>(
+      `/coins/leaderboard?period=${period}&limit=${limit}`
+    )
   },
 }

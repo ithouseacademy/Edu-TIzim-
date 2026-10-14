@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
+import { useEffect } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
-import { Home, Users, Wallet, User, GraduationCap } from "lucide-react"
+import { Home, Users, Wallet, User } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
 import Login from "./pages/Login"
 import TodayLessons from "./pages/TodayLessons"
@@ -18,22 +19,30 @@ import StudentLogs from "./pages/student/StudentLogs"
 import BalancePage from "./pages/BalancePage"
 import Profile from "./pages/Profile"
 import ChangePassword from "./pages/ChangePassword"
+import ChangePhone from "./pages/ChangePhone"
 import GroupDetail from "./pages/GroupDetail"
-import { loadEmployee } from "./api"
+import Messages from "./pages/Messages"
+import Coins from "./pages/coins/Coins"
+import NewsAdmin from "./pages/NewsAdmin"
+import { api, loadEmployee, setCanMessaging } from "./api"
 
 const tabs = [
   { icon: Home, label: "Bugungi", path: "/today" },
   { icon: Users, label: "Guruhlar", path: "/groups" },
   { icon: Wallet, label: "To'lovlar", path: "/payments" },
-  { icon: GraduationCap, label: "O'quvchilar", path: "/students" },
   { icon: User, label: "Profil", path: "/profile" },
 ]
 
+function getTabs() {
+  return tabs
+}
+
 function BottomNav() {
   const location = useLocation()
+  const items = getTabs()
   const activeIndex = Math.max(
     0,
-    tabs.findIndex((t) => location.pathname === t.path)
+    items.findIndex((t) => location.pathname === t.path)
   )
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none bottom-nav">
@@ -41,7 +50,7 @@ function BottomNav() {
         <div className="bg-white/90 backdrop-blur-2xl rounded-[20px] shadow-lg shadow-[#2001FF]/10 border border-[#2001FF]/20 px-1.5 py-1">
           <div className="relative">
             <div className="flex items-center">
-              {tabs.map((tab) => {
+              {items.map((tab) => {
                 const active = location.pathname === tab.path
                 return (
                   <Link
@@ -67,7 +76,7 @@ function BottomNav() {
             </div>
             <div
               className="absolute inset-y-0 z-0 bg-[#2001FF]/15 rounded-full pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
-              style={{ width: `${100 / tabs.length}%`, transform: `translateX(${activeIndex * 100}%)` }}
+              style={{ width: `${100 / items.length}%`, transform: `translateX(${activeIndex * 100}%)` }}
             />
           </div>
         </div>
@@ -78,6 +87,9 @@ function BottomNav() {
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   const emp = loadEmployee()
+  useEffect(() => {
+    api.me().then((d) => setCanMessaging(d.employee.can_messaging)).catch(() => {})
+  }, [])
   if (!emp) return <Navigate to="/login" replace />
   return (
     <div className="min-h-screen bg-[#F8F9FC]">
@@ -200,6 +212,30 @@ export default function App() {
         }
       />
       <Route
+        path="/messages"
+        element={
+          <ProtectedLayout>
+            <Messages />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/coins"
+        element={
+          <ProtectedLayout>
+            <Coins />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/news"
+        element={
+          <ProtectedLayout>
+            <NewsAdmin />
+          </ProtectedLayout>
+        }
+      />
+      <Route
         path="/profile"
         element={
           <ProtectedLayout>
@@ -220,6 +256,14 @@ export default function App() {
         element={
           <ProtectedLayout>
             <ChangePassword />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/change-phone"
+        element={
+          <ProtectedLayout>
+            <ChangePhone />
           </ProtectedLayout>
         }
       />

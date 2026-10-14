@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2><i class="fas fa-right-left"></i> Kassa o'tkazmalari</h2>
+        <span class="page-header-count">{{ pending_count }} ta kutilmoqda{% if incoming_count %} · {{ incoming_count }} ta sizga kelayotgan{% endif %}</span>
+    </div>
+    <div class="page-header-right">
+        <a href="{% url 'kassa_list' %}" class="btn btn-secondary"><i class="fas fa-list"></i> Kassalar</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header between">
+        <div>
+            <a href="?tab=incoming" class="btn btn-sm {% if tab == 'incoming' %}btn-primary{% else %}btn-secondary{% endif %}">Kelganlar</a>
+            <a href="?tab=outgoing" class="btn btn-sm {% if tab == 'outgoing' %}btn-primary{% else %}btn-secondary{% endif %}">Yuborilganlar</a>
+            <a href="?tab=all" class="btn btn-sm {% if tab == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">Barchasi</a>
+        </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+        <table class="table">
+            <thead>
+                <tr><th>Sana</th><th>Yuboruvchi</th><th>Qabul qiluvchi</th><th>Summa</th><th>Holat</th><th>Izoh</th><th>Amallar</th></tr>
+            </thead>
+            <tbody>
+                {% for t in transfers %}
+                <tr>
+                    <td>{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>
+                        <strong>{{ t.from_kassa|default:"—" }}</strong>
+                        {% if t.from_branch %}<br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ t.from_branch.name }}</small>{% endif %}
+                    </td>
+                    <td>
+                        <strong>{{ t.to_kassa|default:"—" }}</strong>
+                        {% if t.to_branch %}<br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> {{ t.to_branch.name }}</small>{% endif %}
+                    </td>
+                    <td><strong>{{ t.amount|floatformat:0 }}</strong> so'm</td>
+                    <td>
+                        {% if t.status == "pending" %}
+                            <span class="badge badge-yellow">Tasdiqlash kutilmoqda</span>
+                        {% elif t.status == "approved" %}
+                            <span class="badge badge-green">Tasdiqlangan</span>
+                        {% elif t.status == "rejected" %}
+                            <span class="badge badge-red">Rad etilgan</span>
+                        {% else %}
+                            <span class="badge">{{ t.get_status_display }}</span>
+                        {% endif %}
+                        {% if t.is_cross_branch %}<br><small class="badge badge-purple" style="margin-top:4px;">filial orasida</small>{% endif %}
+                    </td>
+                    <td><small>{{ t.description|truncatechars:60 }}</small></td>
+                    <td class="actions">
+                        {% if t.status == "pending" %}
+                            <form method="post" action="{% url 'kassa_transfer_approve' t.pk %}" style="display:inline">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-success" title="Tasdiqlash"><i class="fas fa-check"></i></button>
+                            </form>
+                            <form method="post" action="{% url 'kassa_transfer_reject' t.pk %}" style="display:inline">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-danger" title="Rad etish"><i class="fas fa-times"></i></button>
+                            </form>
+                        {% else %}
+                            <small class="text-muted">{% if t.reviewed_by %}{{ t.reviewed_by }}{% else %}—{% endif %}</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="empty">O'tkazma topilmadi</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -272,6 +272,19 @@
         {% if form.monthly_salary.errors %}<div class="error-text">{{ form.monthly_salary.errors.0 }}</div>{% endif %}
       </div>
     </div>
+
+    <div class="mt-5 pt-5 border-t border-[#e2e8f0]">
+      <label class="form-label">To'lov usullari</label>
+      <p class="text-xs text-[#94a3b8] mb-2">Xodimga ruxsat berilgan to'lov usullari. Bo'sh qoldirilsa — filialning barcha yoqilgan usullaridan foydalanadi.</p>
+      <div class="checkbox-grid">
+        {% for choice in form.payment_methods %}
+        <label class="checkbox-item" onclick="toggleCheckbox(this)">
+          {{ choice.tag }}<span class="check-icon"></span>{{ choice.choice_label }}
+        </label>
+        {% endfor %}
+      </div>
+      {% if form.payment_methods.errors %}<div class="error-text">{{ form.payment_methods.errors.0 }}</div>{% endif %}
+    </div>
   </div>
 
   <div class="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-6 md:p-8 mt-5">
@@ -373,6 +386,10 @@ function syncSalaryFields() {
 
 document.addEventListener('DOMContentLoaded', function() {
   syncSalaryTypeUI();
+  document.querySelectorAll('.checkbox-grid .checkbox-item').forEach(function(item) {
+    const cb = item.querySelector('input[type="checkbox"]');
+    if (cb && cb.checked) item.classList.add('checked');
+  });
   const salaryToggle = document.getElementById('id_salary_enabled');
   if (salaryToggle) {
     salaryToggle.addEventListener('change', function() {

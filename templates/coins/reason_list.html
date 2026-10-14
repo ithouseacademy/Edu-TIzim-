@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Coin sabablari | Edu Tizim{% endblock %}
+{% block extra_css %}{% include "_ct_style.html" %}{% endblock %}
+{% block content %}
+
+<div class="ct-page">
+  <div class="ct-toolbar">
+    <button class="ct-btn" onclick="openCreateModal()"><i class="fas fa-circle-plus"></i> Sabab qo'shish</button>
+    <form class="ct-group" method="get">
+      <select class="ct-field" name="holat" style="width:130px;" onchange="this.form.submit()">
+        <option value="">Holati</option>
+        <option value="active" {% if request.GET.holat == "active" %}selected{% endif %}>Aktiv</option>
+        <option value="inactive" {% if request.GET.holat == "inactive" %}selected{% endif %}>Aktiv emas</option>
+      </select>
+      <select class="ct-field" name="turi" style="width:130px;" onchange="this.form.submit()">
+        <option value="">Turi</option>
+        <option value="BONUS" {% if turi == "BONUS" %}selected{% endif %}>Bonus</option>
+        <option value="PENALTY" {% if turi == "PENALTY" %}selected{% endif %}>Penalty</option>
+      </select>
+      {% if request.GET %}
+      <a href="{% url 'coin_reason_list' %}" class="ct-btn" style="background:#fff;color:#6b7280;border:1px solid #e5e7eb;"><i class="fas fa-xmark"></i></a>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="ct-card">
+    <span class="ct-total">Umumiy soni: {{ reasons|length }}</span>
+    <table class="ct-table">
+      <thead>
+        <tr>
+          <th style="width:70px;">№</th>
+          <th>Nomi</th>
+          <th style="width:180px;">Filial</th>
+          <th style="width:140px;">Narxi (Coin)</th>
+          <th style="width:150px;">Holati</th>
+          <th style="width:110px;">Turi</th>
+          <th style="width:90px;text-align:right;">Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reasons %}
+        <tr>
+          <td class="ct-num">{{ forloop.counter }}</td>
+          <td class="ct-strong">{{ r.name }}</td>
+          <td>{{ r.branch.name|default:"Barchasi" }}</td>
+          <td class="ct-blue">{% if r.amount >= 0 %}+{% endif %}{{ r.amount }}</td>
+          <td>
+            <span class="ct-status {% if not r.is_active %}off{% endif %}"><span class="ct-dot"></span>{% if r.is_active %}Aktiv{% else %}Aktiv emas{% endif %}</span>
+          </td>
+          <td>
+            {% if r.reason_type == "BONUS" %}
+            <span class="ct-badge green">Bonus</span>
+            {% else %}
+            <span class="ct-badge red">Penalty</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="ct-actions">
+              <button class="ct-act edit" title="Tahrirlash" onclick="openEditModal({{ r.id }},'{{ r.name|escapejs }}','{{ r.reason_type }}',{{ r.amount }},{{ r.is_active|lower }},'{{ r.branch_id|default_if_none:'' }}')"><i class="fas fa-pen"></i></button>
+              <form method="post" action="{% url 'panel_coin_reason_toggle' pk=r.id %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="ct-act del" title="{% if r.is_active %}O'chirish{% else %}Yoqish{% endif %}"><i class="fas fa-trash"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7"><div class="ct-empty"><i class="fas fa-coins"></i>Sabablar mavjud emas</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<button class="ct-fab" onclick="openCreateModal()" title="Sabab qo'shish"><i class="fas fa-bolt"></i></button>
+
+<!-- CREATE MODAL -->
+<div id="createModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:460px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px;"><i class="fas fa-plus-circle" style="color:var(--primary);"></i> Yangi coin sababi</h3>
+      <button onclick="closeCreateModal()" style="width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="post" action="{% url 'coin_reason_create' %}">
+      <div style="padding:24px;">
+        {% csrf_token %}
+        <div class="form-group">
+          <label><i class="fas fa-tag" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Sabab nomi</label>
+          <input type="text" name="name" class="form-control" required placeholder="Masalan: Faol qatnashish">
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-list" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Turi</label>
+          <select name="reason_type" class="form-control" id="createType" onchange="syncAmountSign('create')">
+            <option value="BONUS">Bonus (+ coin)</option>
+            <option value="PENALTY">Penalty (- coin)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-coins" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Miqdor (coin)</label>
+          <input type="number" name="amount" id="createAmount" class="form-control" min="0" value="5" required>
+          <small style="color:#94a3b8;font-size:12px;">Faqat musbat son kiriting — penalty avtomatik manfiy bo'ladi.</small>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-building" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Filial (o'quv markaz)</label>
+          <select name="branch_id" class="form-control">
+            {% if can_add_to_all_branches %}
+            <option value="">Barcha filiallar</option>
+            {% endif %}
+            {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if default_branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px 14px;border:2px solid var(--border);border-radius:8px;">
+            <input type="checkbox" name="is_active" checked style="width:16px;height:16px;accent-color:var(--primary);">
+            <i class="fas fa-toggle-on" style="color:var(--primary);"></i> Faol holatda
+          </label>
+        </div>
+      </div>
+      <div class="form-actions" style="margin:0;padding:16px 24px;border-top:1px solid var(--border);background:#fafbfc;">
+        <button type="button" onclick="closeCreateModal()" class="btn btn-secondary"><i class="fas fa-times"></i> Bekor</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:460px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px;"><i class="fas fa-edit" style="color:var(--primary);"></i> Sababni tahrirlash</h3>
+      <button onclick="closeEditModal()" style="width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="post" action="" id="editForm">
+      <div style="padding:24px;">
+        {% csrf_token %}
+        <div class="form-group">
+          <label><i class="fas fa-tag" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Sabab nomi</label>
+          <input type="text" name="name" id="editName" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-list" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Turi</label>
+          <select name="reason_type" id="editType" class="form-control">
+            <option value="BONUS">Bonus (+ coin)</option>
+            <option value="PENALTY">Penalty (- coin)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-coins" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Miqdor (coin)</label>
+          <input type="number" name="amount" id="editAmount" class="form-control" min="0" required>
+          <small style="color:#94a3b8;font-size:12px;">Faqat musbat son kiriting — penalty avtomatik manfiy bo'ladi.</small>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-building" style="margin-right:4px;color:var(--primary);opacity:.6;"></i> Filial (o'quv markaz)</label>
+          <select name="branch_id" id="editBranch" class="form-control">
+            {% if can_add_to_all_branches %}
+            <option value="">Barcha filiallar</option>
+            {% endif %}
+            {% for b in branch_options %}
+            <option value="{{ b.id }}">{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px 14px;border:2px solid var(--border);border-radius:8px;">
+            <input type="checkbox" name="is_active" id="editActive" style="width:16px;height:16px;accent-color:var(--primary);">
+            <i class="fas fa-toggle-on" style="color:var(--primary);"></i> Faol holatda
+          </label>
+        </div>
+      </div>
+      <div class="form-actions" style="margin:0;padding:16px 24px;border-top:1px solid var(--border);background:#fafbfc;">
+        <button type="button" onclick="closeEditModal()" class="btn btn-secondary"><i class="fas fa-times"></i> Bekor</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openCreateModal(){document.getElementById('createModal').style.display='flex';}
+function closeCreateModal(){document.getElementById('createModal').style.display='none';}
+
+function syncAmountSign(prefix){
+  var amount=document.getElementById(prefix+'Amount');
+  if(!amount) return;
+  amount.value=Math.abs(parseInt(amount.value||'0',10)||0);
+}
+
+var eb="{% url 'coin_reason_update' pk=0 %}";
+function openEditModal(id,name,type,amount,active,branch){
+  document.getElementById('editName').value=name;
+  document.getElementById('editType').value=type;
+  document.getElementById('editAmount').value=Math.abs(amount);
+  document.getElementById('editActive').checked=active;
+  document.getElementById('editBranch').value=branch||'';
+  document.getElementById('editForm').action=eb.replace('/0/','/'+id+'/');
+  document.getElementById('editModal').style.display='flex';
+}
+function closeEditModal(){document.getElementById('editModal').style.display='none';}
+</script>
+
+{% endblock %}

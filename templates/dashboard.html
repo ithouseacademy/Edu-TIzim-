@@ -1,139 +1,1858 @@
 {% extends "base.html" %}
-{% block title %}Dashboard | Edu Tizim{% endblock %}
+{% block title %}Dars jadvali | Edu Tizim{% endblock %}
 {% block extra_css %}
 <style>
-@media (max-width:768px) {
-  .stats-grid { grid-template-columns:1fr;gap:12px; }
-  .stat-card { padding:16px;gap:14px; }
-  .stat-icon { width:40px;height:40px;font-size:1.1rem; }
-  .stat-number { font-size:1.4rem; }
-  .stat-label { font-size:0.78rem; }
-  .row[style*="grid"] { grid-template-columns:1fr !important;gap:12px !important;margin-top:12px !important; }
-  .card-header { padding:14px 16px; }
-  .card-header h3 { font-size:0.9rem; }
-  .card-body { padding:16px; }
+/* ===== MAIN CONTENT ===== */
+.main-content.edu-dashboard-page {
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0;
 }
-.dash-footer { margin-top:32px;padding-top:24px;border-top:1px solid var(--border);text-align:center; }
-.dash-footer .goto-btn { display:inline-flex;align-items:center;gap:10px;padding:14px 28px;border-radius:12px;background:var(--primary);color:#fff;text-decoration:none;font-size:15px;font-weight:600;transition:all .2s; }
-.dash-footer .goto-btn:hover { background:var(--primary-dark);transform:translateY(-2px);box-shadow:0 8px 24px rgba(37,99,235,0.3); }
-.dash-footer .goto-btn i { font-size:18px; }
-@media (max-width:480px) {
-  .dash-footer .goto-btn { width:100%;justify-content:center; }
+
+#eduScheduleApp {
+    --edu-primary: #2D6BF0;
+    --edu-primary-dark: #1F56D4;
+    --edu-text: #1F2937;
+    --edu-muted: #6B7280;
+    --edu-soft: #9CA3AF;
+    --edu-border: #E5E7EB;
+    --edu-bg: #F3F4F6;
+    /* O'lchamlar JS bilan sinxron (JS ularni qayta o'rnatadi) */
+    --edu-time-width: 96px;
+    --edu-header-height: 40px;
+    --edu-slot-height: 36px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0 0 28px;
+    background: #ffffff;
+    color: var(--edu-text);
+}
+
+#eduScheduleApp,
+#eduScheduleApp * {
+    box-sizing: border-box;
+}
+
+#eduScheduleApp:fullscreen {
+    overflow: auto;
+    padding-bottom: 12px;
+}
+
+/* ===== SARLAVHA ===== */
+.edu-schedule-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+    padding: 10px 16px;
+    background: var(--edu-bg);
+}
+
+.edu-heading-copy {
+    min-width: 0;
+}
+
+.edu-heading-copy h1 {
+    margin: 0;
+    color: var(--edu-text);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.edu-heading-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 3px 0 0;
+    color: var(--edu-muted);
+    font-size: 0.72rem;
+}
+
+.edu-heading-meta strong {
+    color: var(--edu-text);
+    font-weight: 600;
+}
+
+.edu-heading-meta i {
+    color: var(--edu-soft);
+}
+
+.edu-today-button {
+    border: 1px solid var(--edu-primary);
+    border-radius: 999px;
+    padding: 2px 11px;
+    background: #ffffff;
+    color: var(--edu-primary);
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.edu-today-button:hover {
+    background: var(--edu-primary);
+    color: #ffffff;
+}
+
+.edu-heading-actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 8px;
+}
+
+.edu-filter-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--edu-primary);
+    color: #ffffff;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.edu-filter-toggle:hover {
+    background: var(--edu-primary-dark);
+}
+
+.edu-filter-toggle .fa-chevron-down {
+    font-size: 0.6rem;
+    transition: transform 0.2s ease;
+}
+
+.edu-filter-toggle[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+.edu-filter-toggle.has-filters::after {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 10px;
+    height: 10px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    background: #EF4444;
+    content: "";
+}
+
+/* ===== TOOLBAR (kunlar + toggle'lar) ===== */
+.edu-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 0 12px 10px;
+}
+
+.edu-day-strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px 4px 0;
+    overflow-x: auto;
+}
+
+.edu-day-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    height: 32px;
+    min-width: 50px;
+    padding: 0 16px;
+    border: 1px solid #D1D5DB;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #374151;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Skrinshotdagidek: Yak birinchi */
+.edu-day-button[data-day="yakshanba"] {
+    order: -1;
+}
+
+.edu-day-button:hover {
+    border-color: var(--edu-primary);
+    color: var(--edu-primary);
+}
+
+.edu-day-button.active {
+    border-color: var(--edu-primary);
+    background: var(--edu-primary);
+    color: #ffffff;
+    box-shadow: 0 3px 10px rgba(45, 107, 240, 0.3);
+}
+
+.edu-day-count {
+    position: absolute;
+    top: -6px;
+    right: -3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border: 1.5px solid #ffffff;
+    border-radius: 999px;
+    background: #E0E7FF;
+    color: var(--edu-primary);
+    font-size: 0.56rem;
+    font-weight: 700;
+}
+
+.edu-day-button.active .edu-day-count {
+    background: #ffffff;
+}
+
+.edu-toolbar-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.edu-segment {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--edu-border);
+    border-radius: 8px;
+    background: var(--edu-bg);
+}
+
+.edu-view-button,
+.edu-layout-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 15px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--edu-muted);
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.edu-layout-button {
+    width: 32px;
+    padding: 0;
+}
+
+.edu-view-button:hover,
+.edu-layout-button:hover {
+    color: var(--edu-text);
+}
+
+.edu-view-button.active,
+.edu-layout-button.active {
+    background: var(--edu-primary);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(45, 107, 240, 0.3);
+}
+
+.edu-round-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--edu-primary);
+    color: #ffffff;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.edu-round-button:hover {
+    background: var(--edu-primary-dark);
+    transform: scale(1.05);
+}
+
+/* ===== FILTRLAR ===== */
+.edu-filters {
+    margin: 0 12px 10px;
+    padding: 12px 14px 14px;
+    border: 1px solid var(--edu-border);
+    border-radius: 8px;
+    background: #FAFAFB;
+}
+
+.edu-filters[hidden] {
+    display: none;
+}
+
+.edu-filter-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.edu-filter-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--edu-text);
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.edu-filter-title i {
+    color: var(--edu-primary);
+}
+
+.edu-filter-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    background: transparent;
+    color: var(--edu-soft);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.edu-filter-reset:hover {
+    color: var(--edu-primary);
+}
+
+.edu-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.3fr) repeat(4, minmax(140px, 1fr));
+    gap: 8px;
+}
+
+.edu-field {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.edu-field-label {
+    color: var(--edu-soft);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.edu-control {
+    position: relative;
+}
+
+.edu-control > i {
+    position: absolute;
+    top: 50%;
+    left: 11px;
+    z-index: 1;
+    color: var(--edu-soft);
+    font-size: 0.72rem;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+.edu-filter-grid input,
+.edu-filter-grid select {
+    width: 100%;
+    height: 36px;
+    border: 1px solid var(--edu-border);
+    border-radius: 8px;
+    outline: 0;
+    background: #ffffff;
+    color: var(--edu-text);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 550;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.edu-filter-grid input {
+    padding: 0 10px 0 33px;
+}
+
+.edu-filter-grid select {
+    appearance: none;
+    padding: 0 28px 0 33px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    cursor: pointer;
+}
+
+.edu-filter-grid input:focus,
+.edu-filter-grid select:focus {
+    border-color: var(--edu-primary);
+    box-shadow: 0 0 0 3px rgba(45, 107, 240, 0.15);
+}
+
+.edu-filter-grid input::placeholder {
+    color: var(--edu-soft);
+}
+
+/* ===== SUMMARY (ixcham chiplar) ===== */
+.edu-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 12px 10px;
+}
+
+.edu-summary-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 11px 4px 8px;
+    border: 1px solid var(--edu-border);
+    border-radius: 999px;
+    background: #ffffff;
+}
+
+.edu-summary-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: rgba(45, 107, 240, 0.1);
+    color: var(--edu-primary);
+    font-size: 0.6rem;
+}
+
+.edu-summary-card:nth-child(2) .edu-summary-icon {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10B981;
+}
+
+.edu-summary-card:nth-child(3) .edu-summary-icon {
+    background: rgba(245, 158, 11, 0.12);
+    color: #F59E0B;
+}
+
+.edu-summary-card:nth-child(4) .edu-summary-icon {
+    background: rgba(239, 68, 68, 0.12);
+    color: #EF4444;
+}
+
+.edu-summary-copy {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.edu-summary-copy strong {
+    color: var(--edu-text);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.edu-summary-copy span {
+    color: var(--edu-muted);
+    font-size: 0.66rem;
+    font-weight: 600;
+}
+
+/* ===== BOARD ===== */
+.edu-board {
+    margin: 0 12px;
+    overflow: hidden;
+    border: 1px solid var(--edu-border);
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.edu-schedule-frame {
+    position: relative;
+    max-width: 100%;
+    min-width: 0;
+    background: #ffffff;
+}
+
+.edu-schedule-scroll {
+    position: relative;
+    max-width: 100%;
+    min-height: 420px;
+    max-height: min(720px, calc(100vh - 250px));
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: #3B82F6 #EEF2FF;
+    scrollbar-width: auto;
+    background: #ffffff;
+}
+
+#eduScheduleApp:fullscreen .edu-schedule-scroll {
+    max-height: calc(100vh - 190px);
+}
+
+.edu-schedule-scroll::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.edu-schedule-scroll::-webkit-scrollbar-track {
+    background: #EEF2FF;
+}
+
+.edu-schedule-scroll::-webkit-scrollbar-thumb {
+    border: 2px solid #EEF2FF;
+    border-radius: 8px;
+    background: #3B82F6;
+}
+
+.edu-schedule-scroll::-webkit-scrollbar-thumb:hover {
+    background: #2563EB;
+}
+
+.edu-schedule-scroll[hidden] {
+    display: none;
+}
+
+/* ===== JADVAL GRID ===== */
+.edu-schedule-grid {
+    position: relative;
+    display: grid;
+    grid-template-rows: var(--edu-header-height) repeat(24, var(--edu-slot-height));
+    width: 100%;
+    min-width: 0;
+    background: #ffffff;
+    isolation: isolate;
+}
+
+.edu-schedule-header,
+.edu-time-cell,
+.edu-grid-cell {
+    border-right: 1px solid var(--edu-border);
+    border-bottom: 1px solid var(--edu-border);
+}
+
+.edu-schedule-header {
+    position: sticky;
+    top: 0;
+    z-index: 14;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    background: var(--edu-bg);
+    text-align: center;
+}
+
+.edu-column-header strong {
+    max-width: 100%;
+    overflow: hidden;
+    color: #4B5563;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.edu-time-cell {
+    position: sticky;
+    left: 0;
+    z-index: 12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--edu-bg);
+    color: var(--edu-muted);
+    font-size: 0.66rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.edu-time-header {
+    top: 0;
+    left: 0;
+    z-index: 22;
+}
+
+.edu-time-header i {
+    color: var(--edu-soft);
+    font-size: 0.72rem;
+}
+
+.edu-grid-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    transition: background 0.15s ease;
+}
+
+.edu-grid-cell::after {
+    color: #D1D5DB;
+    content: "—";
+    font-size: 0.7rem;
+    user-select: none;
+}
+
+.edu-grid-cell:hover {
+    background: #F5F8FF;
+}
+
+.edu-event-layer {
+    position: absolute;
+    top: var(--edu-header-height);
+    right: 0;
+    bottom: 0;
+    left: var(--edu-time-width);
+    z-index: 6;
+    pointer-events: none;
+}
+
+/* ===== DARS KARTALARI (to'q rangli, oq matn) ===== */
+.edu-lesson-card {
+    position: absolute;
+    display: flex;
+    overflow: hidden;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--edu-lesson-bg, #1F1FD8);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    color: #ffffff;
+    font: inherit;
+    text-align: left;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.edu-lesson-card:hover {
+    z-index: 10;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+}
+
+.edu-lesson-card:focus-visible {
+    z-index: 11;
+    outline: 2px solid #ffffff;
+    outline-offset: -3px;
+    box-shadow: 0 0 0 2px var(--edu-primary);
+}
+
+.edu-lesson-card.color-0 { --edu-lesson-bg: #1F1FD8; }
+.edu-lesson-card.color-1 { --edu-lesson-bg: #A41FD3; }
+.edu-lesson-card.color-2 { --edu-lesson-bg: #0B0B0B; }
+.edu-lesson-card.color-3 { --edu-lesson-bg: #12BDD8; }
+.edu-lesson-card.color-4 { --edu-lesson-bg: #5A1FE0; }
+.edu-lesson-card.color-5 { --edu-lesson-bg: #2D52D6; }
+
+.edu-lesson-title {
+    display: block;
+    overflow: hidden;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.edu-lesson-teacher,
+.edu-lesson-room {
+    display: block;
+    overflow: hidden;
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.edu-lesson-room {
+    opacity: 0.92;
+}
+
+.edu-lesson-stats {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 8px;
+    margin-top: auto;
+    font-size: 0.6rem;
+    font-weight: 600;
+    opacity: 0.92;
+    white-space: nowrap;
+}
+
+.edu-lesson-stats > span {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    gap: 4px;
+}
+
+.edu-lesson-stats > span:first-child {
+    overflow: hidden;
+}
+
+.edu-lesson-stats > span:first-child span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.edu-lesson-stats i {
+    flex-shrink: 0;
+    font-size: 0.56rem;
+}
+
+.edu-lesson-card.live::after {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #4ADE80;
+    content: "";
+    animation: eduPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes eduPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.6); }
+    50% { box-shadow: 0 0 0 5px rgba(74, 222, 128, 0); }
+}
+
+.edu-lesson-card.compact {
+    justify-content: center;
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+
+.edu-lesson-card.compact .edu-lesson-teacher,
+.edu-lesson-card.compact .edu-lesson-room,
+.edu-lesson-card.compact .edu-lesson-stats {
+    display: none;
+}
+
+/* ===== RO'YXAT KO'RINISHI ===== */
+.edu-list-view {
+    display: grid;
+    gap: 8px;
+    min-height: 420px;
+    max-height: min(720px, calc(100vh - 250px));
+    padding: 12px;
+    overflow: auto;
+    align-content: start;
+    scrollbar-color: #3B82F6 #EEF2FF;
+}
+
+.edu-list-view[hidden] {
+    display: none;
+}
+
+.edu-list-item {
+    display: grid;
+    grid-template-columns: 6px 118px minmax(0, 1.6fr) minmax(0, 1.2fr) 100px minmax(0, 1fr) 80px;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 14px 10px 0;
+    border: 1px solid var(--edu-border);
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--edu-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.edu-list-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.edu-list-stripe {
+    align-self: stretch;
+    margin: -10px 0;
+    background: var(--edu-lesson-bg, #1F1FD8);
+}
+
+.edu-list-item .edu-list-time {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--edu-primary);
+}
+
+.edu-list-item strong,
+.edu-list-item span.edu-list-cell {
+    overflow: hidden;
+    font-size: 0.74rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.edu-list-item span.edu-list-cell {
+    color: var(--edu-muted);
+    font-weight: 600;
+}
+
+.edu-list-item.color-0 { --edu-lesson-bg: #1F1FD8; }
+.edu-list-item.color-1 { --edu-lesson-bg: #A41FD3; }
+.edu-list-item.color-2 { --edu-lesson-bg: #0B0B0B; }
+.edu-list-item.color-3 { --edu-lesson-bg: #12BDD8; }
+.edu-list-item.color-4 { --edu-lesson-bg: #5A1FE0; }
+.edu-list-item.color-5 { --edu-lesson-bg: #2D52D6; }
+
+/* ===== EMPTY STATE ===== */
+.edu-empty-state {
+    position: absolute;
+    top: calc(var(--edu-header-height) + 16px);
+    right: 16px;
+    left: calc(var(--edu-time-width) + 16px);
+    z-index: 20;
+    display: flex;
+    min-height: 220px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    border: 1.5px dashed var(--edu-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.96);
+    text-align: center;
+}
+
+.edu-schedule-frame.is-list .edu-empty-state {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+}
+
+.edu-empty-state[hidden] {
+    display: none;
+}
+
+.edu-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+    background: rgba(45, 107, 240, 0.1);
+    color: var(--edu-primary);
+    font-size: 1rem;
+}
+
+.edu-empty-state h3 {
+    margin: 0;
+    color: var(--edu-text);
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.edu-empty-state p {
+    max-width: 360px;
+    margin: 6px 0 13px;
+    color: var(--edu-soft);
+    font-size: 0.72rem;
+    line-height: 1.55;
+}
+
+.edu-empty-state button {
+    height: 32px;
+    padding: 0 15px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(45, 107, 240, 0.1);
+    color: var(--edu-primary);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.edu-empty-state button:hover {
+    background: rgba(45, 107, 240, 0.18);
+}
+
+/* ===== FOOTER ===== */
+.edu-board-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--edu-border);
+    background: #F9FAFB;
+    color: var(--edu-soft);
+    font-size: 0.64rem;
+    font-weight: 600;
+}
+
+.edu-board-footer span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.edu-board-footer i {
+    color: var(--edu-primary);
+}
+
+/* ===== DETAIL DRAWER ===== */
+.edu-detail-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 490;
+    background: rgba(17, 24, 39, 0.45);
+    backdrop-filter: blur(2px);
+}
+
+.edu-detail-backdrop[hidden] {
+    display: none;
+}
+
+.edu-detail-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 500;
+    display: flex;
+    width: min(400px, 94vw);
+    flex-direction: column;
+    background: #ffffff;
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
+    animation: eduDrawerIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes eduDrawerIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+.edu-detail-drawer[hidden] {
+    display: none;
+}
+
+.edu-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 56px;
+    padding: 12px 18px;
+    background: var(--edu-primary);
+    color: #ffffff;
+}
+
+.edu-detail-header h2 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.edu-detail-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.edu-detail-close:hover {
+    background: rgba(255, 255, 255, 0.34);
+}
+
+.edu-detail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.edu-detail-course {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(45, 107, 240, 0.1);
+    color: var(--edu-primary);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.edu-detail-body h3 {
+    margin: 12px 0 5px;
+    color: var(--edu-text);
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+}
+
+.edu-detail-level {
+    margin: 0 0 18px;
+    color: var(--edu-muted);
+    font-size: 0.76rem;
+}
+
+.edu-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.edu-detail-item {
+    padding: 11px 12px;
+    border-radius: 10px;
+    background: var(--edu-bg);
+}
+
+.edu-detail-item.full {
+    grid-column: 1 / -1;
+}
+
+.edu-detail-item span {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--edu-soft);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.edu-detail-item strong {
+    display: block;
+    overflow-wrap: anywhere;
+    color: var(--edu-text);
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.edu-detail-footer {
+    padding: 14px 18px;
+}
+
+.edu-detail-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 42px;
+    gap: 8px;
+    border-radius: 999px;
+    background: var(--edu-primary);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 6px 16px rgba(45, 107, 240, 0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.edu-detail-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(45, 107, 240, 0.36);
+}
+
+.edu-detail-group-link {
+    text-decoration: none;
+    color: var(--edu-primary);
+    border-bottom: 1px dashed currentColor;
+}
+
+.edu-detail-group-link:hover strong {
+    color: var(--edu-primary);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1180px) {
+    .edu-filter-grid {
+        grid-template-columns: repeat(3, minmax(140px, 1fr));
+    }
+
+    .edu-list-item {
+        grid-template-columns: 6px 110px minmax(0, 1.6fr) minmax(0, 1.2fr) 90px 70px;
+    }
+
+    .edu-list-item .edu-list-group {
+        display: none;
+    }
+}
+
+@media (max-width: 900px) {
+    .edu-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .edu-toolbar-tools {
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 700px) {
+    .edu-schedule-heading {
+        padding: 10px 12px;
+    }
+
+    .edu-toolbar,
+    .edu-summary {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .edu-filters,
+    .edu-board {
+        margin-left: 8px;
+        margin-right: 8px;
+    }
+
+    .edu-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .edu-board-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .edu-schedule-scroll {
+        min-height: 400px;
+    }
+
+    .edu-list-item {
+        grid-template-columns: 6px minmax(0, 1fr) 70px;
+        row-gap: 4px;
+    }
+
+    .edu-list-item .edu-list-teacher,
+    .edu-list-item .edu-list-room,
+    .edu-list-item .edu-list-group {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content.edu-dashboard-page {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .edu-filter-grid,
+    .edu-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .edu-detail-item.full {
+        grid-column: auto;
+    }
+
+    .edu-view-button {
+        padding: 0 11px;
+    }
+}
+
+@media print {
+    .topbar,
+    .sidebar,
+    .mobile-bottom-nav,
+    .edu-heading-actions,
+    .edu-toolbar,
+    .edu-filters,
+    .edu-summary,
+    .edu-board-footer,
+    .edu-detail-backdrop,
+    .edu-detail-drawer {
+        display: none !important;
+    }
+
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+
+    #eduScheduleApp {
+        max-width: none;
+        padding: 0;
+    }
+
+    .edu-board {
+        margin: 0;
+    }
+
+    .edu-schedule-scroll {
+        max-height: none;
+        overflow: visible;
+    }
+
+    .edu-lesson-card {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
 </style>
 {% endblock %}
 {% block content %}
-<div class="page-header">
-    <div class="page-header-left">
-        <h2>Dashboard</h2>
-    </div>
-</div>
-<div class="stats-grid">
-    <div class="stat-card blue">
-        <div class="stat-icon"><i class="fas fa-book"></i></div>
-        <div class="stat-info">
-            <span class="stat-number">{{ course_count }}</span>
-            <span class="stat-label">Kurslar</span>
+{{ schedule_lessons|json_script:"schedule-lessons-data" }}
+{{ schedule_rooms|json_script:"schedule-rooms-data" }}
+{{ schedule_teachers|json_script:"schedule-teachers-data" }}
+<div id="eduScheduleApp" data-selected-day="{{ selected_day }}" data-selected-date="{{ selected_date }}">
+    <header class="edu-schedule-heading">
+        <div class="edu-heading-copy">
+            <h1>Dars jadvali</h1>
+            <p class="edu-heading-meta">
+                <i class="far fa-calendar"></i>
+                <strong id="eduSelectedDate">Tanlanayotgan sana</strong>
+                <span>•</span>
+                <span id="eduSelectedDay">Dushanba</span>
+                <button type="button" class="edu-today-button" id="eduTodayButton">Bugun</button>
+            </p>
         </div>
-    </div>
-    <div class="stat-card indigo">
-        <div class="stat-icon"><i class="fas fa-users"></i></div>
-        <div class="stat-info">
-            <span class="stat-number">{{ group_count }}</span>
-            <span class="stat-label">Guruhlar</span>
+        <div class="edu-heading-actions">
+            <button type="button" class="edu-filter-toggle" id="eduFilterToggle" aria-expanded="false" aria-controls="eduFilters">
+                <i class="fas fa-sliders"></i>Filtr<i class="fas fa-chevron-down"></i>
+            </button>
         </div>
-    </div>
-    <div class="stat-card green">
-        <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
-        <div class="stat-info">
-            <span class="stat-number">{{ student_count }}</span>
-            <span class="stat-label">O'quvchilar</span>
-        </div>
-    </div>
-    <div class="stat-card orange">
-        <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
-        <div class="stat-info">
-            <span class="stat-number">{{ survey_count }}</span>
-            <span class="stat-label">So'rovnomalar</span>
-        </div>
-    </div>
-    <div class="stat-card" style="border-left: 4px solid #d97706;">
-        <div class="stat-icon" style="background: linear-gradient(135deg, #d97706, #f59e0b);"><i class="fas fa-clock"></i></div>
-        <div class="stat-info">
-            <span class="stat-number">{{ pending_student_count }}</span>
-            <span class="stat-label">Kutilyotgan o'quvchilar</span>
-        </div>
-    </div>
-</div>
+    </header>
 
-<div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
-    <div class="card">
-        <div class="card-header">
-            <h3><i class="fas fa-chart-pie"></i> Guruh holati</h3>
+    <div class="edu-toolbar">
+        <nav class="edu-day-strip" role="tablist" aria-label="Hafta kuni">
+            <button type="button" class="edu-day-button" data-day="dushanba" role="tab" aria-label="Dushanba"><span class="edu-day-short">Du</span><span class="edu-day-count">0</span></button>
+            <button type="button" class="edu-day-button" data-day="seshanba" role="tab" aria-label="Seshanba"><span class="edu-day-short">Se</span><span class="edu-day-count">0</span></button>
+            <button type="button" class="edu-day-button" data-day="chorshanba" role="tab" aria-label="Chorshanba"><span class="edu-day-short">Chor</span><span class="edu-day-count">0</span></button>
+            <button type="button" class="edu-day-button" data-day="payshanba" role="tab" aria-label="Payshanba"><span class="edu-day-short">Pa</span><span class="edu-day-count">0</span></button>
+            <button type="button" class="edu-day-button" data-day="juma" role="tab" aria-label="Juma"><span class="edu-day-short">Ju</span><span class="edu-day-count">0</span></button>
+            <button type="button" class="edu-day-button" data-day="shanba" role="tab" aria-label="Shanba"><span class="edu-day-short">Sha</span><span class="edu-day-count">0</span></button>
+            <button type="button" class="edu-day-button" data-day="yakshanba" role="tab" aria-label="Yakshanba"><span class="edu-day-short">Yak</span><span class="edu-day-count">0</span></button>
+        </nav>
+
+        <div class="edu-toolbar-tools">
+            <div class="edu-segment edu-view-switch" role="tablist" aria-label="Jadval ko'rinishi">
+                <button type="button" class="edu-view-button active" data-view="room" role="tab" aria-selected="true">Xona</button>
+                <button type="button" class="edu-view-button" data-view="teacher" role="tab" aria-selected="false">O‘qituvchi</button>
+            </div>
+            <div class="edu-segment" role="group" aria-label="Ko'rinish turi">
+                <button type="button" class="edu-layout-button active" data-layout="grid" aria-label="Jadval ko'rinishi" title="Jadval"><i class="fas fa-table-cells-large"></i></button>
+                <button type="button" class="edu-layout-button" data-layout="list" aria-label="Ro'yxat ko'rinishi" title="Ro‘yxat"><i class="fas fa-list"></i></button>
+            </div>
+            <button type="button" class="edu-round-button" id="eduFullscreen" aria-label="To'liq ekran" title="To‘liq ekran"><i class="fas fa-expand"></i></button>
         </div>
-        <div class="card-body">
-            <div class="status-bars">
-                <div class="status-item">
-                    <div class="status-label">
-                        <span><span class="dot active"></span> Aktiv</span>
-                        <span>{{ active_groups }}</span>
-                    </div>
-                    <div class="progress-bar">
-                        {% with total=active_groups|add:pending_groups %}
-                        {% if total > 0 %}
-                        <div class="progress-fill blue" style="width: {% widthratio active_groups total 100 %}%"></div>
-                        {% endif %}
-                        {% endwith %}
-                    </div>
-                </div>
-                <div class="status-item">
-                    <div class="status-label">
-                        <span><span class="dot pending"></span> Kutilyotgan</span>
-                        <span>{{ pending_groups }}</span>
-                    </div>
-                    <div class="progress-bar">
-                        {% with total=active_groups|add:pending_groups %}
-                        {% if total > 0 %}
-                        <div class="progress-fill yellow" style="width: {% widthratio pending_groups total 100 %}%"></div>
-                        {% endif %}
-                        {% endwith %}
-                    </div>
-                </div>
+    </div>
+
+    <section class="edu-filters" id="eduFilters" aria-label="Jadval filtrlari" hidden>
+        <div class="edu-filter-top">
+            <div class="edu-filter-title"><i class="fas fa-filter"></i>Jadvalni filtrlash</div>
+            <button type="button" class="edu-filter-reset" id="eduResetFilters"><i class="fas fa-rotate-left"></i>Tozalash</button>
+        </div>
+        <div class="edu-filter-grid">
+            <label class="edu-field">
+                <span class="edu-field-label">Qidirish</span>
+                <span class="edu-control"><i class="fas fa-magnifying-glass"></i><input type="search" id="eduSearch" placeholder="Dars, guruh yoki o‘qituvchi"></span>
+            </label>
+            <label class="edu-field">
+                <span class="edu-field-label">Xona</span>
+                <span class="edu-control"><i class="fas fa-door-open"></i><select id="eduRoomFilter"><option value="">Barcha xonalar</option></select></span>
+            </label>
+            <label class="edu-field">
+                <span class="edu-field-label">O‘qituvchi</span>
+                <span class="edu-control"><i class="fas fa-chalkboard-user"></i><select id="eduTeacherFilter"><option value="">Barcha o‘qituvchilar</option></select></span>
+            </label>
+            <label class="edu-field">
+                <span class="edu-field-label">Guruh</span>
+                <span class="edu-control"><i class="fas fa-layer-group"></i><select id="eduGroupFilter"><option value="">Barcha guruhlar</option></select></span>
+            </label>
+            <label class="edu-field">
+                <span class="edu-field-label">Ta’lim turi</span>
+                <span class="edu-control"><i class="fas fa-graduation-cap"></i><select id="eduTypeFilter"><option value="">Barcha turlar</option></select></span>
+            </label>
+            
+        </div>
+    </section>
+
+    <section class="edu-summary" aria-live="polite">
+        <div class="edu-summary-card"><span class="edu-summary-icon"><i class="fas fa-book-open"></i></span><span class="edu-summary-copy"><strong id="eduSummaryLessons">0</strong><span>Darslar</span></span></div>
+        <div class="edu-summary-card"><span class="edu-summary-icon"><i class="fas fa-layer-group"></i></span><span class="edu-summary-copy"><strong id="eduSummaryGroups">0</strong><span>Guruhlar</span></span></div>
+        <div class="edu-summary-card"><span class="edu-summary-icon"><i class="fas fa-chalkboard-user"></i></span><span class="edu-summary-copy"><strong id="eduSummaryTeachers">0</strong><span>O‘qituvchilar</span></span></div>
+        <div class="edu-summary-card"><span class="edu-summary-icon"><i class="fas fa-door-open"></i></span><span class="edu-summary-copy"><strong id="eduSummaryRooms">0</strong><span>Band xonalar</span></span></div>
+    </section>
+
+    <section class="edu-board" aria-label="Dars jadvali">
+        <div class="edu-schedule-frame" id="eduScheduleFrame">
+            <div class="edu-schedule-scroll" id="eduScheduleScroll" tabindex="0" aria-label="Kunlik dars jadvali">
+                <div class="edu-schedule-grid" id="eduScheduleGrid"></div>
+            </div>
+            <div class="edu-list-view" id="eduListView" hidden></div>
+            <div class="edu-empty-state" id="eduEmptyState" hidden>
+                <span class="edu-empty-icon"><i class="far fa-calendar-xmark"></i></span>
+                <h3 id="eduEmptyTitle">Dars topilmadi</h3>
+                <p id="eduEmptyText">Tanlangan kun uchun dars rejalashtirilmagan.</p>
+                <button type="button" id="eduEmptyReset">Filtrlarni tozalash</button>
             </div>
         </div>
-    </div>
-    <div class="card">
-        <div class="card-header">
-            <h3><i class="fas fa-chart-bar"></i> Qayerdan keldingiz? statistikasi</h3>
+        <div class="edu-board-footer">
+            <span><i class="far fa-clock"></i><span id="eduScheduleStatus">Jadval yuklanmoqda...</span></span>
+            <span><i class="fas fa-circle-info"></i>Vaqt oralig‘i 08:00 — 20:00</span>
         </div>
-        <div class="card-body">
-            <div class="status-bars">
-                {% for s in survey_stats %}
-                <div class="status-item">
-                    <div class="status-label">
-                        <span>{{ s.name }}</span>
-                        <span>{{ s.student_count }} ta</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill blue" style="width: {% widthratio s.student_count student_count 100 %}%"></div>
-                    </div>
-                </div>
-                {% empty %}
-                <p style="text-align: center; color: #94a3b8; padding: 20px;">
-                    <i class="fas fa-chart-pie" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
-                    Hali hech qanday ma'lumot yo'q
-                </p>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
+    </section>
 </div>
 
-<div class="dash-footer">
-    <a href="{% url 'admin_mobile_groups' %}" class="goto-btn">
-        <i class="fas fa-layer-group"></i>
-        Guruhlarga o'tish <span style="font-size:12px;opacity:0.7;">(bugungi guruhlar)</span>
-        <i class="fas fa-arrow-right"></i>
-    </a>
-</div>
+<div class="edu-detail-backdrop" id="eduDetailBackdrop" hidden></div>
+<aside class="edu-detail-drawer" id="eduDetailDrawer" aria-hidden="true" aria-labelledby="eduDetailDrawerTitle" hidden>
+    <div class="edu-detail-header">
+        <h2 id="eduDetailDrawerTitle">Dars tafsilotlari</h2>
+        <button type="button" class="edu-detail-close" id="eduDetailClose" aria-label="Yopish"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="edu-detail-body">
+        <span class="edu-detail-course" id="eduDetailCourse">Kurs</span>
+        <h3 id="eduDetailTitle">Dars</h3>
+        <p class="edu-detail-level" id="eduDetailLevel">Daraja</p>
+        <div class="edu-detail-grid">
+            <div class="edu-detail-item full"><span>O‘qituvchi</span><strong id="eduDetailTeacher">—</strong></div>
+            <div class="edu-detail-item full"><span>Guruh</span><a href="#" id="eduDetailGroupLink" class="edu-detail-group-link" title="Guruh sahifasini ochish"><strong id="eduDetailGroup">—</strong></a></div>
+            <div class="edu-detail-item"><span>Xona</span><strong id="eduDetailRoom">—</strong></div>
+            <div class="edu-detail-item"><span>O‘quvchilar</span><strong id="eduDetailStudents">—</strong></div>
+            <div class="edu-detail-item"><span>Boshlanish</span><strong id="eduDetailStart">—</strong></div>
+            <div class="edu-detail-item"><span>Tugash</span><strong id="eduDetailEnd">—</strong></div>
+            <div class="edu-detail-item full"><span>Kun</span><strong id="eduDetailDays">—</strong></div>
+            <div class="edu-detail-item full"><span>Ta’lim turi</span><strong id="eduDetailType">—</strong></div>
+        </div>
+    </div>
+    <div class="edu-detail-footer">
+        <a href="#" class="edu-detail-link" id="eduDetailLink"><i class="fas fa-arrow-right"></i>Guruhga o'tish</a>
+    </div>
+</aside>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    const app = document.getElementById("eduScheduleApp");
+    const mainContent = app.closest(".main-content");
+    if (mainContent) mainContent.classList.add("edu-dashboard-page");
+    const lessons = JSON.parse(document.getElementById("schedule-lessons-data").textContent);
+    const rooms = JSON.parse(document.getElementById("schedule-rooms-data").textContent);
+    const teachers = JSON.parse(document.getElementById("schedule-teachers-data").textContent);
+    const dayDefinitions = [
+        { key: "dushanba", name: "Dushanba" },
+        { key: "seshanba", name: "Seshanba" },
+        { key: "chorshanba", name: "Chorshanba" },
+        { key: "payshanba", name: "Payshanba" },
+        { key: "juma", name: "Juma" },
+        { key: "shanba", name: "Shanba" },
+        { key: "yakshanba", name: "Yakshanba" }
+    ];
+    const state = {
+        day: app.dataset.selectedDay,
+        date: app.dataset.selectedDate,
+        view: "room",
+        layout: "grid",
+        room: "",
+        teacher: "",
+        group: "",
+        type: "",
+        search: ""
+    };
+
+    /* O'lchamlar — CSS o'zgaruvchilari ham shu qiymatlardan o'rnatiladi,
+       shuning uchun kartalar va katakchalar hech qachon siljimaydi. */
+    const timeWidth = 96;
+    const columnWidth = 150;
+    const minColumnWidth = 120;
+    const headerHeight = 40;
+    const slotHeight = 36;
+    const startMinutes = 480;
+    const endMinutes = 1200;
+    const slotCount = (endMinutes - startMinutes) / 30;
+
+    const dayButtons = Array.from(app.querySelectorAll(".edu-day-button"));
+    const viewButtons = Array.from(app.querySelectorAll(".edu-view-button"));
+    const layoutButtons = Array.from(app.querySelectorAll(".edu-layout-button"));
+    const grid = document.getElementById("eduScheduleGrid");
+    const scrollContainer = document.getElementById("eduScheduleScroll");
+    const listView = document.getElementById("eduListView");
+    const frame = document.getElementById("eduScheduleFrame");
+    const emptyState = document.getElementById("eduEmptyState");
+    const filtersPanel = document.getElementById("eduFilters");
+    const filterToggle = document.getElementById("eduFilterToggle");
+    const searchInput = document.getElementById("eduSearch");
+    const roomFilter = document.getElementById("eduRoomFilter");
+    const teacherFilter = document.getElementById("eduTeacherFilter");
+    const groupFilter = document.getElementById("eduGroupFilter");
+    const typeFilter = document.getElementById("eduTypeFilter");
+    const drawer = document.getElementById("eduDetailDrawer");
+    const backdrop = document.getElementById("eduDetailBackdrop");
+    let visibleLessons = [];
+
+    app.style.setProperty("--edu-time-width", timeWidth + "px");
+    app.style.setProperty("--edu-header-height", headerHeight + "px");
+    app.style.setProperty("--edu-slot-height", slotHeight + "px");
+
+    function escapeHtml(value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function pad(value) {
+        return String(value).padStart(2, "0");
+    }
+
+    function formatTime(minutes) {
+        return pad(Math.floor(minutes / 60)) + ":" + pad(minutes % 60);
+    }
+
+    function parseDate(value) {
+        return new Date(value + "T00:00:00");
+    }
+
+    function toIsoDate(value) {
+        return value.getFullYear() + "-" + pad(value.getMonth() + 1) + "-" + pad(value.getDate());
+    }
+
+    function formatDate(value) {
+        return new Intl.DateTimeFormat("uz-UZ", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+        }).format(value);
+    }
+
+    function getMonday(value) {
+        const result = new Date(value);
+        const offset = (result.getDay() + 6) % 7;
+        result.setDate(result.getDate() - offset);
+        result.setHours(0, 0, 0, 0);
+        return result;
+    }
+
+    function toMinutes(value) {
+        const parts = String(value || "00:00").split(":");
+        return Number(parts[0]) * 60 + Number(parts[1] || 0);
+    }
+
+    function collectOptions(valueSelector, labelSelector) {
+        const values = new Map();
+        lessons.forEach(function (lesson) {
+            const value = valueSelector(lesson);
+            if (value !== null && value !== undefined && !values.has(String(value))) {
+                values.set(String(value), { value: value, label: labelSelector(lesson) });
+            }
+        });
+        return Array.from(values.values()).sort(function (a, b) {
+            return String(a.label).localeCompare(String(b.label), "uz");
+        });
+    }
+
+    function fillSelect(select, items, valueSelector, labelSelector) {
+        while (select.options.length > 1) select.remove(1);
+        items.forEach(function (item) {
+            const option = document.createElement("option");
+            option.value = String(valueSelector(item));
+            option.textContent = String(labelSelector(item));
+            select.appendChild(option);
+        });
+    }
+
+    function initializeFilters() {
+        const teacherOptions = collectOptions(function (lesson) { return lesson.teacher_id; }, function (lesson) { return lesson.teacher; });
+        const groupOptions = collectOptions(function (lesson) { return lesson.group_id; }, function (lesson) { return lesson.group; });
+        const typeOptions = collectOptions(function (lesson) { return lesson.lesson_type; }, function (lesson) { return lesson.lesson_type; });
+        fillSelect(roomFilter, rooms, function (room) { return room.id; }, function (room) { return room.name; });
+        fillSelect(teacherFilter, teacherOptions, function (teacher) { return teacher.value; }, function (teacher) { return teacher.label; });
+        fillSelect(groupFilter, groupOptions, function (group) { return group.value; }, function (group) { return group.label; });
+        fillSelect(typeFilter, typeOptions, function (type) { return type.value; }, function (type) { return type.label; });
+    }
+
+    function updateDayStrip() {
+        const selected = parseDate(state.date);
+        const monday = getMonday(selected);
+        const selectedIndex = Math.max(0, dayDefinitions.findIndex(function (day) { return day.key === state.day; }));
+        document.getElementById("eduSelectedDate").textContent = formatDate(selected);
+        document.getElementById("eduSelectedDay").textContent = dayDefinitions[selectedIndex].name;
+        dayButtons.forEach(function (button, index) {
+            const dayDate = new Date(monday);
+            dayDate.setDate(monday.getDate() + index);
+            const active = button.dataset.day === state.day;
+            button.classList.toggle("active", active);
+            button.setAttribute("aria-selected", active ? "true" : "false");
+            button.title = dayDate.toLocaleDateString("uz-UZ", { day: "2-digit", month: "2-digit", year: "numeric" });
+            const count = lessons.filter(function (lesson) { return lesson.days.indexOf(button.dataset.day) !== -1; }).length;
+            button.querySelector(".edu-day-count").textContent = String(count);
+        });
+    }
+
+    function getFilteredLessons() {
+        const query = state.search.toLocaleLowerCase("uz");
+        return lessons.filter(function (lesson) {
+            if (lesson.days.indexOf(state.day) === -1) return false;
+            if (state.room && String(lesson.room_id) !== state.room) return false;
+            if (state.teacher && String(lesson.teacher_id) !== state.teacher) return false;
+            if (state.group && String(lesson.group_id) !== state.group) return false;
+            if (state.type && String(lesson.lesson_type) !== state.type) return false;
+            if (query) {
+                const searchable = [lesson.title, lesson.course, lesson.level, lesson.teacher, lesson.group, lesson.room, lesson.lesson_type].join(" ").toLocaleLowerCase("uz");
+                if (searchable.indexOf(query) === -1) return false;
+            }
+            return true;
+        }).sort(function (a, b) {
+            return toMinutes(a.start) - toMinutes(b.start) || a.room.localeCompare(b.room, "uz");
+        });
+    }
+
+    function getColumns() {
+        if (state.view === "teacher") {
+            if (teachers.length) return teachers;
+            return [{ id: "unassigned", name: "O‘qituvchi biriktirilmagan" }];
+        }
+        const columns = rooms.slice();
+        if (lessons.some(function (lesson) { return lesson.room_id === "unassigned"; })) {
+            columns.push({ id: "unassigned", name: "Xona biriktirilmagan" });
+        }
+        return columns.length ? columns : [{ id: "unassigned", name: "Xona biriktirilmagan" }];
+    }
+
+    /* ===== USTUNLAR KENGLIGINI HISOBLASH ===== */
+    function computeGridColumns(columnCount) {
+        const containerWidth = scrollContainer.clientWidth || app.clientWidth || window.innerWidth;
+        const neededMin = timeWidth + columnCount * minColumnWidth;
+        const neededIdeal = timeWidth + columnCount * columnWidth;
+
+        let template;
+        let minWidth;
+
+        if (neededIdeal <= containerWidth) {
+            template = timeWidth + "px repeat(" + columnCount + ", minmax(" + columnWidth + "px, 1fr))";
+            minWidth = containerWidth + "px";
+        } else if (neededMin <= containerWidth) {
+            template = timeWidth + "px repeat(" + columnCount + ", minmax(" + minColumnWidth + "px, 1fr))";
+            minWidth = containerWidth + "px";
+        } else {
+            template = timeWidth + "px repeat(" + columnCount + ", minmax(" + minColumnWidth + "px, 1fr))";
+            minWidth = neededMin + "px";
+        }
+
+        grid.style.gridTemplateColumns = template;
+        grid.style.minWidth = minWidth;
+        grid.style.width = "100%";
+    }
+
+    function createGridMarkup(columns) {
+        let markup = '<div class="edu-schedule-header edu-time-cell edu-time-header" style="grid-column:1;grid-row:1;"><i class="far fa-clock"></i></div>';
+        columns.forEach(function (column, index) {
+            markup += '<div class="edu-schedule-header edu-column-header" style="grid-column:' + (index + 2) + ';grid-row:1;" title="' + escapeHtml(column.name) + '"><strong>' + escapeHtml(column.name) + '</strong></div>';
+        });
+        for (let slot = 0; slot < slotCount; slot += 1) {
+            const slotStart = startMinutes + slot * 30;
+            const slotEnd = Math.min(slotStart + 30, endMinutes);
+            const row = slot + 2;
+            markup += '<div class="edu-time-cell" style="grid-column:1;grid-row:' + row + ';">' + formatTime(slotStart) + ' - ' + formatTime(slotEnd) + '</div>';
+            columns.forEach(function (column, index) {
+                markup += '<div class="edu-grid-cell" style="grid-column:' + (index + 2) + ';grid-row:' + row + ';" data-column-id="' + escapeHtml(column.id) + '"></div>';
+            });
+        }
+        return markup;
+    }
+
+    function isLive(lesson) {
+        const now = new Date();
+        if (state.date !== toIsoDate(now)) return false;
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        return currentMinutes >= toMinutes(lesson.start) && currentMinutes <= toMinutes(lesson.end);
+    }
+
+    function colorIndex(lesson) {
+        return Math.abs(Number(lesson.color || 0)) % 6;
+    }
+
+    function createLessonCard(lesson, columnIndex, columnCount) {
+        const start = Math.max(startMinutes, Math.min(toMinutes(lesson.start), endMinutes));
+        const end = Math.max(start + 15, Math.min(toMinutes(lesson.end), endMinutes));
+        const top = ((start - startMinutes) / 30) * slotHeight + 2;
+        const height = Math.max(28, ((end - start) / 30) * slotHeight - 4);
+        const duration = toMinutes(lesson.end) - toMinutes(lesson.start);
+        const timeText = lesson.start + " – " + lesson.end;
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "edu-lesson-card color-" + colorIndex(lesson) + (duration <= 45 ? " compact" : "") + (isLive(lesson) ? " live" : "");
+        card.title = lesson.title + "\n" + lesson.teacher + "\n" + lesson.room + "\n" + timeText;
+        card.setAttribute("aria-label", lesson.title + ", " + lesson.teacher + ", " + lesson.room + ", " + lesson.start + " dan " + lesson.end + " gacha");
+        card.style.top = top + "px";
+        card.style.height = height + "px";
+        card.style.left = "calc(" + (columnIndex * 100 / columnCount) + "% + 3px)";
+        card.style.width = "calc(" + (100 / columnCount) + "% - 6px)";
+        card.innerHTML =
+            '<span class="edu-lesson-title">' + escapeHtml(lesson.title) + ' / ' + escapeHtml(timeText) + '</span>' +
+            '<span class="edu-lesson-teacher">' + escapeHtml(lesson.teacher) + '</span>' +
+            '<span class="edu-lesson-room">Xona: ' + escapeHtml(lesson.room) + '</span>' +
+            '<span class="edu-lesson-stats">' +
+                '<span><i class="fas fa-layer-group"></i><span>' + escapeHtml(lesson.group) + '</span></span>' +
+                '<span><i class="fas fa-users"></i>' + escapeHtml(lesson.students) + '</span>' +
+            '</span>';
+        card.addEventListener("click", function () { openDetails(lesson); });
+        return card;
+    }
+
+    function renderList(filtered) {
+        listView.innerHTML = filtered.map(function (lesson, index) {
+            return '<button type="button" class="edu-list-item color-' + colorIndex(lesson) + '" data-index="' + index + '">' +
+                '<span class="edu-list-stripe"></span>' +
+                '<span class="edu-list-time">' + escapeHtml(lesson.start + " – " + lesson.end) + '</span>' +
+                '<strong>' + escapeHtml(lesson.title) + '</strong>' +
+                '<span class="edu-list-cell edu-list-teacher">' + escapeHtml(lesson.teacher) + '</span>' +
+                '<span class="edu-list-cell edu-list-room">Xona: ' + escapeHtml(lesson.room) + '</span>' +
+                '<span class="edu-list-cell edu-list-group">' + escapeHtml(lesson.group) + '</span>' +
+                '<span class="edu-list-cell"><i class="fas fa-users"></i> ' + escapeHtml(lesson.students) + '</span>' +
+            '</button>';
+        }).join("");
+    }
+
+    function updateSummary(filtered) {
+        document.getElementById("eduSummaryLessons").textContent = String(filtered.length);
+        document.getElementById("eduSummaryGroups").textContent = String(new Set(filtered.map(function (lesson) { return lesson.group_id; })).size);
+        document.getElementById("eduSummaryTeachers").textContent = String(new Set(filtered.filter(function (lesson) { return lesson.teacher_id !== "unassigned"; }).map(function (lesson) { return lesson.teacher_id; })).size);
+        document.getElementById("eduSummaryRooms").textContent = String(new Set(filtered.filter(function (lesson) { return lesson.room_id !== "unassigned"; }).map(function (lesson) { return lesson.room_id; })).size);
+        const liveCount = filtered.filter(isLive).length;
+        document.getElementById("eduScheduleStatus").textContent = filtered.length + " ta dars rejalashtirilgan" + (liveCount ? " · " + liveCount + " ta dars hozir o‘tkazilmoqda" : "");
+    }
+
+    function render() {
+        updateDayStrip();
+        const filtered = getFilteredLessons();
+        visibleLessons = filtered;
+        const hasFilters = Boolean(state.room || state.teacher || state.group || state.type || state.search);
+        filterToggle.classList.toggle("has-filters", hasFilters);
+
+        const isGrid = state.layout === "grid";
+        scrollContainer.hidden = !isGrid;
+        listView.hidden = isGrid;
+        frame.classList.toggle("is-list", !isGrid);
+
+        if (isGrid) {
+            const columns = getColumns();
+            computeGridColumns(columns.length);
+            grid.innerHTML = createGridMarkup(columns);
+            const eventLayer = document.createElement("div");
+            eventLayer.className = "edu-event-layer";
+            filtered.forEach(function (lesson) {
+                const key = state.view === "room" ? lesson.room_id : lesson.teacher_id;
+                const columnIndex = columns.findIndex(function (column) { return String(column.id) === String(key); });
+                if (columnIndex !== -1) eventLayer.appendChild(createLessonCard(lesson, columnIndex, columns.length));
+            });
+            grid.appendChild(eventLayer);
+        } else {
+            renderList(filtered);
+        }
+
+        updateSummary(filtered);
+        emptyState.hidden = filtered.length !== 0;
+        if (filtered.length === 0) {
+            const dayIndex = Math.max(0, dayDefinitions.findIndex(function (day) { return day.key === state.day; }));
+            document.getElementById("eduEmptyTitle").textContent = hasFilters ? "Mos dars topilmadi" : "Dars rejalashtirilmagan";
+            document.getElementById("eduEmptyText").textContent = hasFilters ? "Tanlangan filtrlarni tozalab, boshqa kun yoki xonani tanlab ko‘ring." : dayDefinitions[dayIndex].name + " uchun hozircha dars kiritilmagan.";
+        }
+    }
+
+    function selectDay(dayKey) {
+        const selected = parseDate(state.date);
+        const monday = getMonday(selected);
+        const dayIndex = dayDefinitions.findIndex(function (day) { return day.key === dayKey; });
+        const nextDate = new Date(monday);
+        nextDate.setDate(monday.getDate() + dayIndex);
+        state.day = dayKey;
+        state.date = toIsoDate(nextDate);
+        render();
+    }
+
+    function resetFilters() {
+        state.room = "";
+        state.teacher = "";
+        state.group = "";
+        state.type = "";
+        state.search = "";
+        roomFilter.value = "";
+        teacherFilter.value = "";
+        groupFilter.value = "";
+        typeFilter.value = "";
+        searchInput.value = "";
+        render();
+    }
+
+    function dayNames(lesson) {
+        return lesson.days.map(function (key) {
+            const day = dayDefinitions.find(function (item) { return item.key === key; });
+            return day ? day.name : key;
+        }).join(", ");
+    }
+
+    function openDetails(lesson) {
+        document.getElementById("eduDetailCourse").textContent = lesson.course;
+        document.getElementById("eduDetailTitle").textContent = lesson.title;
+        document.getElementById("eduDetailLevel").textContent = lesson.level;
+        document.getElementById("eduDetailTeacher").textContent = lesson.teacher;
+        document.getElementById("eduDetailGroup").textContent = lesson.group;
+        document.getElementById("eduDetailRoom").textContent = lesson.room;
+        document.getElementById("eduDetailStudents").textContent = lesson.students + " ta o‘quvchi";
+        document.getElementById("eduDetailStart").textContent = lesson.start;
+        document.getElementById("eduDetailEnd").textContent = lesson.end;
+        document.getElementById("eduDetailDays").textContent = dayNames(lesson);
+        document.getElementById("eduDetailType").textContent = lesson.lesson_type;
+        const groupUrl = "/groups/" + encodeURIComponent(lesson.group_id) + "/detail/";
+        document.getElementById("eduDetailLink").href = groupUrl;
+        document.getElementById("eduDetailGroupLink").href = groupUrl;
+        drawer.hidden = false;
+        backdrop.hidden = false;
+        drawer.setAttribute("aria-hidden", "false");
+    }
+
+    function closeDetails() {
+        drawer.hidden = true;
+        backdrop.hidden = true;
+        drawer.setAttribute("aria-hidden", "true");
+    }
+
+    /* ===== RESIZE ===== */
+    let resizeTimer = null;
+    function handleResize() {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+            if (state.layout === "grid") computeGridColumns(getColumns().length);
+        }, 120);
+    }
+
+    /* ===== EVENTLAR ===== */
+    dayButtons.forEach(function (button) {
+        button.addEventListener("click", function () { selectDay(button.dataset.day); });
+    });
+
+    viewButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+            state.view = button.dataset.view;
+            viewButtons.forEach(function (item) {
+                const active = item === button;
+                item.classList.toggle("active", active);
+                item.setAttribute("aria-selected", active ? "true" : "false");
+            });
+            render();
+        });
+    });
+
+    layoutButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+            state.layout = button.dataset.layout;
+            layoutButtons.forEach(function (item) { item.classList.toggle("active", item === button); });
+            render();
+        });
+    });
+
+    listView.addEventListener("click", function (event) {
+        const item = event.target.closest(".edu-list-item");
+        if (!item) return;
+        const lesson = visibleLessons[Number(item.dataset.index)];
+        if (lesson) openDetails(lesson);
+    });
+
+    filterToggle.addEventListener("click", function () {
+        const willOpen = filtersPanel.hidden;
+        filtersPanel.hidden = !willOpen;
+        filterToggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        if (willOpen) searchInput.focus();
+        if (state.layout === "grid") computeGridColumns(getColumns().length);
+    });
+
+    document.getElementById("eduFullscreen").addEventListener("click", function () {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else if (app.requestFullscreen) {
+            app.requestFullscreen();
+        }
+    });
+
+    document.addEventListener("fullscreenchange", function () {
+        const button = document.getElementById("eduFullscreen");
+        const icon = button.querySelector("i");
+        const active = Boolean(document.fullscreenElement);
+        icon.className = active ? "fas fa-compress" : "fas fa-expand";
+        button.setAttribute("aria-label", active ? "To'liq ekrandan chiqish" : "To'liq ekran");
+        render();
+    });
+
+    document.getElementById("eduTodayButton").addEventListener("click", function () {
+        const now = new Date();
+        state.date = toIsoDate(now);
+        state.day = dayDefinitions[(now.getDay() + 6) % 7].key;
+        render();
+    });
+
+    searchInput.addEventListener("input", function () {
+        state.search = searchInput.value.trim();
+        render();
+    });
+    roomFilter.addEventListener("change", function () { state.room = roomFilter.value; render(); });
+    teacherFilter.addEventListener("change", function () { state.teacher = teacherFilter.value; render(); });
+    groupFilter.addEventListener("change", function () { state.group = groupFilter.value; render(); });
+    typeFilter.addEventListener("change", function () { state.type = typeFilter.value; render(); });
+    document.getElementById("eduResetFilters").addEventListener("click", resetFilters);
+    document.getElementById("eduEmptyReset").addEventListener("click", resetFilters);
+    document.getElementById("eduDetailClose").addEventListener("click", closeDetails);
+    backdrop.addEventListener("click", closeDetails);
+    document.addEventListener("keydown", function (event) { if (event.key === "Escape") closeDetails(); });
+    window.addEventListener("resize", handleResize);
+
+    initializeFilters();
+    render();
+})();
+</script>
 {% endblock %}

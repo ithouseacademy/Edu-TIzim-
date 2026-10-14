@@ -2,7 +2,49 @@ import re
 from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import Course, CourseLevel, Group, Student, MarketingSurvey, LessonTime, Branch, Room, Role, Position, Employee, Task, Reminder, Kassa, KassaTransaction, KassaTransfer, ExpenseCategory, IncomeCategory
+from .models import Course, CourseLevel, Group, Student, MarketingSurvey, LessonTime, Branch, Room, Role, Position, Employee, Task, Reminder, Kassa, KassaTransaction, KassaTransfer, ExpenseCategory, IncomeCategory, PaymentMethod
+from . import payment_scope
+
+
+def _apply_branch_field(form, branches=None, require_branch=False):
+    """ModelForm'ga `branch` maydonini qo'shadi va queryset'ini cheklaydi.
+
+    `branches` berilsa faqat o'sha filiallar tanlanadi (filialga biriktirilgan
+    admin boshqa filialni tanlay olmasligi uchun).
+    `require_branch` — cheklangan admin uchun filial tanlash majburiy bo'ladi,
+    aks holda filialsiz (ko'rinmaydigan) ma'lumot yaratilishi mumkin edi.
+    """
+    if "branch" not in form.fields:
+        return
+    form.fields["branch"].queryset = (
+        branches if branches is not None else Branch.objects.filter(is_active=True)
+    )
+    form.fields["branch"].empty_label = "--- Tanlang ---"
+    form.fields["branch"].required = bool(require_branch)
+
+
+def _branch_room_queryset(branches):
+    """Xonalarni filialga qarab cheklaydi (`branches` None = hammasi)."""
+    qs = Room.objects.all()
+    if branches is not None:
+        qs = qs.filter(branch__in=list(branches))
+    return qs
+
+
+def _branch_kassa_queryset(branches):
+    """Kassalarni filialga qarab cheklaydi (`branches` None = hammasi)."""
+    qs = Kassa.objects.filter(is_active=True)
+    if branches is not None:
+        qs = qs.filter(branch__in=list(branches))
+    return qs
+
+
+def _branch_teacher_queryset(branches):
+    """O'qituvchilarni filialga qarab cheklaydi."""
+    qs = Employee.objects.filter(role__name="O'qituvchi")
+    if branches is not None:
+        qs = qs.filter(branches__in=list(branches)).distinct()
+    return qs
 
 
 class LoginForm(forms.Form):
@@ -21,12 +63,39 @@ class LoginForm(forms.Form):
 
 
 class CourseForm(forms.ModelForm):
+    """Kurs yaratish/tahrirlash formasi.
+
+    `branches` — foydalanuvchiga ruxsat etilgan filiallar queryset'i.
+    `None` berilsa cheklov yo'q (superadmin) va maydon ixtiyoriy qoladi.
+    """
+
+    branches = forms.ModelMultipleChoiceField(
+        queryset=Branch.objects.filter(is_active=True),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Filiallar",
+    )
+
     class Meta:
         model = Course
-        fields = ["name"]
+        fields = ["name", "branches"]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Kurs nomini kiriting"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        branches = kwargs.pop("branches", None)
+        super().__init__(*args, **kwargs)
+        if branches is not None:
+            self.fields["branches"].queryset = branches
+            self.fields["branches"].required = False
+
+    def clean_branches(self):
+        data = self.cleaned_data.get("branches")
+        if self.instance.pk and not data:
+            # Tahrirlashda hech narsa tanlanmasa mavjud biriktirish saqlanadi.
+            return self.instance.branches.all()
+        return data or Branch.objects.none()
 
 
 class FlexibleMoneyField(forms.DecimalField):
@@ -89,9 +158,10 @@ class GroupForm(forms.ModelForm):
 
     class Meta:
         model = Group
-        fields = ["name", "status", "course", "level", "education_type", "day_type", "room", "teacher", "telegram_link", "start_date", "end_date"]
+        fields = ["name", "branch", "status", "course", "level", "education_type", "day_type", "room", "teacher", "telegram_link", "start_date", "end_date"]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Guruh nomini kiriting"}),
+            "branch": forms.Select(attrs={"class": "form-control"}),
             "status": forms.Select(attrs={"class": "form-control"}),
             "course": forms.Select(attrs={"class": "form-control", "id": "id_course"}),
             "level": forms.Select(attrs={"class": "form-control", "id": "id_level"}),
@@ -103,10 +173,12 @@ class GroupForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        branches = kwargs.pop("branches", None)
         super().__init__(*args, **kwargs)
-        self.fields["room"].queryset = Room.objects.all()
+        _apply_branch_field(self, branches, require_branch=branches is not None)
+        self.fields["room"].queryset = _branch_room_queryset(branches)
         self.fields["room"].empty_label = "--- Tanlang ---"
-        self.fields["teacher"].queryset = Employee.objects.filter(role__name="O'qituvchi")
+        self.fields["teacher"].queryset = _branch_teacher_queryset(branches)
         self.fields["teacher"].empty_label = "--- Tanlang ---"
         self.fields["level"].queryset = CourseLevel.objects.all()
         self.fields["level"].empty_label = "--- Tanlang (ixtiyoriy) ---"
@@ -114,6 +186,10 @@ class GroupForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        branch = cleaned_data.get("branch")
+        room = cleaned_data.get("room")
+        if branch and room and room.branch_id and room.branch_id != branch.pk:
+            self.add_error("room", "Xona boshqa filialga tegishli.")
         status = cleaned_data.get("status")
         start_date = cleaned_data.get("start_date")
         end_date = cleaned_data.get("end_date")
@@ -137,17 +213,19 @@ class StudentCreateForm(forms.ModelForm):
     class Meta:
         model = Student
         fields = [
-            "first_name", "last_name", "username", "phone", "desired_course", "groups",
+            "first_name", "last_name", "branch", "username", "phone", "desired_course", "groups",
             "marketing_survey", "additional_info",
             "father_full_name", "father_phone",
             "mother_full_name", "mother_phone",
             "email", "birth_date", "lesson_time", "student_category",
             "payment_date", "education_language", "target_university",
             "father_workplace", "mother_workplace", "home_address", "school",
+            "photo",
         ]
         widgets = {
             "first_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ismini kiriting"}),
             "last_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Familyasini kiriting"}),
+            "branch": forms.Select(attrs={"class": "form-control"}),
             "username": forms.TextInput(attrs={"class": "form-control", "placeholder": "@username (bo'sh qolsa, avtomatik)"}),
             "phone": forms.TextInput(attrs={"class": "form-control phone-input", "placeholder": "90 123 45 67", "maxlength": "17", "data-phone": "true"}),
             "desired_course": forms.SelectMultiple(attrs={"class": "form-control", "size": 5}),
@@ -162,10 +240,17 @@ class StudentCreateForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        branches = kwargs.pop("branches", None)
+        allowed_groups = kwargs.pop("allowed_groups", None)
         super().__init__(*args, **kwargs)
+        _apply_branch_field(self, branches, require_branch=branches is not None)
         self.fields["desired_course"].queryset = Course.objects.all()
         self.fields["desired_course"].label = "Qiziqqan kurslari"
-        self.fields["groups"].queryset = Group.objects.filter(status__in=["aktiv", "kutilyotgan"]).order_by("name")
+        self.fields["groups"].queryset = (
+            allowed_groups
+            if allowed_groups is not None
+            else Group.objects.filter(status__in=["aktiv", "kutilyotgan"])
+        ).order_by("name")
         self.fields["groups"].required = False
         self.fields["groups"].label = "Guruhlar"
         for fn in ["phone", "father_phone", "mother_phone"]:
@@ -222,17 +307,19 @@ class StudentEditForm(forms.ModelForm):
     class Meta:
         model = Student
         fields = [
-            "first_name", "last_name", "username", "phone", "desired_course", "groups",
+            "first_name", "last_name", "branch", "username", "phone", "desired_course", "groups",
             "marketing_survey", "additional_info",
             "father_full_name", "father_phone",
             "mother_full_name", "mother_phone",
             "email", "birth_date", "lesson_time", "student_category",
             "payment_date", "education_language", "target_university",
             "father_workplace", "mother_workplace", "home_address", "school",
+            "photo",
         ]
         widgets = {
             "first_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ismini kiriting"}),
             "last_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Familyasini kiriting"}),
+            "branch": forms.Select(attrs={"class": "form-control"}),
             "username": forms.TextInput(attrs={"class": "form-control", "placeholder": "@username (bo'sh qolsa, avtomatik)"}),
             "phone": forms.TextInput(attrs={"class": "form-control phone-input", "placeholder": "90 123 45 67", "maxlength": "17", "data-phone": "true"}),
             "desired_course": forms.SelectMultiple(attrs={"class": "form-control", "size": 5}),
@@ -247,10 +334,17 @@ class StudentEditForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        branches = kwargs.pop("branches", None)
+        allowed_groups = kwargs.pop("allowed_groups", None)
         super().__init__(*args, **kwargs)
+        _apply_branch_field(self, branches, require_branch=branches is not None)
         self.fields["desired_course"].queryset = Course.objects.all()
         self.fields["desired_course"].label = "Qiziqqan kurslari"
-        self.fields["groups"].queryset = Group.objects.filter(status__in=["aktiv", "kutilyotgan"]).order_by("name")
+        self.fields["groups"].queryset = (
+            allowed_groups
+            if allowed_groups is not None
+            else Group.objects.filter(status__in=["aktiv", "kutilyotgan"])
+        ).order_by("name")
         self.fields["groups"].required = False
         self.fields["groups"].label = "Guruhlar"
         for fn in ["phone", "father_phone", "mother_phone"]:
@@ -419,25 +513,42 @@ class AddToGroupForm(forms.Form):
 
 
 class BranchForm(forms.ModelForm):
+    payment_methods = forms.ModelMultipleChoiceField(
+        queryset=PaymentMethod.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple(),
+        label="To'lov usullari",
+    )
+
     class Meta:
         model = Branch
-        fields = ["name"]
+        fields = ["name", "payment_methods"]
         widgets = {
             "name": forms.TextInput(attrs={
                 "class": "form-control", "placeholder": "Filial nomini kiriting"
             }),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["payment_methods"].queryset = PaymentMethod.objects.filter(is_active=True)
+
 
 class RoomForm(forms.ModelForm):
     class Meta:
         model = Room
-        fields = ["name"]
+        fields = ["name", "branch"]
         widgets = {
             "name": forms.TextInput(attrs={
                 "class": "form-control", "placeholder": "Xona nomini kiriting"
             }),
+            "branch": forms.Select(attrs={"class": "form-control"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        branches = kwargs.pop("branches", None)
+        super().__init__(*args, **kwargs)
+        _apply_branch_field(self, branches, require_branch=branches is not None)
 
 
 class PositionForm(forms.ModelForm):
@@ -533,6 +644,13 @@ class EmployeeForm(forms.ModelForm):
         }),
         help_text="Xodim tizimga kirishi uchun parol",
     )
+    payment_methods = forms.ModelMultipleChoiceField(
+        queryset=PaymentMethod.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple(),
+        label="To'lov usullari",
+        help_text="Xodimga ruxsat berilgan to'lov usullari (filial usullari doirasida).",
+    )
 
     class Meta:
         model = Employee
@@ -540,7 +658,7 @@ class EmployeeForm(forms.ModelForm):
             "first_name", "last_name", "phone", "email", "gender",
             "birth_date", "position", "photo", "salary_enabled",
             "salary_type", "percent", "monthly_salary",
-            "branches", "role", "salary_same", "salary", "notes",
+            "branches", "payment_methods", "role", "salary_same", "salary", "notes",
         ]
         widgets = {
             "first_name": forms.TextInput(attrs={"class": "form-input", "placeholder": "Ismni kiriting"}),
@@ -566,6 +684,7 @@ class EmployeeForm(forms.ModelForm):
         self.fields["position"].queryset = Position.objects.all()
         self.fields["position"].empty_label = "Tanlang"
         self.fields["branches"].queryset = Branch.objects.all()
+        self.fields["payment_methods"].queryset = PaymentMethod.objects.filter(is_active=True)
         self.fields["role"].queryset = Role.objects.all()
         self.fields["role"].empty_label = "Tanlang"
 
@@ -582,30 +701,109 @@ class EmployeeForm(forms.ModelForm):
                     "phone",
                     "Bu telefon raqam bilan tizimda foydalanuvchi allaqachon mavjud. Boshqa raqam kiriting.",
                 )
+        # Xodimning individual to'lov usullari filial usullaridan tashqariga chiqmasin.
+        methods = cleaned_data.get("payment_methods")
+        branches = cleaned_data.get("branches")
+        if methods and branches is not None:
+            allowed = payment_scope.branch_methods_union(branches)
+            allowed_ids = set(allowed.values_list("pk", flat=True))
+            invalid = [m.name for m in methods if m.pk not in allowed_ids]
+            if invalid:
+                self.add_error(
+                    "payment_methods",
+                    "Quyidagi usullar tanlangan filiallarda yoqilmagan: "
+                    + ", ".join(invalid)
+                    + ". Avval ularni filial sozlamalarida yoqing.",
+                )
         return cleaned_data
 
 
 class KassaForm(forms.ModelForm):
     class Meta:
         model = Kassa
-        fields = ["owner", "name", "is_active"]
+        fields = ["branch", "owner", "name", "is_active", "is_main"]
         widgets = {
-            "owner": forms.Select(attrs={"class": "form-control"}),
+            "branch": forms.Select(attrs={"class": "form-control", "id": "id_branch"}),
+            "owner": forms.Select(attrs={"class": "form-control", "id": "id_owner"}),
             "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Kassa nomini kiriting"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "is_main": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, branches=None, hide_branch=False, **kwargs):
         super().__init__(*args, **kwargs)
-        from .models import Employee as EmpModel
+        self.user = user
+        from . import branch_scope
+
+        # Asosiy (bosh) kassani faqat rahbar (super admin) yaratishi/tahrirlashi
+        # mumkin — oddiy admin uchun bu imkoniyat butunlay yashiriladi.
+        if user is None or not getattr(user, "is_superuser", False):
+            self.fields.pop("is_main", None)
+
+        if hide_branch:
+            # Hech qaysi filialga biriktirilmagan oddiy admin faqat GLOBAL
+            # (filialsiz) kassa ochishi mumkin — filial tanlovi yashiriladi.
+            self.fields.pop("branch", None)
+        else:
+            _apply_branch_field(self, branches, require_branch=branches is not None)
+
+        self.branch_scope = branch_scope
+        self.owner_branch_map = branch_scope.branch_admin_map()
+
+        if user is not None and not getattr(user, "is_superuser", False):
+            # Oddiy admin faqat O'ZI uchun kassa ocha/tegga oladi. Boshqa
+            # admin (masalan super staff) nomiga kassa ochib berolmaydi.
+            self.fields["owner"].queryset = User.objects.filter(pk=user.pk)
+            self.fields["owner"].empty_label = None
+        else:
+            self.fields["owner"].queryset = self._all_admins()
+
+        self.fields["owner"].empty_label = "--- Admin tanlang ---"
+        # Ro'yxatda username emas, «Ism Familiya» ko'rsatiladi.
+        self.fields["owner"].label_from_instance = branch_scope.user_display_name
+
+    def _all_admins(self):
+        from .models import AdminBranch, Employee as EmpModel
+
         admin_user_ids = EmpModel.objects.filter(
             Q(role__name__icontains="admin") | Q(role__name__icontains="Admin")
         ).values_list("user_id", flat=True)
-        admin_users = User.objects.filter(
-            Q(is_staff=True) | Q(is_superuser=True) | Q(pk__in=admin_user_ids)
-        )
-        self.fields["owner"].queryset = admin_users
-        self.fields["owner"].empty_label = "--- Admin tanlang ---"
+        branch_admin_ids = AdminBranch.objects.values_list("user_id", flat=True)
+        # Filialga biriktirilgan xodimlar ham kassa egasi bo'lishi mumkin.
+        branch_employee_ids = EmpModel.objects.filter(
+            branches__isnull=False
+        ).values_list("user_id", flat=True)
+        return User.objects.filter(
+            Q(is_staff=True)
+            | Q(is_superuser=True)
+            | Q(pk__in=admin_user_ids)
+            | Q(pk__in=branch_admin_ids)
+            | Q(pk__in=branch_employee_ids)
+        ).order_by("first_name", "last_name", "username")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        branch = cleaned_data.get("branch")
+        owner = cleaned_data.get("owner")
+        user = self.user
+        if (
+            user is not None
+            and not getattr(user, "is_superuser", False)
+            and owner is not None
+            and owner.pk != user.pk
+        ):
+            self.add_error(
+                "owner",
+                "Siz faqat o'zingiz uchun kassa ochishingiz (tahrirlashingiz) mumkin. "
+                "Boshqa administrator nomiga kassa yaratib bo'lmaydi.",
+            )
+        if branch and owner and not self.branch_scope.can_own_branch_kassa(owner, branch):
+            self.add_error(
+                "owner",
+                "Bu admin «%s» filialiga biriktirilmagan. Avval uni filialga "
+                "biriktiring (Filial → Administratorlar)." % branch.name,
+            )
+        return cleaned_data
 
 
 class KassaIncomeForm(forms.Form):
@@ -683,11 +881,19 @@ class KassaTransferForm(forms.Form):
         label="Izoh",
     )
 
-    def __init__(self, *args, exclude_kassa=None, **kwargs):
+    def __init__(self, *args, exclude_kassa=None, branches=None, can_transfer_main=False, **kwargs):
         super().__init__(*args, **kwargs)
-        qs = Kassa.objects.filter(is_active=True)
+        # O'z filiali kassalariga (va ruxsat bo'lsa — asosiy kassaga) o'tkazish mumkin.
+        qs = _branch_kassa_queryset(None)
+        if branches is not None:
+            qs = qs.filter(
+                Q(branch_id__in=[b.pk for b in branches]) | Q(is_main=True)
+            )
         if exclude_kassa:
             qs = qs.exclude(pk=exclude_kassa.pk)
+        if not can_transfer_main:
+            # Asosiy kassaga pul o'tkazish — 'cashbox.transfer_main' huquqi talab.
+            qs = qs.exclude(is_main=True)
         self.fields["to_kassa"].queryset = qs
 
 

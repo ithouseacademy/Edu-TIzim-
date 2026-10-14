@@ -2,6 +2,7 @@ from frontend.permissions import get_permissions, is_super_admin
 from frontend.models import Task, Feedback
 from frontend.reminder_state import unread_count_for
 from frontend import messaging_api
+from frontend import branch_scope
 
 
 def perms_context(request):
@@ -43,6 +44,46 @@ def messaging_context(request):
     return {
         "can_messaging": can_messaging,
         "messaging_unread": messaging_unread,
+    }
+
+
+def branch_context(request):
+    """Filial tanlash context'i.
+
+    Shablonlarda ishlatiladi:
+      - `current_branch`      : joriy tanlangan filial (None = barchasi)
+      - `branch_options`      : tanlash mumkin bo'lgan filiallar
+      - `can_switch_branch`   : tanlagich ko'rsatilishi kerakmi
+      - `branch_locked`       : xodim/o'quvchi o'z filialiga «bog'langan»
+    """
+    user = getattr(request, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return {
+            "current_branch": None,
+            "branch_options": [],
+            "can_switch_branch": False,
+            "branch_locked": False,
+            "branch_filter_active": False,
+        }
+    current = branch_scope.get_current_branch(request)
+    locked = not branch_scope.can_switch_branch(user)
+    locked_branch = None
+    if locked:
+        # Xodim bir nechta filialda ishlaydi — nomini ko'rsatish uchun birinchisi.
+        locked_branch = branch_scope.default_branch_for(user) or branch_scope._employee_branch(user)
+        if current is None:
+            current = locked_branch
+    can_add_all = branch_scope.can_add_to_all_branches(user)
+    add_default = branch_scope.default_add_branch(user, current)
+    return {
+        "current_branch": current,
+        "locked_branch": locked_branch,
+        "branch_options": list(branch_scope.available_branches(user)),
+        "can_switch_branch": branch_scope.can_switch_branch(user),
+        "branch_locked": locked,
+        "branch_filter_active": current is not None,
+        "can_add_to_all_branches": can_add_all,
+        "default_branch_id": add_default.pk if add_default is not None else None,
     }
 
 

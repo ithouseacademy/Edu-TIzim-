@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react"
+import { Coins, Gift, Loader2, TrendingUp, TrendingDown } from "lucide-react"
 import { api } from "../api"
-import type { GroupDetailData } from "../types"
+import type { GroupDetailData, CoinReasonItem, CoinStudentDetail } from "../types"
 import DesktopShell from "../components/DesktopShell"
 
 function ChevronLeftIcon({ className }: { className?: string }) {
@@ -180,6 +181,7 @@ export default function TeacherGroupDetail({ id, onBack, onAttendance }: { id: n
   const [editTelegram, setEditTelegram] = useState("")
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState("")
+  const [coinStudent, setCoinStudent] = useState<{ id: number; name: string } | null>(null)
 
   const emp = JSON.parse(localStorage.getItem("employee") || "{}")
   const initials = ((emp.first_name?.[0] || "") + (emp.last_name?.[0] || "")).toUpperCase()
@@ -412,7 +414,12 @@ export default function TeacherGroupDetail({ id, onBack, onAttendance }: { id: n
                 {students.map((s, idx) => {
                   const avInitials = (s.first_name[0] + s.last_name[0]).toUpperCase()
                   return (
-                    <div key={s.id} className="card-premium p-3 flex items-center gap-3 animate-page-enter" style={{ animationDelay: `${idx * 40}ms` }}>
+                    <button
+                      key={s.id}
+                      onClick={() => setCoinStudent({ id: s.id, name: `${s.first_name} ${s.last_name}` })}
+                      className="card-premium p-3 flex items-center gap-3 animate-page-enter w-full text-left cursor-pointer border-none"
+                      style={{ animationDelay: `${idx * 40}ms` }}
+                    >
                       <div className="w-[36px] h-[36px] rounded-xl bg-[#2001FF]/10 text-[#2001FF] flex items-center justify-center font-bold text-[13px] shrink-0">
                         {avInitials}
                       </div>
@@ -447,12 +454,15 @@ export default function TeacherGroupDetail({ id, onBack, onAttendance }: { id: n
                           </div>
                         )}
                       </div>
+                      <span className="w-8 h-8 rounded-full bg-[#FFF7E6] flex items-center justify-center shrink-0">
+                        <Coins size={15} className="text-[#F59E0B]" />
+                      </span>
                       {s.is_frozen ? (
                         <StatusBadge status="frozen" label="Muzlatilgan" />
                       ) : (
                         <StatusBadge status="active" label="Faol" />
                       )}
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -644,13 +654,18 @@ export default function TeacherGroupDetail({ id, onBack, onAttendance }: { id: n
                       <th className="px-6 py-3 text-left">Bugungi davomat</th>
                       <th className="px-6 py-3 text-right">Balans</th>
                       <th className="px-6 py-3 text-right">Telefon</th>
+                      <th className="px-6 py-3 text-right">Amal</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {students.map((s, idx) => {
                       const avInitials = (s.first_name[0] + s.last_name[0]).toUpperCase()
                       return (
-                        <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                        <tr
+                          key={s.id}
+                          onClick={() => setCoinStudent({ id: s.id, name: `${s.first_name} ${s.last_name}` })}
+                          className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                        >
                           <td className="px-6 py-3.5 text-slate-400 font-medium">{idx + 1}</td>
                           <td className="px-6 py-3.5">
                             <div className="flex items-center gap-3">
@@ -702,6 +717,12 @@ export default function TeacherGroupDetail({ id, onBack, onAttendance }: { id: n
                           </td>
                           <td className="px-6 py-3.5 text-right text-slate-600 font-medium whitespace-nowrap">
                             {s.phone}
+                          </td>
+                          <td className="px-6 py-3.5 text-right">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FFF7E6] text-[#B45309] text-[12px] font-semibold whitespace-nowrap">
+                              <Coins size={14} />
+                              Coin berish
+                            </span>
                           </td>
                         </tr>
                       )
@@ -943,6 +964,195 @@ export default function TeacherGroupDetail({ id, onBack, onAttendance }: { id: n
           </div>
         </div>
       )}
+      {/* Coin give sheet */}
+      {coinStudent && (
+        <StudentCoinSheet
+          studentId={coinStudent.id}
+          studentName={coinStudent.name}
+          onClose={() => setCoinStudent(null)}
+        />
+      )}
     </>
+  )
+}
+
+function StudentCoinSheet({
+  studentId,
+  studentName,
+  onClose,
+}: {
+  studentId: number
+  studentName: string
+  onClose: () => void
+}) {
+  const [detail, setDetail] = useState<CoinStudentDetail | null>(null)
+  const [reasons, setReasons] = useState<CoinReasonItem[]>([])
+  const [mode, setMode] = useState<"bonus" | "penalty">("bonus")
+  const [reasonId, setReasonId] = useState<number | null>(null)
+  const [description, setDescription] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  const loadDetail = () => {
+    api.coinStudentDetail(studentId).then(setDetail).catch(() => {})
+  }
+
+  useEffect(() => {
+    loadDetail()
+    api.coinReasons().then((d) => setReasons(d.reasons)).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId])
+
+  const modeReasons = reasons.filter(
+    (r) => r.is_active && r.reason_type === (mode === "bonus" ? "BONUS" : "PENALTY")
+  )
+
+  const submit = async () => {
+    if (!reasonId) {
+      setError("Sabab tanlang")
+      return
+    }
+    setSaving(true)
+    setError("")
+    setSuccess("")
+    try {
+      await api.coinGive({ student_id: studentId, reason_id: reasonId, description })
+      setSuccess("Coin muvaffaqiyatli berildi")
+      setReasonId(null)
+      setDescription("")
+      loadDetail()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Xatolik")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center">
+      <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white rounded-t-[24px] md:rounded-[24px] shadow-premium-lg max-h-[92vh] flex flex-col overflow-hidden animate-slide-in-upside">
+        <div className="px-5 py-4 flex items-center justify-between shrink-0 border-b border-gray-100">
+          <div className="min-w-0">
+            <h3 className="text-[17px] font-bold text-gray-900 truncate">{studentName}</h3>
+            <p className="text-[11px] font-medium text-gray-400">Coin berish</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-[#F2F3F5] flex items-center justify-center text-gray-500 btn-hover border-none cursor-pointer shrink-0"
+          >
+            <CloseIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 overflow-y-auto space-y-4">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-[#2001FF]/10 p-2.5 text-center">
+              <p className="text-[9px] font-semibold text-[#2001FF]">Balans</p>
+              <p className="text-[16px] font-extrabold text-[#2001FF]">{detail?.summary.balance ?? "—"}</p>
+            </div>
+            <div className="rounded-xl bg-green-50 p-2.5 text-center">
+              <p className="text-[9px] font-semibold text-green-600">Bonus</p>
+              <p className="text-[16px] font-extrabold text-green-700">{detail?.summary.bonus ?? 0}</p>
+            </div>
+            <div className="rounded-xl bg-red-50 p-2.5 text-center">
+              <p className="text-[9px] font-semibold text-red-500">Penalty</p>
+              <p className="text-[16px] font-extrabold text-red-500">{detail?.summary.penalty ?? 0}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => { setMode("bonus"); setReasonId(null); setError("") }}
+              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-semibold btn-hover border-none cursor-pointer ${
+                mode === "bonus" ? "bg-green-600 text-white" : "bg-green-50 text-green-600"
+              }`}
+            >
+              <TrendingUp size={14} /> Bonus
+            </button>
+            <button
+              onClick={() => { setMode("penalty"); setReasonId(null); setError("") }}
+              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-semibold btn-hover border-none cursor-pointer ${
+                mode === "penalty" ? "bg-red-500 text-white" : "bg-red-50 text-red-500"
+              }`}
+            >
+              <TrendingDown size={14} /> Penalty
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {modeReasons.length === 0 && (
+              <p className="text-[11px] text-gray-400 py-1">
+                {mode === "bonus" ? "Bonus" : "Penalty"} sabablari mavjud emas
+              </p>
+            )}
+            {modeReasons.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => setReasonId(r.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[11px] font-semibold btn-hover border-none cursor-pointer ${
+                  reasonId === r.id
+                    ? mode === "bonus"
+                      ? "bg-green-600 text-white"
+                      : "bg-red-500 text-white"
+                    : "bg-[#F4F5FA] text-gray-600"
+                }`}
+              >
+                {r.name}
+                <span className="font-extrabold">
+                  {r.amount >= 0 ? "+" : ""}
+                  {r.amount}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Izoh (ixtiyoriy)"
+            className="w-full px-3.5 py-3 text-[13px] bg-white border border-gray-200 rounded-xl outline-none text-gray-900 focus:border-[#2001FF]"
+          />
+
+          {error && <p className="text-[12px] font-semibold text-red-500">{error}</p>}
+          {success && <p className="text-[12px] font-semibold text-green-600">{success}</p>}
+
+          <button
+            onClick={submit}
+            disabled={saving || !reasonId}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#2001FF] text-white text-[14px] font-bold btn-hover disabled:opacity-50"
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Gift size={16} />}
+            Berish
+          </button>
+
+          {detail && detail.transactions.length > 0 && (
+            <div>
+              <p className="text-[12px] font-bold text-gray-500 mb-1.5">So'nggi amallar</p>
+              <div className="divide-y divide-gray-50">
+                {detail.transactions.slice(0, 5).map((t) => (
+                  <div key={t.id} className="flex items-center justify-between gap-2 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-semibold text-gray-800 truncate">
+                        {t.reason_name || t.transaction_type_display}
+                      </p>
+                      <p className="text-[10px] text-gray-400">
+                        {t.date} {t.time}
+                        {t.created_by ? ` · ${t.created_by}` : ""}
+                      </p>
+                    </div>
+                    <p className={`text-[12px] font-extrabold shrink-0 ${t.amount >= 0 ? "text-green-600" : "text-red-500"}`}>
+                      {t.amount >= 0 ? "+" : ""}
+                      {t.amount}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }

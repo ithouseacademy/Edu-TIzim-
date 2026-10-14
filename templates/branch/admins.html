@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ branch.name }} — adminlar | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>{{ branch.name }}</h2>
+        <span class="page-header-count">Filiallar adminlari</span>
+    </div>
+    <div class="page-header-right">
+        <a href="{% url 'branch_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Filiallar</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header between">
+        <h3><i class="fas fa-user-shield"></i> {{ branch.name }} filialiga biriktirilgan adminlar</h3>
+    </div>
+    <div class="card-body">
+        <p style="margin-bottom:14px;color:var(--text-muted);font-size:0.9rem;">
+            Tanlangan adminlar faqat <strong>{{ branch.name }}</strong> filialining ma'lumatlarini
+            ko'radi va boshqaradi. Super admin barcha filiallarni boshqaradi.
+            Biriktirilmagan adminlar barcha filiallarni ko'radi.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            {% for admin in admins %}
+            <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;">
+                <input type="checkbox" name="admins" value="{{ admin.id }}"
+                       {% if admin.id in selected_ids or admin.is_superuser %}checked{% endif %}
+                       {% if admin.is_superuser %}disabled{% endif %}>
+                <span style="flex:1;">
+                    <strong>{{ admin.first_name|default:admin.username }} {{ admin.last_name }}</strong>
+                    <span style="color:var(--text-muted);font-size:0.85rem;">&nbsp;@{{ admin.username }}</span>
+                </span>
+                {% if admin.is_superuser %}
+                <span class="badge badge-info">Super admin — barcha filiallar</span>
+                {% elif not admin.is_active %}
+                <span class="badge badge-secondary">Bloklangan</span>
+                {% endif %}
+            </label>
+            {% endfor %}
+            {% if not admins %}
+            <div class="empty">Adminlar mavjud emas</div>
+            {% endif %}
+            <div style="margin-top:16px;display:flex;gap:8px;">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Saqlash</button>
+                <a href="{% url 'branch_list' %}" class="btn btn-secondary">Bekor qilish</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

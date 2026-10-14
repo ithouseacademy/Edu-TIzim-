@@ -20,6 +20,15 @@ def generate_code():
     return str(random.randint(100000, 999999))
 
 
+def _student_photo_url(request, student):
+    if not student.photo:
+        return None
+    url = student.photo.url
+    if url and not url.startswith("http"):
+        url = request.build_absolute_uri(url)
+    return url
+
+
 def generate_token():
     return ''.join(random.choices(string.ascii_letters + string.digits, k=64))
 
@@ -352,26 +361,59 @@ def telegram_webhook(request):
     if not chat_id:
         return JsonResponse({"ok": False})
 
-    phone = ""
-    if contact:
-        phone = contact.get("phone_number", "")
-    elif text:
-        if text.startswith("/start"):
-            parts = text.split(maxsplit=1)
-            phone = parts[1].strip() if len(parts) > 1 else ""
-        else:
-            phone = text
+    # ===== Coin buyruqlari =====
+    if text.startswith("/coin"):
+        student = Student.objects.filter(telegram_chat_id=chat_id).first()
+        if not student:
+            send_telegram_message(
+                chat_id,
+                "❌ Siz o'quvchi sifatida hali bog'lanmagansiz.\n/start orqali telefon raqamingizni yuboring.",
+            )
+            return JsonResponse({"ok": True})
+        from coins.models import CoinTransaction
+        from coins.services import student_coin_summary
 
-    if not phone and text and text.startswith("/start"):
-        ask_keyboard = {
-            "keyboard": [[{"text": "📱 Telefon raqamni yuborish", "request_contact": True}]],
-            "resize_keyboard": True,
-            "one_time_keyboard": True
-        }
-        send_telegram_keyboard(chat_id,
+        summary = student_coin_summary(student)
+        lines = [
+            "🪙 Sizning Coin hisobingiz",
+            "",
+            f"💰 Balans: {summary['balance']} coin",
+            f"📈 Bugun to'plangan: {summary['today_coins']} (umumiy {summary['today']:+})",
+            f"🎉 Bonus: {summary['bonus']:+}",
+            f"⚠️ Penalty: {summary['penalty']:+}",
+            f"📅 Davomat: {summary['attendance']:+}",
+            f"🛍️ Shop sarflangan: {summary['shop']:+}",
+        ]
+        if "history" in text.lower():
+            txs = list(CoinTransaction.objects.filter(student=student).order_by("-created_at")[:5])
+            if txs:
+                lines.append("")
+                lines.append("🕘 Oxirgi amallar:")
+                icons = {
+                    "BONUS": "➕",
+                    "PENALTY": "➖",
+                    "ATTENDANCE": "📅",
+                    "SHOP": "🛍️",
+                    "ADJUSTMENT": "🛠️",
+                    "REVERSAL": "↩️",
+                }
+                for t in txs:
+                    lines.append(
+                        f"{icons.get(t.transaction_type, '•')} {t.amount:+} — "
+                        f"{t.reason_name or t.get_transaction_type_display()}"
+                    )
+        send_telegram_message(chat_id, "\n".join(lines))
+        return JsonResponse({"ok": True})
+
+    phone = contact.get("phone_number", "") if contact else ""
+
+    if not phone:
+        send_telegram_keyboard(
+            chat_id,
             "👋 Assalomu alaykum! IT House Superapp botiga xush kelibsiz.\n\n"
-            "Iltimos, telefon raqamingizni yuboring yoki quyidagi tugmani bosing:",
-            ask_keyboard
+            "Iltimos, telefon raqamingizni «📱 Telefon raqamni yuborish» tugmasi orqali yuboring.\n"
+            "Qo'lda raqam yozish qabul qilinmaydi.",
+            _ask_phone_keyboard(),
         )
         return JsonResponse({"ok": True})
 
@@ -522,30 +564,23 @@ def process_eslatma_update(data):
         send_telegram_inline(chat_id, text, btns, token=REMINDER_BOT_TOKEN)
         return
 
-    phone = ""
-    if contact:
-        phone = contact.get("phone_number", "")
-    elif text:
-        if text.startswith("/start"):
-            parts = text.split(maxsplit=1)
-            phone = parts[1].strip() if len(parts) > 1 else ""
-        else:
-            phone = text
+    phone = contact.get("phone_number", "") if contact else ""
 
-    if not phone and text and text.startswith("/start"):
+    if not phone:
         if linked_emp:
-            send_telegram_message(
+            send_telegram_keyboard(
                 chat_id,
-                "👋 Assalomu alaykum! Topshiriq va eslatmalaringiz shu botda turadi.\n\n"
-                "Bo'limni tanlang: «📋 Topshiriqlar» yoki «📢 Eslatmalar».",
+                "Qo'lda raqam yozish qabul qilinmaydi. Iltimos, telefon raqamingizni "
+                "«📱 Telefon raqamni yuborish» tugmasi orqali yuboring.",
+                _ask_phone_keyboard(),
                 token=REMINDER_BOT_TOKEN,
             )
-            send_telegram_keyboard(chat_id, "Bo'limni tanlang:", main_menu_keyboard(), token=REMINDER_BOT_TOKEN)
         else:
             send_telegram_keyboard(
                 chat_id,
                 "👋 Assalomu alaykum! IT House eslatma botiga xush kelibsiz.\n\n"
-                "Topshiriq va eslatmalarni shu botda olish uchun telefon raqamingizni yuboring:",
+                "Iltimos, telefon raqamingizni «📱 Telefon raqamni yuborish» tugmasi orqali yuboring.\n"
+                "Qo'lda raqam yozish qabul qilinmaydi.",
                 _ask_phone_keyboard(),
                 token=REMINDER_BOT_TOKEN,
             )
@@ -848,6 +883,7 @@ def profile(request):
             "first_name": student.first_name,
             "last_name": student.last_name,
             "phone": student.phone,
+            "photo": _student_photo_url(request, student),
             "birth_date": student.birth_date.isoformat() if student.birth_date else "",
             "father_full_name": student.father_full_name or "",
             "father_phone": student.father_phone or "",
@@ -866,6 +902,20 @@ def profile(request):
         "groups": groups_data,
         "transactions": transactions_data,
     })
+
+
+@csrf_exempt
+@student_required
+def upload_photo(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST so'rovi kerak"}, status=405)
+    student = request.student
+    photo = request.FILES.get("photo")
+    if not photo:
+        return JsonResponse({"error": "Rasm topilmadi"}, status=400)
+    student.photo = photo
+    student.save(update_fields=["photo"])
+    return JsonResponse({"success": True, "photo": _student_photo_url(request, student)})
 
 
 @csrf_exempt
@@ -1161,3 +1211,41 @@ def create_feedback(request):
         "message": "Xabaringiz yuborildi. Administratorga yetkazildi.",
         "feedback": _feedback_dict(feedback),
     })
+
+
+# ============================================================
+# YANGILIKLAR (News)
+# ============================================================
+
+
+def _news_dict(n):
+    return {
+        "id": n.id,
+        "title": n.title,
+        "body": n.body or "",
+        "category": n.category,
+        "category_display": n.get_category_display(),
+        "image": n.image.url if n.image else "",
+        "is_pinned": n.is_pinned,
+        "link": n.link or "",
+        "link_text": n.get_link_label(),
+        "published_at": n.published_at.strftime("%d.%m.%Y") if n.published_at else "",
+        "created_at": n.created_at.astimezone(use_tz.get_current_timezone()).strftime("%d.%m.%Y %H:%M"),
+    }
+
+
+@student_required
+def news(request):
+    """O'quvchiga ko'rsatiladigan nashrlangan yangiliklar (guruh filtri bilan)."""
+    from .models import News
+    student = request.student
+    group_ids = list(
+        student.groups.filter(status__in=["aktiv", "kutilyotgan"]).values_list("id", flat=True)
+    )
+    items = (
+        News.objects.filter(is_published=True)
+        .filter(Q(audience="barcha") | Q(audience="guruh", groups__id__in=group_ids))
+        .distinct()
+        .order_by("-is_pinned", "-published_at", "-created_at")[:50]
+    )
+    return JsonResponse({"news": [_news_dict(n) for n in items]})

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static perm_tags %}
+{% load static perm_tags dict_filters %}
 {% block title %}Audit log | Edu Tizim{% endblock %}
 {% block extra_css %}
 <script src="https://cdn.tailwindcss.com"></script>
@@ -38,6 +38,8 @@
             <td class="px-5 py-3">
               {% if log.action == "grant" %}
               <span class="badge badge-green"><i class="fas fa-check"></i> Berildi</span>
+              {% elif log.action == "deny" %}
+              <span class="badge badge-red" title="{{ log.detail }}"><i class="fas fa-ban"></i> Rad etilgan</span>
               {% else %}
               <span class="badge badge-red"><i class="fas fa-times"></i> Olib tashlandi</span>
               {% endif %}

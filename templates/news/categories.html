@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Yangilik turlari | Edu Tizim{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h2><i class="fas fa-tags" style="color:#7c3aed;margin-right:8px;"></i>Yangilik turlari</h2>
+    <span class="page-header-count">{{ rows|length }} ta tur</span>
+  </div>
+  <div class="page-header-right">
+    <a href="{% url 'news_list' %}" class="btn btn-secondary"><i class="fas fa-newspaper"></i> Yangiliklar</a>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header between">
+    <h3><i class="fas fa-plus-circle"></i> Yangi tur qo'shish</h3>
+  </div>
+  <div class="card-body">
+    <form method="post" action="{% url 'news_category_create' %}" style="display:flex;gap:12px;flex-wrap:wrap;">
+      {% csrf_token %}
+      <input type="text" name="label" class="form-control" style="flex:1;min-width:220px;" placeholder="Tur nomi (masalan: Olimpiada)" maxlength="100" required>
+      <input type="text" name="value" class="form-control" style="flex:0 1 200px;min-width:160px;" placeholder="Kod (ixtiyoriy)" maxlength="40">
+      <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Qo'shish</button>
+    </form>
+    <small style="color:#94a3b8;font-size:0.78rem;margin-top:8px;display:block;">
+      <i class="fas fa-circle-info"></i> Kod bo'sh qoldirilsa tur nomidan avtomatik yaratiladi. Kod yangiliklar bilan bog'liq bo'lgani uchun keyin o'zgartirilmaydi.
+    </small>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header between">
+    <h3><i class="fas fa-list-alt"></i> Turlar ro'yxati</h3>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nomi</th>
+          <th>Kod</th>
+          <th>Yangiliklar</th>
+          <th>Holat</th>
+          <th>Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>
+            <form method="post" action="{% url 'news_category_update' pk=r.cat.id %}" style="display:flex;gap:6px;align-items:center;">
+              {% csrf_token %}
+              <input type="text" name="label" class="form-control" value="{{ r.cat.label }}" maxlength="100" style="height:32px;padding:4px 10px;font-size:0.82rem;min-width:170px;">
+              <button type="submit" class="btn btn-sm btn-secondary" title="Nomi saqlash"><i class="fas fa-check"></i></button>
+            </form>
+          </td>
+          <td>
+            {% if r.cat.value != r.cat.label %}
+            <code style="background:#f1f5f9;color:#475569;padding:3px 8px;border-radius:5px;font-size:0.78rem;">{{ r.cat.value }}</code>
+            {% else %}
+            <span style="color:#cbd5e1;">—</span>
+            {% endif %}
+          </td>
+          <td>{{ r.count }} ta</td>
+          <td>
+            {% if r.cat.is_active %}
+            <span class="badge badge-green"><i class="fas fa-check-circle"></i> Faol</span>
+            {% else %}
+            <span class="badge" style="background:#f1f5f9;color:#64748b;"><i class="fas fa-pause-circle"></i> O'chirilgan</span>
+            {% endif %}
+          </td>
+          <td class="actions">
+            <form method="post" action="{% url 'news_category_toggle' pk=r.cat.id %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm {% if r.cat.is_active %}btn-danger{% else %}btn-primary{% endif %}" title="{% if r.cat.is_active %}O'chirish{% else %}Yoqish{% endif %}">
+                <i class="fas {% if r.cat.is_active %}fa-toggle-off{% else %}fa-toggle-on{% endif %}"></i>
+              </button>
+            </form>
+            <form method="post" action="{% url 'news_category_delete' pk=r.cat.id %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-danger" title="Butunlay o'chirish" onclick="return confirm('Bu tur butunlay o&#39;chirilsinmi?');">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="empty">
+            <i class="fas fa-tags" style="font-size:2rem;opacity:.2;display:block;margin-bottom:8px;"></i>
+            Turlar mavjud emas
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

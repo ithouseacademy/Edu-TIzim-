@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, CourseLevel, MarketingSurvey, Group, Student, LessonTime, StudentLog, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, VerificationCode, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, Kassa, KassaTransaction, KassaTransfer, PaymentMethod, ExpenseCategory, SmsHistory, TeacherBalance, TeacherTransaction, GroupTeacherAssignment, LessonTeacherSalary, Permission as PermissionModel, AdminPermission, PermissionAuditLog, Feedback, Chat, ChatMember, Message
+from .models import Course, CourseLevel, MarketingSurvey, Group, Student, LessonTime, StudentLog, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, VerificationCode, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, Kassa, KassaTransaction, KassaTransfer, PaymentMethod, ExpenseCategory, SmsHistory, TeacherBalance, TeacherTransaction, GroupTeacherAssignment, LessonTeacherSalary, Permission as PermissionModel, AdminPermission, PermissionAuditLog, Feedback, Chat, ChatMember, Message, News, NewsCategory, AdminBranch
 
 
 @admin.register(Student)
@@ -17,6 +17,7 @@ admin.site.register(Group)
 admin.site.register(LessonTime)
 admin.site.register(StudentLog)
 admin.site.register(Branch)
+admin.site.register(AdminBranch)
 admin.site.register(Room)
 admin.site.register(Role)
 admin.site.register(Position)
@@ -174,3 +175,20 @@ class MessageAdmin(admin.ModelAdmin):
     @admin.display(description="Yuboruvchi")
     def sender(self, obj):
         return str(obj.student or obj.employee or obj.user or "-")
+
+
+@admin.register(News)
+class NewsAdmin(admin.ModelAdmin):
+    list_display = ["id", "title", "category", "audience", "is_published", "is_pinned", "published_at", "created_by"]
+    list_filter = ["category", "audience", "is_published", "is_pinned"]
+    search_fields = ["title", "body"]
+    filter_horizontal = ["groups"]
+    readonly_fields = ["created_at", "updated_at"]
+
+
+@admin.register(NewsCategory)
+class NewsCategoryAdmin(admin.ModelAdmin):
+    list_display = ["id", "label", "value", "is_active", "order"]
+    list_filter = ["is_active"]
+    search_fields = ["label", "value"]
+    list_editable = ["is_active", "order"]

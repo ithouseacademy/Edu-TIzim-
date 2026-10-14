@@ -74,6 +74,11 @@
     <h2>{{ group.name }}</h2>
     <span class="page-header-count">Guruh profili</span>
   </div>
+  {% if can_messaging and group_chat_id %}
+  <div class="page-header-right">
+    <a href="{% url 'messaging' %}?chat={{ group_chat_id }}" class="btn btn-primary btn-sm"><i class="fas fa-comments"></i> <span>Chat</span></a>
+  </div>
+  {% endif %}
 </div>
 
 <!-- GURUH MA'LUMOTLARI + 3-NUQTA -->

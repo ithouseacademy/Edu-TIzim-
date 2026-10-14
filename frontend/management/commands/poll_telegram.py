@@ -108,19 +108,14 @@ class Command(BaseCommand):
             phone = contact.get("phone_number", "")
             stdout.write("  Kontakt: " + phone + "\n")
             stdout.flush()
-        elif text:
-            if text.startswith("/start"):
-                parts = text.split(maxsplit=1)
-                phone = parts[1].strip() if len(parts) > 1 else ""
-            else:
-                phone = text
 
         token = bot["token"]
 
-        if not phone and text and text.startswith("/start"):
+        if not phone:
             msg_text = (
                 "👋 Assalomu alaykum! IT House Superapp botiga xush kelibsiz.\n\n"
-                "Iltimos, telefon raqamingizni yuboring yoki quyidagi tugmani bosing:"
+                "Iltimos, telefon raqamingizni «📱 Telefon raqamni yuborish» tugmasi orqali yuboring.\n"
+                "Qo'lda raqam yozish qabul qilinmaydi."
             )
             ask_keyboard = {
                 "keyboard": [[{"text": "📱 Telefon raqamni yuborish", "request_contact": True}]],
@@ -128,7 +123,7 @@ class Command(BaseCommand):
                 "one_time_keyboard": True
             }
             send_telegram_keyboard(chat_id, msg_text, ask_keyboard, token=token)
-            stdout.write("  /start ga javob yuborildi\n")
+            stdout.write("  Kontakt tugmasi so'raldi\n")
             stdout.flush()
             return
 

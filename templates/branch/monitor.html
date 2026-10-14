@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}{{ title }} | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2><i class="fas fa-chart-line"></i> Filial kuzatuvi</h2>
+        <span class="page-header-count">{{ rows|length }} ta filial · Jami balans: {{ total_balance|floatformat:0 }} so'm</span>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h3><i class="fas fa-building"></i> Filiallar bo'yicha kassalar</h3></div>
+    <div class="card-body" style="padding:0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Filial</th><th>Kassa</th><th>Egasi</th><th>Balans</th>
+                    <th>Kutilmoqda (kiruvchi)</th><th>Kutilmoqda (chiqaruvchi)</th><th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td><strong><i class="fas fa-map-marker-alt"></i> {{ row.branch.name }}</strong>
+                        <br><small class="text-muted">{{ row.kassa_count }} ta kassa</small></td>
+                    <td colspan="2">
+                        {% for k in row.kassalar %}
+                        <div style="display:flex;justify-content:space-between;padding:2px 0;">
+                            <span>{{ k.name }}</span>
+                            <small class="text-muted">{{ k.owner|default:"—" }}</small>
+                        </div>
+                        {% empty %}<span class="text-muted">Kassa yo'q</span>{% endfor %}
+                    </td>
+                    <td><strong>{{ row.balance|floatformat:0 }}</strong> so'm</td>
+                    <td>{% if row.pending_in %}<span class="badge badge-yellow">{{ row.pending_in }}</span>{% else %}—{% endif %}</td>
+                    <td>{% if row.pending_out %}<span class="badge badge-yellow">{{ row.pending_out }}</span>{% else %}—{% endif %}</td>
+                    <td><a href="{% url 'branch_admin_branches' row.branch.pk %}" class="btn btn-sm btn-secondary">Adminlar</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="empty">Filial yo'q</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header between">
+        <h3><i class="fas fa-hourglass-half"></i> Tasdiqlash kutilmoqda ({{ pending|length }})</h3>
+        <a href="{% url 'kassa_transfer_list' %}" class="btn btn-sm btn-primary">Barcha o'tkazmalar</a>
+    </div>
+    <div class="card-body" style="padding:0;">
+        <table class="table">
+            <thead><tr><th>Sana</th><th>Yuboruvchi</th><th>Qabul qiluvchi</th><th>Summa</th><th>So'rovchi</th><th>Izoh</th></tr></thead>
+            <tbody>
+                {% for t in pending %}
+                <tr>
+                    <td>{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ t.from_branch|default:"—" }}</td>
+                    <td>{{ t.to_branch|default:"—" }}</td>
+                    <td><strong>{{ t.amount|floatformat:0 }}</strong> so'm</td>
+                    <td>{{ t.created_by }}</td>
+                    <td><small>{{ t.description|truncatechars:60 }}</small></td>
+                </tr>
+                {% empty %}<tr><td colspan="6" class="empty">Kutilayotgan o'tkazma yo'q</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h3><i class="fas fa-history"></i> So'nggi yakunlangan o'tkazmalar</h3></div>
+    <div class="card-body" style="padding:0;">
+        <table class="table">
+            <thead><tr><th>Sana</th><th>Yuboruvchi</th><th>Qabul qiluvchi</th><th>Summa</th><th>Holat</th><th>Tasdiqlagan</th></tr></thead>
+            <tbody>
+                {% for t in recent %}
+                <tr>
+                    <td>{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ t.from_branch|default:"—" }}</td>
+                    <td>{{ t.to_branch|default:"—" }}</td>
+                    <td><strong>{{ t.amount|floatformat:0 }}</strong> so'm</td>
+                    <td>
+                        {% if t.status == "approved" %}<span class="badge badge-green">Tasdiqlangan</span>
+                        {% elif t.status == "rejected" %}<span class="badge badge-red">Rad etilgan</span>
+                        {% else %}<span class="badge">—</span>{% endif %}
+                    </td>
+                    <td>{{ t.reviewed_by|default:"—" }}</td>
+                </tr>
+                {% empty %}<tr><td colspan="6" class="empty">O'tkazma yo'q</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

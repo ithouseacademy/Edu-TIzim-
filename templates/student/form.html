@@ -104,7 +104,7 @@
             <i class="fas fa-info-circle"></i>
             <span><strong>Guruhni bo'sh qoldirsangiz</strong>, o'quvchi avtomatik <strong>"Kutilyotganlar"</strong> bo'limiga tushadi.</span>
         </div>
-        <form method="post" id="studentForm">
+        <form method="post" id="studentForm" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="form-row-grid">
                 {% for field in form %}

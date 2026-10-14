@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom"
-import { Home, CalendarDays, MessageCircle, User } from "lucide-react"
+import { Home, CalendarDays, MessageCircle, User, Coins } from "lucide-react"
 import { useAppSettings } from "../AppSettings"
 import { useMessagingSettings } from "../messaging"
 
 const allTabs = [
   { icon: Home, label: "Home", path: "/home" },
   { icon: CalendarDays, label: "Schedule", path: "/schedule" },
+  { icon: Coins, label: "Coin", path: "/coins" },
   { icon: MessageCircle, label: "Messages", path: "/messages" },
   { icon: User, label: "Profile", path: "/profile" },
 ]

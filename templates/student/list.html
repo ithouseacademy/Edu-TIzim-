@@ -219,6 +219,7 @@
                     <th class="sl-col-num">#</th>
                     <th>O'quvchi</th>
                     <th class="sl-phone-col">Telefon</th>
+                    {% if not branch_locked %}<th>Filial</th>{% endif %}
                     <th class="sl-groups-col">Guruhlar</th>
                     <th>Balans</th>
                     <th class="sl-col-age sl-age-col">Yosh</th>
@@ -241,6 +242,7 @@
                         </div>
                     </td>
                     <td class="sl-phone sl-phone-col">+998 {{ s.phone }}</td>
+                    {% if not branch_locked %}<td>{{ s.branch_name|default:"—" }}</td>{% endif %}
                     <td class="sl-groups-col">
                         <div class="sl-groups">
                             {% if s.groups %}

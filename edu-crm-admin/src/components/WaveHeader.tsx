@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { Link } from "react-router-dom"
 
 interface WaveHeaderProps {
   title: string
@@ -19,7 +20,11 @@ export default function WaveHeader({ title, subtitle, leftSlot, rightSlot }: Wav
               <p className="text-[9px] font-medium text-white/65 mt-px truncate">{subtitle}</p>
             )}
           </div>
-          <div className="w-7 shrink-0 flex justify-end">{rightSlot}</div>
+          <div className="w-7 shrink-0 flex justify-end">
+            <Link to="/profile" aria-label="Profil" className="btn-hover">
+              {rightSlot}
+            </Link>
+          </div>
         </div>
       </div>
     </header>

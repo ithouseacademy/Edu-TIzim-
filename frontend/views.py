@@ -14,16 +14,101 @@ from django.contrib import messages
 from django.db.models import Count, Q, Sum
 from django.db import IntegrityError
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 from datetime import date, timedelta, datetime, timezone as dt_timezone
 import calendar
 from decimal import Decimal
-from .models import Course, CourseLevel, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Task, Reminder, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, SavedReceipt, Kassa, KassaTransaction, KassaTransfer, PaymentMethod, ExpenseCategory, SmsHistory, TeacherBalance, TeacherTransaction, GroupTeacherAssignment, LessonTeacherSalary, IncomeCategory, EslatmaReminderSetting, ensure_student_username
+from . import branch_scope
+from . import payment_scope
+from .models import Course, CourseLevel, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, AdminBranch, Room, Role, Position, Employee, Task, Reminder, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings, SavedReceipt, Kassa, KassaTransaction, KassaTransfer, PaymentMethod, ExpenseCategory, SmsHistory, TeacherBalance, TeacherTransaction, GroupTeacherAssignment, LessonTeacherSalary, IncomeCategory, EslatmaReminderSetting, ensure_student_username
 from .forms import LoginForm, CourseForm, CourseLevelForm, GroupForm, StudentCreateForm, StudentEditForm, MarketingSurveyForm, FreezeForm, RemoveFromGroupForm, AddToGroupForm, LessonTimeForm, BranchForm, RoomForm, PositionForm, EmployeeForm, TaskForm, ReminderForm
+from .permissions import has_permission
 from .sms_service import send_absence_sms, send_payment_received_sms, send_bulk_debt_reminders
 from .student_api import send_telegram_message
 
 logger = logging.getLogger(__name__)
+
+
+class BranchAccessDenied(PermissionDenied):
+    """Filial chegarasi sababli kirish rad etildi.
+
+    `reason` — nima uchun rad etilgani (foydalanuvchiga ko'rsatiladi).
+    `fix` — buni qanday tuzatish mumkinligi haqida qisqa ko'rsatma.
+    """
+
+    def __init__(self, reason, fix=""):
+        self.reason = reason
+        self.fix = fix
+        super().__init__(reason)
+
+
+def permission_denied(request, exception, template_name="403.html"):
+    """403 sahifasini sabab va tuzatish yo'riqnomasi bilan chiqaradi."""
+    reason = getattr(exception, "reason", "")
+    fix = getattr(exception, "fix", "")
+    return render(
+        request,
+        template_name,
+        {"reason": reason, "fix": fix},
+        status=403,
+    )
+
+
+def _form_branches(request):
+    """Formalarda ko'rsatiladigan filiallar.
+
+    Cheklangan admin/xodim uchun — aniq ruxsat etilgan filiallar queryset'i
+    (`branch` maydoni majburiy bo'ladi). Cheklovsiz foydalanuvchi uchun `None`
+    qaytariladi: barcha faol filiallar ko'rsatiladi va maydon ixtiyoriy qoladi.
+    """
+    return branch_scope.form_branches(request.user)
+
+
+def _object_or_404_scoped(request, model, pk):
+    """Filial chegarasini buzilgan obyektni 404 qiladi (mavjudligini oshkor qilmaydi)."""
+    obj = get_object_or_404(model, pk=pk)
+    if not branch_scope.ensure_access(request, obj):
+        raise PermissionDenied
+    return obj
+
+
+def _shop_object_or_403(request, model, pk):
+    """Shop/coin konfiguratsiya obyektini filial chegarasiga ko'ra tekshiradi.
+
+    `branch` bo'sh (umumiy) yozuvlar hamma uchun ochiq — ular ro'yxatda ham
+    ko'rinadi, shuning uchun tahrirlash ham mumkin.
+    """
+    obj = get_object_or_404(model, pk=pk)
+    branch = getattr(obj, "branch", None)
+    if branch is None:
+        return obj
+    if not branch_scope.has_branch_access(request.user, branch):
+        raise PermissionDenied
+    current = branch_scope.get_current_branch(request)
+    if current is not None and current.pk != branch.pk:
+        raise PermissionDenied
+    return obj
+
+
+def _new_branch_id(request):
+    """Yaratilayotgan yozuv uchun filial.
+
+    Cheklovsiz foydalanuvchi: POST'dagi `branch_id`, aks holda joriy filial
+    (bo'sh bo'lsa `None` = «Barcha filiallar»).
+    Cheklangan foydalanuvchi: faqat o'z filialiga qo'sha oladi — boshqa
+    filial yoki «Barcha filiallar» tanlovi inobatga olinmaydi.
+    """
+    raw = (request.POST.get("branch_id") or "").strip()
+    branch = branch_scope.resolve_added_branch(
+        request.user, raw, branch_scope.get_current_branch(request)
+    )
+    return branch.pk if branch is not None else None
+
+
+def _apply_shop_branch_q(request, qs, prefix=""):
+    """QuerySet'ni filial bo'yicha filtrlash (`branch_scope.scope_shop`)."""
+    return branch_scope.scope_shop(request, qs, prefix=prefix)
 
 
 def _logo_data_uri(receipt_settings):
@@ -40,11 +125,22 @@ def _logo_data_uri(receipt_settings):
         return ""
 
 
+def _redirect_to_teacher_app(request):
+    """O'qituvchilar uchun alohida React ilovasiga yo'naltiradi.
+
+    Django ichidagi o'qituvchi sahifalari (`teacher/*.html`) mavjud emas —
+    o'qituvchilar `edu-crm-teachers` ilovasidan foydalanadi.
+    """
+    from django.conf import settings
+
+    return redirect(getattr(settings, "TEACHER_APP_URL", "/teacher-dashboard/"))
+
+
 def login_view(request):
     if request.user.is_authenticated:
         try:
             if request.user.employee_profile.role and request.user.employee_profile.role.name == "O'qituvchi":
-                return redirect("teacher_dashboard")
+                return _redirect_to_teacher_app(request)
         except:
             pass
         return redirect("dashboard")
@@ -58,7 +154,7 @@ def login_view(request):
             login(request, user)
             try:
                 if user.employee_profile.role and user.employee_profile.role.name == "O'qituvchi":
-                    return redirect("teacher_dashboard")
+                    return _redirect_to_teacher_app(request)
             except:
                 pass
             return redirect("dashboard")
@@ -506,13 +602,13 @@ def calculate_previous_debt(student):
     prev_payments = Transaction.objects.filter(
         student=student,
         transaction_type=Transaction.Type.PAYMENT,
-        created_at__lt=first_of_month
+        created_at__date__lt=first_of_month
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
     prev_corrections = Transaction.objects.filter(
         student=student,
         transaction_type=Transaction.Type.CORRECTION,
-        created_at__lt=first_of_month
+        created_at__date__lt=first_of_month
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
     prev_net = prev_payments + prev_corrections - prev_cost
@@ -524,7 +620,7 @@ def calculate_previous_debt(student):
     payments_this_month = Transaction.objects.filter(
         student=student,
         transaction_type=Transaction.Type.PAYMENT,
-        created_at__gte=first_of_month
+        created_at__date__gte=first_of_month
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
     return max(Decimal('0.00'), old_debt - payments_this_month)
@@ -619,7 +715,7 @@ def _calc_monthly_debts(student):
         corrections = Transaction.objects.filter(
             student=student,
             transaction_type=Transaction.Type.CORRECTION,
-            created_at__gte=month_start, created_at__lt=month_end + timedelta(days=1)
+            created_at__date__gte=month_start, created_at__date__lte=month_end
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         net = cost - month_payments - corrections
         if month_key in deferred_months:
@@ -663,6 +759,7 @@ def generate_lesson_dates(group, month_start, month_end):
 
 @login_required(login_url="login")
 def teacher_dashboard(request):
+    return _redirect_to_teacher_app(request)
     try:
         employee = request.user.employee_profile
         if not employee.role or employee.role.name != "O'qituvchi":
@@ -696,8 +793,8 @@ def teacher_dashboard(request):
     day_filter = request.GET.get("day", "")
     date_filter = request.GET.get("date", "")
 
-    all_teacher_groups = Group.objects.filter(
-        teacher=employee, status__in=["aktiv", "kutilyotgan"]
+    all_teacher_groups = branch_scope.scope(request, Group.objects.filter(
+        teacher=employee, status__in=["aktiv", "kutilyotgan"])
     ).select_related("course", "room").prefetch_related("lesson_times", "students").annotate(
         student_count=Count("students")
     )
@@ -806,6 +903,7 @@ def teacher_dashboard(request):
 
 @login_required(login_url="login")
 def teacher_my_groups(request):
+    return _redirect_to_teacher_app(request)
     try:
         employee = request.user.employee_profile
         if not employee.role or employee.role.name != "O'qituvchi":
@@ -815,8 +913,8 @@ def teacher_my_groups(request):
         messages.error(request, "Siz o'qituvchi emassiz!")
         return redirect("login")
 
-    groups = Group.objects.filter(
-        teacher=employee, status__in=["aktiv", "kutilyotgan"]
+    groups = branch_scope.scope(request, Group.objects.filter(
+        teacher=employee, status__in=["aktiv", "kutilyotgan"])
     ).select_related("course", "room").prefetch_related(
         "lesson_times", "students"
     ).annotate(student_count=Count("students")).distinct().order_by("name")
@@ -917,13 +1015,15 @@ def admin_mobile_groups(request):
 
 @login_required(login_url="login")
 def teacher_group_detail(request, pk):
+    return _redirect_to_teacher_app(request)
     try:
         employee = request.user.employee_profile
     except:
         messages.error(request, "Siz o'qituvchi emassiz!")
         return redirect("login")
 
-    group = get_object_or_404(
+    group = _object_or_404_scoped(
+        request,
         Group.objects.select_related("course", "room").prefetch_related("lesson_times", "students"),
         pk=pk, teacher=employee
     )
@@ -978,7 +1078,7 @@ def take_attendance(request):
     # Non-staff users with non-teacher role are also admins
     if not is_admin and (employee is None or not employee.role or employee.role.name != "O'qituvchi"):
         is_admin = True
-    group = get_object_or_404(Group, pk=group_id)
+    group = _object_or_404_scoped(request, Group, group_id)
     today = date.today()
     # Guruh muddati tugagan bo'lsa davomatni o'zgartirish mumkin emas
     if group.end_date and group.end_date < today:
@@ -1022,8 +1122,19 @@ def take_attendance(request):
             created_by = request.user.get_full_name()
         if not created_by or created_by.replace('+', '').replace(' ', '').isdigit():
             created_by = "Admin"
+    group_student_ids = set(group.students.values_list("id", flat=True))
     for rec in records:
         student_id = rec.get("student_id")
+        # So'rovdagi student_id faqat shu guruh a'zolari bo'lishi va
+        # foydalanuvchining filialiga tegishli bo'lishi kerak.
+        try:
+            student_id = int(student_id)
+        except (TypeError, ValueError):
+            continue
+        if student_id not in group_student_ids:
+            return JsonResponse(
+                {"error": "O'quvchi bu guruhga tegishli emas."}, status=400
+            )
         status = rec.get("status", "present")
         rec_date = rec.get("date")
         if allow_dated and rec_date:
@@ -1110,6 +1221,7 @@ def take_attendance(request):
 
 @login_required(login_url="login")
 def teacher_attendance_desktop(request, pk):
+    return _redirect_to_teacher_app(request)
     is_admin = request.user.is_staff or request.user.is_superuser
     if not is_admin:
         employee = getattr(request.user, 'employee_profile', None)
@@ -1117,7 +1229,8 @@ def teacher_attendance_desktop(request, pk):
             is_admin = True
 
     if is_admin:
-        group = get_object_or_404(
+        group = _object_or_404_scoped(
+            request,
             Group.objects.select_related("course", "room", "teacher"),
             pk=pk
         )
@@ -1266,20 +1379,93 @@ def teacher_attendance_desktop(request, pk):
 def dashboard(request):
     try:
         if request.user.employee_profile.role and request.user.employee_profile.role.name == "O'qituvchi":
-            return redirect("teacher_dashboard")
+            return _redirect_to_teacher_app(request)
     except:
         pass
-    course_count = Course.objects.count()
-    group_count = Group.objects.count()
-    student_count = Student.objects.count()
+
+    course_count = branch_scope.scope_courses(request).count()
+    group_count = branch_scope.scope(request, Group.objects.all()).count()
+    student_count = branch_scope.scope(request, Student.objects.all()).count()
     survey_count = MarketingSurvey.objects.count()
-    active_groups = Group.objects.filter(status="aktiv").count()
-    pending_groups = Group.objects.filter(status="kutilyotgan").count()
-    pending_student_count = Student.objects.filter(groups__isnull=True, status="kutilyotgan").count()
-    recent_students = Student.objects.prefetch_related("groups").order_by("-created_at")[:5]
+    active_groups = branch_scope.scope(request, Group.objects.filter(status="aktiv")).count()
+    pending_groups = branch_scope.scope(request, Group.objects.filter(status="kutilyotgan")).count()
+    pending_student_count = branch_scope.scope(request, Student.objects.filter(groups__isnull=True, status="kutilyotgan")).count()
+    recent_students = branch_scope.scope(request, Student.objects.filter(is_deleted=False).prefetch_related("groups")).order_by("-created_at")[:5]
     survey_stats = MarketingSurvey.objects.annotate(
-        student_count=Count("students")
+        student_count=Count(
+            "students",
+            filter=branch_scope.branch_filter(request, prefix="students__"),
+        )
     ).filter(student_count__gt=0).order_by("-student_count")
+
+    selected_date = timezone.localdate()
+    weekday_keys = ["dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba", "yakshanba"]
+    selected_day = weekday_keys[selected_date.weekday()]
+    valid_days = dict(LessonTime.DAY_CHOICES)
+    schedule_lessons = []
+    teacher_columns = {}
+    has_unassigned_teacher = False
+
+    lesson_times = branch_scope.scope_path(
+        request,
+        LessonTime.objects.filter(
+            group__is_active=True,
+            group__status__in=["aktiv", "kutilyotgan"],
+        )
+        .select_related("group__course", "group__room", "group__teacher", "group__level")
+        .prefetch_related("group__students"),
+        "group__branch",
+    ).order_by("start_time", "group__name")
+    for lesson_time in lesson_times:
+        group = lesson_time.group
+        raw_days = lesson_time.days or group.days or ""
+        days = [
+            day.strip().lower()
+            for day in raw_days.split(",")
+            if day.strip().lower() in valid_days
+        ]
+        if not days:
+            continue
+        teacher = group.teacher
+        room = group.room
+        teacher_id = teacher.pk if teacher else "unassigned"
+        room_id = room.pk if room else "unassigned"
+        teacher_name = f"{teacher.first_name} {teacher.last_name}".strip() if teacher else "O‘qituvchi biriktirilmagan"
+        room_name = room.name if room else "Xona biriktirilmagan"
+        course_name = group.course.name if group.course else "Kurs belgilanmagan"
+        level_name = group.level.name if group.level else "Daraja belgilanmagan"
+        lesson_type = group.get_education_type_display() or "Noma’lum"
+        if teacher:
+            teacher_columns[teacher.pk] = {"id": teacher.pk, "name": teacher_name}
+        else:
+            has_unassigned_teacher = True
+        schedule_lessons.append({
+            "id": lesson_time.pk,
+            "group_id": group.pk,
+            "group": group.name,
+            "title": group.name,
+            "course": course_name,
+            "level": level_name,
+            "teacher_id": teacher_id,
+            "teacher": teacher_name,
+            "room_id": room_id,
+            "room": room_name,
+            "lesson_type": lesson_type,
+            "students": len(group.students.all()),
+            "days": days,
+            "start": lesson_time.start_time.strftime("%H:%M"),
+            "end": lesson_time.end_time.strftime("%H:%M"),
+            "color": group.pk % 6,
+        })
+
+    schedule_teachers = sorted(teacher_columns.values(), key=lambda item: item["name"].lower())
+    if has_unassigned_teacher:
+        schedule_teachers.append({"id": "unassigned", "name": "O‘qituvchi biriktirilmagan"})
+    schedule_rooms = [
+        {"id": room.pk, "name": room.name}
+        for room in branch_scope.scope(request, Room.objects.all()).order_by("name")
+    ]
+
     return render(request, "dashboard.html", {
         "course_count": course_count,
         "group_count": group_count,
@@ -1290,20 +1476,54 @@ def dashboard(request):
         "pending_student_count": pending_student_count,
         "recent_students": recent_students,
         "survey_stats": survey_stats,
+        "schedule_lessons": schedule_lessons,
+        "schedule_rooms": schedule_rooms,
+        "schedule_teachers": schedule_teachers,
+        "selected_day": selected_day,
+        "selected_date": selected_date.isoformat(),
     })
+
+
+def _course_or_403(request, pk):
+    """Kursni filial chegarasini buzilmasdan oladi."""
+    course = get_object_or_404(Course.all_objects, pk=pk)
+    if not branch_scope.has_courses_access(request.user, course):
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied("Bu kurs boshqa filialga tegishli")
+    return course
+
+
+def _course_level_or_403(request, pk):
+    """Kurs darajasini uning kursi orqali filial chegarasida tekshiradi."""
+    level = get_object_or_404(
+        CourseLevel.objects.select_related("course"), pk=pk
+    )
+    if not branch_scope.has_courses_access(request.user, level.course):
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied("Bu daraja boshqa filialga tegishli")
+    return level
 
 
 @login_required(login_url="login")
 def course_list(request):
-    courses = Course.objects.filter(is_active=True).annotate(group_count=Count("groups")).order_by("-created_at")
+    courses = (
+        branch_scope.scope_courses(request)
+        .filter(is_active=True)
+        .annotate(group_count=Count("groups"))
+        .order_by("-created_at")
+    )
     return render(request, "course/list.html", {"courses": courses})
 
 
 @login_required(login_url="login")
 def course_create(request):
-    form = CourseForm()
+    form = CourseForm(branches=branch_scope.form_branches(request.user))
     if request.method == "POST":
-        form = CourseForm(request.POST)
+        form = CourseForm(
+            request.POST, branches=branch_scope.form_branches(request.user)
+        )
         if form.is_valid():
             form.save()
             messages.success(request, "Kurs muvaffaqiyatli qo'shildi")
@@ -1313,10 +1533,16 @@ def course_create(request):
 
 @login_required(login_url="login")
 def course_update(request, pk):
-    course = get_object_or_404(Course, pk=pk)
-    form = CourseForm(instance=course)
+    course = _course_or_403(request, pk)
+    form = CourseForm(
+        instance=course, branches=branch_scope.form_branches(request.user)
+    )
     if request.method == "POST":
-        form = CourseForm(request.POST, instance=course)
+        form = CourseForm(
+            request.POST,
+            instance=course,
+            branches=branch_scope.form_branches(request.user),
+        )
         if form.is_valid():
             form.save()
             messages.success(request, "Kurs muvaffaqiyatli yangilandi")
@@ -1326,7 +1552,7 @@ def course_update(request, pk):
 
 @login_required(login_url="login")
 def course_delete(request, pk):
-    course = get_object_or_404(Course, pk=pk)
+    course = _course_or_403(request, pk)
     if request.method == "POST":
         course.delete()
         messages.success(request, "Kurs muvaffaqiyatli o'chirildi (faolligi bekor qilindi)")
@@ -1336,7 +1562,11 @@ def course_delete(request, pk):
 
 @login_required(login_url="login")
 def course_level_list(request):
-    levels = CourseLevel.objects.select_related("course").order_by("course", "name")
+    levels = (
+        branch_scope.scope_course_levels(request)
+        .select_related("course")
+        .order_by("course__name", "name")
+    )
     return render(request, "course_level/list.html", {"levels": levels})
 
 
@@ -1354,7 +1584,7 @@ def course_level_create(request):
 
 @login_required(login_url="login")
 def course_level_update(request, pk):
-    level = get_object_or_404(CourseLevel, pk=pk)
+    level = _course_level_or_403(request, pk)
     form = CourseLevelForm(instance=level)
     if request.method == "POST":
         form = CourseLevelForm(request.POST, instance=level)
@@ -1367,7 +1597,7 @@ def course_level_update(request, pk):
 
 @login_required(login_url="login")
 def course_level_delete(request, pk):
-    level = get_object_or_404(CourseLevel, pk=pk)
+    level = _course_level_or_403(request, pk)
     if request.method == "POST":
         level.delete()
         messages.success(request, "Daraja muvaffaqiyatli o'chirildi (faolligi bekor qilindi)")
@@ -1380,8 +1610,20 @@ def api_course_levels(request):
     course_id = request.GET.get("course_id")
     if not course_id:
         return JsonResponse({"levels": []})
-    levels = CourseLevel.objects.filter(course_id=course_id).values("id", "name", "daily_price")
-    return JsonResponse({"levels": list(levels)})
+    if not branch_scope.has_courses_access(
+        request.user, branch_scope.scope_courses(request).filter(pk=course_id).first()
+    ):
+        return JsonResponse({"levels": []})
+    levels = (
+        branch_scope.scope_courses(request)
+        .filter(pk=course_id, levels__is_active=True)
+        .values_list("levels__id", "levels__name", "levels__daily_price")
+    )
+    return JsonResponse({
+        "levels": [
+            {"id": row[0], "name": row[1], "daily_price": row[2]} for row in levels
+        ]
+    })
 
 
 @login_required(login_url="login")
@@ -1404,11 +1646,14 @@ def group_list(request):
         status_filter = ["aktiv", "kutilyotgan"]
         page_title = "Oddiy guruhlar"
 
-    groups = Group.objects.filter(is_active=True).select_related("course", "room", "teacher").prefetch_related(
-        "lesson_times"
-    ).annotate(
-        student_count=Count("students")
-    ).filter(status__in=status_filter)
+    groups = branch_scope.scope(
+        request,
+        Group.objects.filter(is_active=True).select_related("course", "room", "teacher", "branch").prefetch_related(
+            "lesson_times"
+        ).annotate(
+            student_count=Count("students")
+        ).filter(status__in=status_filter),
+    )
 
     if day_type:
         groups = groups.filter(day_type=day_type)
@@ -1439,10 +1684,16 @@ def group_list(request):
 
     groups = groups.distinct().order_by("-created_at")
 
-    courses = Course.objects.filter(is_active=True)
-    levels = CourseLevel.objects.filter(is_active=True).select_related("course")
-    teachers = Employee.objects.filter(is_active=True, is_deleted=False, role__name="O'qituvchi")
-    rooms = Room.objects.filter(is_active=True)
+    courses = branch_scope.scope_courses(request).filter(is_active=True)
+    levels = (
+        branch_scope.scope_courses(request)
+        .annotate()
+        .filter(levels__is_active=True)
+        .values("id", "name")
+        .distinct()
+    )
+    teachers = branch_scope.scope_employees(request, Employee.objects.filter(is_active=True, is_deleted=False, role__name="O'qituvchi"))
+    rooms = branch_scope.scope(request, Room.objects.filter(is_active=True))
 
     today = date.today()
     today_weekday_num = today.weekday()
@@ -1549,11 +1800,15 @@ def _log_student_action(student, group, action, reason="", request=None, user=No
 
 @login_required(login_url="login")
 def group_create(request):
-    form = GroupForm()
+    branches = _form_branches(request)
+    initial = {"branch": branch_scope.get_current_branch(request)}
+    form = GroupForm(initial=initial, branches=branches)
     if request.method == "POST":
-        form = GroupForm(request.POST)
+        form = GroupForm(request.POST, branches=branches)
         if form.is_valid():
             group = form.save()
+            from frontend import messaging_api
+            messaging_api.sync_group_chat(group, request)
             teacher_name = str(group.teacher) if group.teacher else "Belgilanmagan"
             course_name = str(group.course) if group.course else "Kurs tanlanmagan"
             _log_group_action(group, "created", f"{group.name} (O'qituvchi: {teacher_name}, Kurs: {course_name})", request)
@@ -1564,17 +1819,20 @@ def group_create(request):
 
 @login_required(login_url="login")
 def group_update(request, pk):
-    group = get_object_or_404(Group, pk=pk)
-    form = GroupForm(instance=group)
+    group = _object_or_404_scoped(request, Group, pk)
+    branches = _form_branches(request)
+    form = GroupForm(instance=group, branches=branches)
     if request.method == "POST":
         old_teacher = str(group.teacher) if group.teacher else "-"
         old_course = str(group.course) if group.course else "-"
         old_room = str(group.room) if group.room else "-"
         old_start = group.start_date
         old_end = group.end_date
-        form = GroupForm(request.POST, instance=group)
+        form = GroupForm(request.POST, instance=group, branches=branches)
         if form.is_valid():
             form.save()
+            from frontend import messaging_api
+            messaging_api.sync_group_chat(group, request)
             changes = []
             new_teacher = str(group.teacher) if group.teacher else "-"
             new_course = str(group.course) if group.course else "-"
@@ -1598,9 +1856,11 @@ def group_update(request, pk):
 
 @login_required(login_url="login")
 def group_delete(request, pk):
-    group = get_object_or_404(Group, pk=pk)
+    group = _object_or_404_scoped(request, Group, pk)
     if request.method == "POST":
         _log_group_action(group, "deleted", f"Guruh o'chirildi: {group.name}", request)
+        from frontend import messaging_api
+        group.chats.filter(chat_type="group").delete()
         group.delete()
         messages.success(request, "Guruh muvaffaqiyatli o'chirildi (faolligi bekor qilindi)")
         return redirect("group_list")
@@ -1609,7 +1869,7 @@ def group_delete(request, pk):
 
 @login_required(login_url="login")
 def group_extend(request, pk):
-    group = get_object_or_404(Group, pk=pk)
+    group = _object_or_404_scoped(request, Group, pk)
     if request.method == "POST":
         days = request.POST.get("days")
         if days and days.isdigit() and int(days) > 0:
@@ -1632,7 +1892,8 @@ def student_list(request):
     status_filter = request.GET.get("status", "")
     group_id = request.GET.get("group", "")
 
-    students = Student.objects.filter(is_deleted=False).prefetch_related("groups", "marketing_survey").annotate(
+    base_students = branch_scope.scope(request, Student.objects.filter(is_deleted=False))
+    students = base_students.prefetch_related("groups", "marketing_survey").annotate(
         group_count=Count("groups")
     ).order_by("-created_at")
 
@@ -1657,10 +1918,10 @@ def student_list(request):
 
     students = students.distinct()
 
-    total_count = Student.objects.count()
-    active_count = Student.objects.filter(groups__isnull=False).exclude(status="chiqarilgan").exclude(frozen_until__gte=date.today()).distinct().count()
-    frozen_count = Student.objects.filter(frozen_until__gte=date.today()).distinct().count()
-    pending_count = Student.objects.filter(groups__isnull=True, status="kutilyotgan").distinct().count()
+    total_count = base_students.count()
+    active_count = base_students.filter(groups__isnull=False).exclude(status="chiqarilgan").exclude(frozen_until__gte=date.today()).distinct().count()
+    frozen_count = base_students.filter(frozen_until__gte=date.today()).distinct().count()
+    pending_count = base_students.filter(groups__isnull=True, status="kutilyotgan").distinct().count()
 
     student_data = []
     for s in students:
@@ -1691,10 +1952,12 @@ def student_list(request):
             'category': s.marketing_survey.name if s.marketing_survey else "",
             'father_phone': s.father_phone or "",
             'mother_phone': s.mother_phone or "",
+            'branch': s.branch,
+            'branch_name': s.branch.name if s.branch else "",
             'created_at': s.created_at,
         })
 
-    groups = Group.objects.filter(status__in=["aktiv", "kutilyotgan"]).order_by("name")
+    groups = branch_scope.scope(request, Group.objects.filter(status__in=["aktiv", "kutilyotgan"])).order_by("name")
 
     return render(request, "student/list.html", {
         "students": student_data,
@@ -1738,7 +2001,7 @@ def student_filter(request):
     age_to = request.GET.get("age_to", "")
     balance_filter = request.GET.get("balance_filter", "")
 
-    students = Student.objects.prefetch_related("groups", "groups__teacher", "groups__level", "groups__course", "marketing_survey").annotate(
+    students = branch_scope.scope(request, Student.objects.filter(is_deleted=False)).prefetch_related("groups", "groups__teacher", "groups__level", "groups__course", "marketing_survey").annotate(
         group_count=Count("groups", filter=Q(groups__status="aktiv"))
     ).order_by("-created_at")
 
@@ -1936,12 +2199,12 @@ def student_filter(request):
 
     total_count = len(student_data)
 
-    groups = Group.objects.filter(status__in=["aktiv", "kutilyotgan"]).order_by("name")
-    courses = Course.objects.all().order_by("name")
-    levels = CourseLevel.objects.all().order_by("course__name", "name")
+    groups = branch_scope.scope(request, Group.objects.filter(status__in=["aktiv", "kutilyotgan"])).order_by("name")
+    courses = branch_scope.scope_courses(request).order_by("name")
+    levels = branch_scope.scope_course_levels(request).order_by("course__name", "name")
     teachers = Employee.objects.filter(teacher_groups__isnull=False).distinct().order_by("first_name")
     categories = MarketingSurvey.objects.all().order_by("name")
-    all_students = Student.objects.all().order_by("first_name")
+    all_students = branch_scope.scope(request, Student.objects.filter(is_deleted=False)).order_by("first_name")
 
     return render(request, "student/filter.html", {
         "students": student_data,
@@ -2009,7 +2272,7 @@ def student_export_excel(request):
     is_boss = request.user.is_superuser
     employee = getattr(request.user, 'employee_profile', None)
 
-    students = Student.objects.prefetch_related("groups", "marketing_survey").annotate(
+    students = branch_scope.scope(request, Student.objects.filter(is_deleted=False)).prefetch_related("groups", "marketing_survey").annotate(
         group_count=Count("groups")
     ).order_by("-created_at")
 
@@ -2096,7 +2359,7 @@ def student_export_csv(request):
     is_boss = request.user.is_superuser
     employee = getattr(request.user, 'employee_profile', None)
 
-    students = Student.objects.prefetch_related("groups", "marketing_survey").annotate(
+    students = branch_scope.scope(request, Student.objects.filter(is_deleted=False)).prefetch_related("groups", "marketing_survey").annotate(
         group_count=Count("groups")
     ).order_by("-created_at")
 
@@ -2152,7 +2415,7 @@ def group_export_excel(request):
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     is_boss = request.user.is_superuser
     employee = getattr(request.user, 'employee_profile', None)
-    groups = Group.objects.select_related("course", "teacher", "room").prefetch_related("lesson_times").annotate(student_count=Count("students"))
+    groups = branch_scope.scope(request, Group.objects.select_related("course", "teacher", "room").prefetch_related("lesson_times")).annotate(student_count=Count("students"))
     if not is_boss and employee:
         groups = groups.filter(teacher=employee)
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Guruhlar"
@@ -2174,7 +2437,7 @@ def group_export_excel(request):
 def group_export_csv(request):
     is_boss = request.user.is_superuser
     employee = getattr(request.user, 'employee_profile', None)
-    groups = Group.objects.select_related("course","teacher","room").prefetch_related("lesson_times").annotate(student_count=Count("students"))
+    groups = branch_scope.scope(request, Group.objects.select_related("course","teacher","room").prefetch_related("lesson_times").annotate(student_count=Count("students")))
     if not is_boss and employee:
         groups = groups.filter(teacher=employee)
     headers = ["#","Nomi","Kurs","O'qituvchi","Xona","Kunlar","Vaqt","Talabalar","Holat","Boshlanish","Tugash"]
@@ -2193,7 +2456,10 @@ def employee_export_excel(request):
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     is_boss = request.user.is_superuser
     employee = getattr(request.user, 'employee_profile', None)
-    employees = Employee.objects.prefetch_related("branches").select_related("position","role").all().order_by("-created_at")
+    employees = branch_scope.scope_employees(
+        request,
+        Employee.objects.prefetch_related("branches").select_related("position", "role"),
+    ).order_by("-created_at")
     if not is_boss and employee:
         employees = employees.filter(pk=employee.pk)
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Xodimlar"
@@ -2213,7 +2479,10 @@ def employee_export_excel(request):
 def employee_export_csv(request):
     is_boss = request.user.is_superuser
     employee = getattr(request.user, 'employee_profile', None)
-    employees = Employee.objects.prefetch_related("branches").select_related("position","role").all().order_by("-created_at")
+    employees = branch_scope.scope_employees(
+        request,
+        Employee.objects.prefetch_related("branches").select_related("position", "role"),
+    ).order_by("-created_at")
     if not is_boss and employee:
         employees = employees.filter(pk=employee.pk)
     headers = ["#","Ism","Familya","Telefon","Lavozim","Rol","Filiallar","Qo'shilgan sana"]
@@ -2229,7 +2498,7 @@ def employee_export_csv(request):
 def pending_export_excel(request):
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    students = Student.objects.filter(groups__isnull=True, status="kutilyotgan").prefetch_related("desired_course").order_by("-created_at")
+    students = branch_scope.scope(request, Student.objects.filter(groups__isnull=True, status="kutilyotgan", is_deleted=False)).prefetch_related("desired_course").order_by("-created_at")
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Kutilyotganlar"
     headers = ["#","Ism","Familya","Telefon","Istagan kurslari","Qo'shilgan sana"]
     hf = Font(bold=True,color="FFFFFF",size=11); hfl = PatternFill(start_color="2563EB",end_color="2563EB",fill_type="solid")
@@ -2245,7 +2514,7 @@ def pending_export_excel(request):
 
 @login_required(login_url="login")
 def pending_export_csv(request):
-    students = Student.objects.filter(groups__isnull=True, status="kutilyotgan").prefetch_related("desired_course").order_by("-created_at")
+    students = branch_scope.scope(request, Student.objects.filter(groups__isnull=True, status="kutilyotgan", is_deleted=False)).prefetch_related("desired_course").order_by("-created_at")
     headers = ["#","Ism","Familya","Telefon","Istagan kurslari","Qo'shilgan sana"]
     rows = [[i,s.first_name,s.last_name,s.phone or "-",", ".join(c.name for c in s.desired_course.all()) or "-",s.created_at.strftime('%d.%m.%Y') if s.created_at else '-'] for i,s in enumerate(students,1)]
     response = HttpResponse(content_type='text/csv; charset=utf-8')
@@ -2258,7 +2527,7 @@ def graduated_export_excel(request):
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     is_boss = request.user.is_superuser
     employee = getattr(request.user, 'employee_profile', None)
-    students = Student.objects.filter(graduated_groups__isnull=False).prefetch_related("graduated_groups","groups").distinct().order_by("-created_at")
+    students = branch_scope.scope(request, Student.objects.filter(graduated_groups__isnull=False, is_deleted=False)).prefetch_related("graduated_groups","groups").distinct().order_by("-created_at")
     if not is_boss and employee:
         students = students.filter(graduated_groups__teacher=employee).distinct()
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Bitirilganlar"
@@ -2279,7 +2548,7 @@ def graduated_export_excel(request):
 def graduated_export_csv(request):
     is_boss = request.user.is_superuser
     employee = getattr(request.user, 'employee_profile', None)
-    students = Student.objects.filter(graduated_groups__isnull=False).prefetch_related("graduated_groups","groups").distinct().order_by("-created_at")
+    students = branch_scope.scope(request, Student.objects.filter(graduated_groups__isnull=False, is_deleted=False)).prefetch_related("graduated_groups","groups").distinct().order_by("-created_at")
     if not is_boss and employee:
         students = students.filter(graduated_groups__teacher=employee).distinct()
     headers = ["#","Ism","Familya","Telefon","Bitirgan guruhlari","Hozirgi guruhlari","Qo'shilgan sana"]
@@ -2297,7 +2566,7 @@ def graduated_export_csv(request):
 def group_detail_export_excel(request, pk):
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    group = get_object_or_404(Group, pk=pk)
+    group = _object_or_404_scoped(request, Group, pk)
     students = group.students.prefetch_related("groups").annotate(total_groups=Count("groups"))
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = f"Guruh {group.name}"
     headers = ["#","Ism","Familya","Telefon","Guruhlari","Guruhlar soni","Qo'shilgan sana"]
@@ -2314,7 +2583,7 @@ def group_detail_export_excel(request, pk):
 
 @login_required(login_url="login")
 def group_detail_export_csv(request, pk):
-    group = get_object_or_404(Group, pk=pk)
+    group = _object_or_404_scoped(request, Group, pk)
     students = group.students.prefetch_related("groups").annotate(total_groups=Count("groups"))
     headers = ["#","Ism","Familya","Telefon","Guruhlari","Guruhlar soni","Qo'shilgan sana"]
     rows = []
@@ -2330,7 +2599,7 @@ def group_detail_export_csv(request, pk):
 def room_export_excel(request):
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    rooms = Room.objects.filter(is_active=True).order_by("-created_at")
+    rooms = branch_scope.scope(request, Room.objects.filter(is_active=True)).order_by("-created_at")
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Xonalar"
     headers = ["#","Xona nomi","Yaratilgan sana"]
     hf = Font(bold=True,color="FFFFFF",size=11); hfl = PatternFill(start_color="2563EB",end_color="2563EB",fill_type="solid")
@@ -2345,7 +2614,7 @@ def room_export_excel(request):
 
 @login_required(login_url="login")
 def room_export_csv(request):
-    rooms = Room.objects.filter(is_active=True).order_by("-created_at")
+    rooms = branch_scope.scope(request, Room.objects.filter(is_active=True)).order_by("-created_at")
     headers = ["#","Xona nomi","Yaratilgan sana"]
     rows = [[i,r.name,r.created_at.strftime('%d.%m.%Y') if r.created_at else '-'] for i,r in enumerate(rooms,1)]
     response = HttpResponse(content_type='text/csv; charset=utf-8')
@@ -2355,9 +2624,12 @@ def room_export_csv(request):
 
 @login_required(login_url="login")
 def student_create(request):
-    form = StudentCreateForm()
+    branches = _form_branches(request)
+    allowed_groups = branch_scope.scope(request, Group.objects.filter(status__in=["aktiv", "kutilyotgan"]))
+    initial = {"branch": branch_scope.get_current_branch(request)}
+    form = StudentCreateForm(initial=initial, branches=branches, allowed_groups=allowed_groups)
     if request.method == "POST":
-        form = StudentCreateForm(request.POST)
+        form = StudentCreateForm(request.POST, request.FILES, branches=branches, allowed_groups=allowed_groups)
         if form.is_valid():
             groups = list(form.cleaned_data.get("groups", []))
             student = form.save(commit=False)
@@ -2377,8 +2649,9 @@ def student_create(request):
     else:
         initial_group = request.GET.get("group")
         if initial_group:
-            form = StudentCreateForm(initial={"groups": [initial_group]})
-    groups_qs = Group.objects.filter(status__in=["aktiv", "kutilyotgan"]).select_related("course", "teacher", "room").prefetch_related("lesson_times", "students")
+            initial["groups"] = [initial_group]
+            form = StudentCreateForm(initial=initial, branches=branches, allowed_groups=allowed_groups)
+    groups_qs = branch_scope.scope(request, Group.objects.filter(status__in=["aktiv", "kutilyotgan"])).select_related("course", "teacher", "room").prefetch_related("lesson_times", "students")
     group_data = []
     for g in groups_qs:
         lts = []
@@ -2407,11 +2680,13 @@ def student_create(request):
 
 @login_required(login_url="login")
 def student_update(request, pk):
-    student = get_object_or_404(Student, pk=pk)
+    student = _object_or_404_scoped(request, Student, pk)
     old_groups = set(student.groups.all())
-    form = StudentEditForm(instance=student)
+    branches = _form_branches(request)
+    allowed_groups = branch_scope.scope(request, Group.objects.filter(status__in=["aktiv", "kutilyotgan"]))
+    form = StudentEditForm(instance=student, branches=branches, allowed_groups=allowed_groups)
     if request.method == "POST":
-        form = StudentEditForm(request.POST, instance=student)
+        form = StudentEditForm(request.POST, request.FILES, instance=student, branches=branches, allowed_groups=allowed_groups)
         if form.is_valid():
             student = form.save(commit=False)
             student.save()
@@ -2426,7 +2701,7 @@ def student_update(request, pk):
                 _log_student_action(student, g, "removed", "Tahrirlash orqali o'chirildi", request=request)
             messages.success(request, "O'quvchi muvaffaqiyatli yangilandi")
             return redirect("student_list")
-    groups_qs = Group.objects.filter(status__in=["aktiv", "kutilyotgan"]).select_related("course", "teacher", "room").prefetch_related("lesson_times", "students")
+    groups_qs = branch_scope.scope(request, Group.objects.filter(status__in=["aktiv", "kutilyotgan"])).select_related("course", "teacher", "room").prefetch_related("lesson_times", "students")
     group_data = []
     for g in groups_qs:
         lts = []
@@ -2455,7 +2730,7 @@ def student_update(request, pk):
 
 @login_required(login_url="login")
 def student_delete(request, pk):
-    student = get_object_or_404(Student, pk=pk)
+    student = _object_or_404_scoped(request, Student, pk)
     if request.method == "POST":
         student.delete()
         messages.success(request, "O'quvchi muvaffaqiyatli o'chirildi (faolligi bekor qilindi)")
@@ -2466,7 +2741,7 @@ def student_delete(request, pk):
 @login_required(login_url="login")
 def pending_students(request):
     course_filter = request.GET.get("course", "")
-    students = Student.objects.filter(groups__isnull=True, status="kutilyotgan").prefetch_related("desired_course", "marketing_survey")
+    students = branch_scope.scope(request, Student.objects.filter(groups__isnull=True, status="kutilyotgan", is_deleted=False)).prefetch_related("desired_course", "marketing_survey")
     if course_filter == "none":
         from django.db.models import Count
         students = students.annotate(num_courses=Count("desired_course")).filter(num_courses=0)
@@ -2475,7 +2750,7 @@ def pending_students(request):
     students = students.order_by("-created_at")
     from django.db.models import Count
     students = students.annotate(num_courses=Count("desired_course"))
-    courses = Course.objects.all()
+    courses = branch_scope.scope_courses(request)
     return render(request, "student/pending.html", {
         "students": students,
         "courses": courses,
@@ -2485,12 +2760,12 @@ def pending_students(request):
 
 @login_required(login_url="login")
 def group_detail(request, pk):
-    group = get_object_or_404(Group.objects.annotate(
+    group = _object_or_404_scoped(request, Group.objects.annotate(
         total_students=Count("students")
-    ).select_related("course", "room", "teacher").prefetch_related("lesson_times"), pk=pk)
+    ).select_related("course", "room", "teacher").prefetch_related("lesson_times"), pk)
     students = group.students.prefetch_related("groups").annotate(total_groups=Count("groups"))
     q = request.GET.get("q", "").strip()
-    all_students = Student.objects.exclude(pk__in=students.values_list("pk", flat=True))
+    all_students = branch_scope.scope(request, Student.objects.filter(is_deleted=False)).exclude(pk__in=students.values_list("pk", flat=True))
     if q:
         all_students = all_students.filter(
             Q(first_name__icontains=q) |
@@ -2498,10 +2773,11 @@ def group_detail(request, pk):
             Q(phone__endswith=q)
         )
     all_students = all_students.prefetch_related("groups").order_by("-created_at")
-    pending_students = Student.objects.filter(
+    pending_students = branch_scope.scope(request, Student.objects.filter(
+        is_deleted=False,
         groups__isnull=True, status="kutilyotgan"
-    ).prefetch_related("desired_course", "groups").order_by("-created_at")
-    courses = Course.objects.all()
+    )).prefetch_related("desired_course", "groups").order_by("-created_at")
+    courses = branch_scope.scope_courses(request)
     removed_logs = StudentLog.objects.filter(group=group, action="removed").select_related("student").order_by("-created_at")[:50]
     for _rl in removed_logs:
         _rl.created_by = _resolve_created_by(_rl.created_by)
@@ -2522,6 +2798,12 @@ def group_detail(request, pk):
     for slp in StudentLessonPrice.objects.filter(student__in=students, group=group):
         student_prices[slp.student_id] = slp.lesson_price
 
+    group_chat_id = None
+    if group.is_active and group.status != "arxivlangan":
+        from frontend import messaging_api
+        chat = messaging_api.sync_group_chat(group, request)
+        group_chat_id = chat.pk if chat else None
+
     return render(request, "group/detail.html", {
         "group": group,
         "students": students,
@@ -2537,12 +2819,13 @@ def group_detail(request, pk):
         "attendance_notes": attendance_notes,
         "absence_reasons": absence_reasons,
         "student_prices": student_prices,
+        "group_chat_id": group_chat_id,
     })
 
 
 @login_required(login_url="login")
 def group_history(request, pk):
-    group = get_object_or_404(Group.objects.select_related("course", "room", "teacher"), pk=pk)
+    group = _object_or_404_scoped(request, Group.objects.select_related("course", "room", "teacher"), pk)
     student_logs = StudentLog.objects.filter(group=group).select_related("student").order_by("-created_at")
     group_logs = GroupLog.objects.filter(group=group).order_by("-created_at")
 
@@ -2721,7 +3004,7 @@ def group_history(request, pk):
         "logs": paginator.page(page),
         "page_obj": paginator.page(page),
         "stats": stats,
-        "employees": Employee.objects.filter(role__name="O'qituvchi").order_by("first_name"),
+        "employees": branch_scope.scope_employees(request, Employee.objects.filter(role__name="O'qituvchi")).order_by("first_name"),
     })
 
 
@@ -2910,10 +3193,20 @@ def group_davom(request, pk):
                 return JsonResponse({"error": "Dars vaqti ichida bo'lmaganda davomatni o'zgartira olmaysiz!"}, status=403)
         today_for_save = today
         student_ids_in_records = set()
+        group_student_ids = set(group.students.values_list("id", flat=True))
         for rec in records:
             student_id = rec.get("student_id")
             if not student_id:
                 continue
+            try:
+                student_id = int(student_id)
+            except (TypeError, ValueError):
+                continue
+            # So'rovdagi student_id faqat shu guruh a'zolari bo'lishi kerak.
+            if student_id not in group_student_ids:
+                return JsonResponse(
+                    {"error": "O'quvchi bu guruhga tegishli emas."}, status=400
+                )
             status = rec.get("status", "present")
             notes = rec.get("notes", "") or ""
             rec_date = rec.get("date")
@@ -3118,8 +3411,8 @@ def _add_student_to_group(student, group, reason="Guruh sahifasidan qo'shildi", 
 
 @login_required(login_url="login")
 def add_student_to_group(request, group_pk, student_pk):
-    group = get_object_or_404(Group, pk=group_pk)
-    student = get_object_or_404(Student, pk=student_pk)
+    group = _object_or_404_scoped(request, Group, group_pk)
+    student = _object_or_404_scoped(request, Student, student_pk)
     if not _add_student_to_group(student, group, request=request):
         messages.warning(request, f"{student.first_name} {student.last_name} allaqachon {group.name} guruhiga qo'shilgan!")
         return redirect("group_detail", pk=group_pk)
@@ -3140,7 +3433,7 @@ def add_student_to_group(request, group_pk, student_pk):
 
 @login_required(login_url="login")
 def add_pending_to_group(request, group_pk, course_pk):
-    group = get_object_or_404(Group, pk=group_pk)
+    group = _object_or_404_scoped(request, Group, group_pk)
     course = get_object_or_404(Course, pk=course_pk)
     students = Student.objects.filter(groups__isnull=True, status="kutilyotgan", desired_course=course)
     count = 0
@@ -3157,8 +3450,8 @@ def add_pending_to_group(request, group_pk, course_pk):
 
 @login_required(login_url="login")
 def remove_student_from_group(request, group_pk, student_pk):
-    group = get_object_or_404(Group, pk=group_pk)
-    student = get_object_or_404(Student, pk=student_pk)
+    group = _object_or_404_scoped(request, Group, group_pk)
+    student = _object_or_404_scoped(request, Student, student_pk)
     if request.method == "POST":
         reason = request.POST.get("reason", "").strip()
         if not reason:
@@ -3181,8 +3474,8 @@ def remove_student_from_group(request, group_pk, student_pk):
 
 @login_required(login_url="login")
 def graduate_student(request, group_pk, student_pk):
-    group = get_object_or_404(Group, pk=group_pk)
-    student = get_object_or_404(Student, pk=student_pk)
+    group = _object_or_404_scoped(request, Group, group_pk)
+    student = _object_or_404_scoped(request, Student, student_pk)
     if group not in student.groups.all():
         messages.warning(request, f"{student.first_name} {student.last_name} bu guruhda emas!")
         return redirect("group_detail", pk=group_pk)
@@ -3202,8 +3495,8 @@ def graduate_student(request, group_pk, student_pk):
 
 @login_required(login_url="login")
 def transfer_student(request, group_pk, student_pk):
-    group = get_object_or_404(Group, pk=group_pk)
-    student = get_object_or_404(Student, pk=student_pk)
+    group = _object_or_404_scoped(request, Group, group_pk)
+    student = _object_or_404_scoped(request, Student, student_pk)
     if group not in student.groups.all():
         messages.warning(request, f"{student.first_name} {student.last_name} bu guruhda emas!")
         return redirect("group_detail", pk=group_pk)
@@ -3224,7 +3517,7 @@ def transfer_student(request, group_pk, student_pk):
         if not new_group_id:
             messages.error(request, "Yangi guruhni tanlang!")
             return redirect("transfer_student", group_pk=group_pk, student_pk=student_pk)
-        new_group = get_object_or_404(Group, pk=new_group_id)
+        new_group = _object_or_404_scoped(request, Group, new_group_id)
         trans_info = f"{group.name} → {new_group.name}"
         full_reason = f"{reason} | {trans_info}" if reason else trans_info
         student.groups.remove(group)
@@ -3241,7 +3534,7 @@ def transfer_student(request, group_pk, student_pk):
     course_id = request.GET.get("course_id")
     teacher_id = request.GET.get("teacher_id")
 
-    courses = Course.objects.all().order_by("name")
+    courses = branch_scope.scope_courses(request).order_by("name")
     teachers = Employee.objects.none()
     groups = Group.objects.none()
 
@@ -3273,7 +3566,7 @@ def transfer_student(request, group_pk, student_pk):
 
 @login_required(login_url="login")
 def transfer_all_students(request, pk):
-    group = get_object_or_404(Group, pk=pk)
+    group = _object_or_404_scoped(request, Group, pk)
     students = group.students.all()
     if request.method == "POST":
         reason = request.POST.get("reason", "").strip()
@@ -3281,7 +3574,7 @@ def transfer_all_students(request, pk):
         if not new_group_id or new_group_id == "pending":
             messages.error(request, "Yangi guruhni tanlang!")
             return redirect("transfer_all_students", pk=pk)
-        new_group = get_object_or_404(Group, pk=new_group_id)
+        new_group = _object_or_404_scoped(request, Group, new_group_id)
         trans_info = f"{group.name} → {new_group.name}"
         full_reason = f"{reason} | {trans_info}" if reason else trans_info
         count = 0
@@ -3299,7 +3592,7 @@ def transfer_all_students(request, pk):
         return redirect("group_detail", pk=new_group.pk)
     course_id = request.GET.get("course_id")
     teacher_id = request.GET.get("teacher_id")
-    courses = Course.objects.all().order_by("name")
+    courses = branch_scope.scope_courses(request).order_by("name")
     teachers = Employee.objects.none()
     groups = Group.objects.none()
     if course_id:
@@ -3323,7 +3616,7 @@ def transfer_all_students(request, pk):
 
 @login_required(login_url="login")
 def graduated_students(request):
-    students = Student.objects.filter(graduated_groups__isnull=False).prefetch_related(
+    students = branch_scope.scope(request, Student.objects.filter(graduated_groups__isnull=False, is_deleted=False)).prefetch_related(
         "graduated_groups", "groups"
     ).distinct().order_by("-created_at")
     return render(request, "student/graduated.html", {"students": students})
@@ -3331,7 +3624,7 @@ def graduated_students(request):
 
 @login_required(login_url="login")
 def student_profile(request, pk):
-    student = get_object_or_404(Student.objects.prefetch_related("groups", "graduated_groups"), pk=pk)
+    student = _object_or_404_scoped(request, Student.objects.prefetch_related("groups", "graduated_groups"), pk)
 
     if request.method == "POST":
         action = request.POST.get("action", "")
@@ -3376,6 +3669,48 @@ def student_profile(request, pk):
             student.address_house = request.POST.get("address_house") or None
             student.save()
             messages.success(request, "Manzil muvaffaqiyatli saqlandi!")
+            return redirect("student_profile", pk=student.pk)
+
+        elif action == "change_login_password":
+            from .permissions import has_permission
+            if not (request.user.is_superuser or has_permission(request.user, "student.update")):
+                messages.error(request, "Bu amal uchun ruxsat yo'q")
+                return redirect("student_profile", pk=student.pk)
+            new_login = request.POST.get("login", "").strip()
+            new_password = request.POST.get("new_password", "")
+            error = None
+            user = student.user
+            if not new_login and not new_password:
+                error = "Login yoki parol kiritilmadi."
+            if new_login:
+                if user is None or user.username != new_login:
+                    if User.objects.filter(username=new_login).exclude(pk=user.pk if user else 0).exists():
+                        error = f"Bu login ({new_login}) allaqachon boshqa akkauntda mavjud."
+                    else:
+                        if user is None:
+                            user = User.objects.create_user(username=new_login)
+                            student.user = user
+                            student.save(update_fields=["user"])
+                        else:
+                            user.username = new_login
+                            user.save(update_fields=["username"])
+            if new_password:
+                if len(new_password) < 4:
+                    error = "Parol kamida 4 ta belgidan iborat bo'lishi kerak."
+                else:
+                    if user is None:
+                        user = User.objects.create_user(
+                            username=new_login or f"student_{student.pk}"
+                        )
+                        student.user = user
+                        student.save(update_fields=["user"])
+                    user.set_password(new_password)
+                    user.save()
+            if error:
+                messages.error(request, error)
+            else:
+                _log_student_action(student, None, "login_parol", "Login yoki parol yangilandi", request)
+                messages.success(request, "Login va parol muvaffaqiyatli saqlandi!")
             return redirect("student_profile", pk=student.pk)
 
     logs = list(student.logs.select_related("group").all())
@@ -3457,6 +3792,20 @@ def student_profile(request, pk):
 
     transactions = Transaction.objects.filter(student=student).select_related("group").order_by("-created_at")[:50]
 
+    # Coin tarixi va shop buyurtmalari (o'quvchi profili)
+    from coins.models import CoinTransaction, CoinBalance, ShopOrder
+    coin_transactions = list(
+        CoinTransaction.objects.filter(student=student)
+        .select_related("group", "reason", "shop_order", "reversal_of")
+        .order_by("-created_at")[:200]
+    )
+    coin_balance = CoinBalance.objects.filter(student=student).first()
+    coin_orders = list(
+        ShopOrder.objects.filter(student=student)
+        .select_related("product")
+        .order_by("-created_at")[:100]
+    )
+
     # SMS history for this student - match by student_name OR by phone numbers
     from django.db.models import Q
     phones = [p for p in [student.phone, student.father_phone, student.mother_phone] if p]
@@ -3506,7 +3855,7 @@ def student_profile(request, pk):
         "attendance_history": attendance_history,
         "admin_name": admin_name,
         "all_students": all_students,
-        "payment_methods": PaymentMethod.objects.filter(is_active=True),
+        "payment_methods": payment_scope.allowed_payment_methods(request.user, branch=branch_scope.get_current_branch(request)),
         "transactions": transactions,
         "education_types": education_types,
         "remaining_lessons": remaining_lessons,
@@ -3519,6 +3868,9 @@ def student_profile(request, pk):
         "monthly_debts": monthly_debts,
         "deferred_payments": deferred_payments,
         "sms_history": sms_history,
+        "coin_transactions": coin_transactions,
+        "coin_balance": coin_balance,
+        "coin_orders": coin_orders,
     })
 
 
@@ -3535,7 +3887,7 @@ def student_send_sms(request):
     if not student_id or not recipient_phone or not message:
         return JsonResponse({"success": False, "error": "Barcha maydonlarni to'ldiring"})
 
-    student = get_object_or_404(Student, pk=student_id)
+    student = _object_or_404_scoped(request, Student, student_id)
 
     from .sms_service import _get_token, _get_credentials, _send_single_sms, _get_sms_signature, _sanitize_signature
     _, _, user_id = _get_credentials()
@@ -3570,7 +3922,7 @@ def student_send_sms(request):
 
 @login_required(login_url="login")
 def student_freeze(request, pk):
-    student = get_object_or_404(Student, pk=pk)
+    student = _object_or_404_scoped(request, Student, pk)
     if request.method == "POST":
         form = FreezeForm(request.POST)
         if form.is_valid():
@@ -3620,7 +3972,7 @@ def student_freeze(request, pk):
 
 @login_required(login_url="login")
 def student_unfreeze(request, pk):
-    student = get_object_or_404(Student, pk=pk)
+    student = _object_or_404_scoped(request, Student, pk)
     # Remove auto-created absent records from freezing
     Attendance.objects.filter(
         student=student,
@@ -3636,7 +3988,7 @@ def student_unfreeze(request, pk):
 
 @login_required(login_url="login")
 def student_remove_from_group(request, pk):
-    student = get_object_or_404(Student, pk=pk)
+    student = _object_or_404_scoped(request, Student, pk)
     if request.method == "POST":
         form = RemoveFromGroupForm(request.POST)
         if form.is_valid():
@@ -3658,7 +4010,7 @@ def student_remove_from_group(request, pk):
 
 @login_required(login_url="login")
 def student_add_to_group(request, pk):
-    student = get_object_or_404(Student, pk=pk)
+    student = _object_or_404_scoped(request, Student, pk)
     if request.method == "POST":
         form = AddToGroupForm(request.POST)
         if form.is_valid():
@@ -3681,7 +4033,7 @@ def student_add_to_group(request, pk):
 
 @login_required(login_url="login")
 def group_freeze(request, pk):
-    group = get_object_or_404(Group, pk=pk)
+    group = _object_or_404_scoped(request, Group, pk)
     if request.method == "POST":
         form = FreezeForm(request.POST)
         if form.is_valid():
@@ -3709,7 +4061,7 @@ def group_freeze(request, pk):
 
 @login_required(login_url="login")
 def group_archive(request, pk):
-    group = get_object_or_404(Group, pk=pk)
+    group = _object_or_404_scoped(request, Group, pk)
     if request.method == "POST":
         students = group.students.all()
         for student in students:
@@ -3729,7 +4081,7 @@ def group_archive(request, pk):
 
 @login_required(login_url="login")
 def group_settings(request, pk):
-    group = get_object_or_404(Group, pk=pk)
+    group = _object_or_404_scoped(request, Group, pk)
     group_form = GroupForm(instance=group)
     lesson_form = LessonTimeForm(group=group)
     lesson_times = group.lesson_times.all()
@@ -3743,6 +4095,8 @@ def group_settings(request, pk):
             group_form = GroupForm(request.POST, instance=group)
             if group_form.is_valid():
                 group_form.save()
+                from frontend import messaging_api
+                messaging_api.sync_group_chat(group, request)
                 # Agar end_date qisqartirilgan bo'lsa, keyingi davomatlarni o'chirish
                 if old_end and group.end_date and group.end_date < old_end:
                     deleted, _ = Attendance.objects.filter(
@@ -3797,7 +4151,7 @@ def group_settings(request, pk):
 @login_required(login_url="login")
 def group_teacher_assignments(request, pk):
     """Guruhga sanalar bo'yicha o'qituvchi biriktiruvi (Humoyun → Feruza holati)."""
-    group = get_object_or_404(Group, pk=pk)
+    group = _object_or_404_scoped(request, Group, pk)
     employees = Employee.objects.select_related("role").filter(
         is_active=True, is_deleted=False
     ).order_by("first_name", "last_name")
@@ -3828,6 +4182,8 @@ def group_teacher_assignments(request, pk):
         GroupTeacherAssignment.objects.create(
             group=group, teacher=teacher, start_date=start, end_date=end
         )
+        from frontend import messaging_api
+        messaging_api.sync_group_chat(group, request)
         _log_group_action(
             group, "teacher_assignment",
             "O'qituvchi biriktirildi: {} ({} - {})".format(
@@ -3859,28 +4215,77 @@ def group_teacher_assignment_delete(request, pk):
             request
         )
         assignment.delete()
+        from frontend import messaging_api
+        messaging_api.sync_group_chat(assignment.group, request)
         messages.success(request, "Biriktiruv o'chirildi")
         return redirect("group_teacher_assignments", pk=assignment.group.pk)
     return render(request, "group/assignment_delete.html", {"assignment": assignment})
 
 
 @login_required(login_url="login")
-@login_required(login_url="login")
+def _employee_or_403(request, queryset, **kwargs):
+    """Xodimni filial chegarasini buzilmasdan oladi.
+
+    Xodimda bir nechta filial bo'lishi mumkin. Foydalanuvchi shu
+    xodimning **kamida bitta** filialiga ruxsat etsa bo'ladi; aks holda
+    403 (mavjudligini oshkor qilmaydi).
+
+    Cheklovsiz foydalanuvchi (superadmin yoki filialga biriktirilmagan
+    admin) hech qachon bloklanmaydi — u istalgan xodimni ko'rishi va
+    tahrirlashi mumkin (filial biriktirish kabi tuzatishlarni bajarishi
+    uchun). Aks holda filialsiz xodimni tahrirlash formasi ham ochilmay
+    qoladi (403 — «sabab» bilan birga tuzatish yo'li ko'rsatiladi).
+    """
+    employee = get_object_or_404(queryset, **kwargs)
+
+    allowed = branch_scope.allowed_branch_ids(request.user)
+    if allowed is None:
+        return employee
+
+    employee_branch_ids = set(
+        employee.branches.values_list("id", flat=True)
+    )
+
+    # Filial umuman biriktirilmagan bo'lsa — sabab va tuzatishni aniq aytamiz.
+    if not employee_branch_ids:
+        raise BranchAccessDenied(
+            "Bu xodimga hech qanday filial biriktirilmagan. Shu sababli "
+            "filial chegarasi unga kirishni to'sib qo'ymoqda.",
+            "Xodimlar bo'limidan xodimni tahrirlab, «Filiallar» bo'limida "
+            "kamida bitta filialni tanlab saqlang, so'ng bu sahifani qayta "
+            "oching.",
+        )
+
+    if not (employee_branch_ids & set(allowed)):
+        raise BranchAccessDenied(
+            "Bu xodim sizga ruxsat etilgan filiallarga tegishli emas.",
+            "Rahbardan shu xodimning filialiga ruxsat so'rang yoki "
+            "xodimni o'z filialingizga biriktirib tahrirlang.",
+        )
+    current = branch_scope.get_current_branch(request)
+    if current is not None and current.pk not in employee_branch_ids:
+        raise BranchAccessDenied(
+            "Bu xodim «%s» filialida yo'q (boshqa filialga tegishli)."
+            % current.name,
+            "Yuqoridagi filial tanlagichdan «Barcha filiallar»ni yoki xodim "
+            "tegishli bo'lgan filialni tanlang.",
+        )
+    return employee
+
+
 def employee_list(request):
     from .teacher_salary_api import _salary_stats_batch
-    employees = Employee.all_objects.filter(is_deleted=False).select_related("position", "role").annotate(
-        group_count=Count("teacher_groups")
-    ).all().order_by("-is_active", "-created_at")
+    employees = branch_scope.scope_employees(
+        request,
+        Employee.all_objects.filter(is_deleted=False).select_related("position", "role"),
+    ).annotate(group_count=Count("teacher_groups")).order_by("-is_active", "-created_at")
 
     kasab_id = request.GET.get("kasab")
     rol_id = request.GET.get("rol")
-    filial_id = request.GET.get("filial")
     if kasab_id:
         employees = employees.filter(position_id=kasab_id)
     if rol_id:
         employees = employees.filter(role_id=rol_id)
-    if filial_id and request.user.is_superuser:
-        employees = employees.filter(branches__id=filial_id).distinct()
 
     salary_stats = _salary_stats_batch(employees)
     salary_json = json.dumps({
@@ -3899,10 +4304,9 @@ def employee_list(request):
         "employees": employees,
         "salary_stats": salary_stats,
         "salary_json": salary_json,
-        "payment_methods": PaymentMethod.objects.filter(is_active=True),
+        "payment_methods": payment_scope.allowed_payment_methods(request.user),
         "positions": Position.objects.filter(is_active=True),
         "roles": Role.objects.filter(is_active=True),
-        "branches": Branch.objects.filter(is_active=True),
     })
 
 
@@ -3937,7 +4341,8 @@ def employee_create(request):
 def employee_profile(request, pk):
     from .teacher_salary_api import _salary_stats
     from django.db.models import Max
-    employee = get_object_or_404(
+    employee = _employee_or_403(
+        request,
         Employee.all_objects.select_related("position", "role", "user").prefetch_related("branches"),
         pk=pk
     )
@@ -3992,7 +4397,7 @@ def employee_profile(request, pk):
         "groups": groups,
         "receipts": receipts,
         "salary": salary,
-        "payment_methods": PaymentMethod.objects.filter(is_active=True),
+        "payment_methods": payment_scope.allowed_payment_methods(request.user),
         "total_lessons": total_lessons,
         "month_lessons": month_lessons,
         "attendance_rate": attendance_rate,
@@ -4017,7 +4422,7 @@ def employee_profile(request, pk):
 
 @login_required(login_url="login")
 def employee_update(request, pk):
-    employee = get_object_or_404(Employee.all_objects, pk=pk)
+    employee = _employee_or_403(request, Employee.all_objects, pk=pk)
     form = EmployeeForm(instance=employee)
     if request.method == "POST":
         form = EmployeeForm(request.POST, request.FILES, instance=employee)
@@ -4063,7 +4468,7 @@ def employee_update(request, pk):
 
 @login_required(login_url="login")
 def employee_delete(request, pk):
-    employee = get_object_or_404(Employee.all_objects, pk=pk)
+    employee = _employee_or_403(request, Employee.all_objects, pk=pk)
     if request.method == "POST":
         if employee.user:
             employee.user.is_active = False
@@ -4295,7 +4700,11 @@ def task_list(request):
         except Exception:
             employee = None
 
-    base = Task.objects.select_related("assigned_to", "assigned_to__position")
+    base = branch_scope.scope_related(
+        request,
+        Task.objects.select_related("assigned_to", "assigned_to__position"),
+        "assigned_to__branches",
+    )
     if not is_admin and employee:
         base = base.filter(assigned_to=employee)
 
@@ -4459,7 +4868,11 @@ def reminder_list(request):
                 messages.success(request, "Eslatma yuborildi")
             return redirect("reminder_list")
     from django.db.models import Count, Prefetch, Q
-    reminders = Reminder.objects.select_related("employee", "employee__position").order_by("-created_at")
+    reminders = branch_scope.scope_related(
+        request,
+        Reminder.objects.select_related("employee", "employee__position"),
+        "employee__branches",
+    ).order_by("-created_at")
     if not is_admin:
         try:
             emp = request.user.employee_profile
@@ -4676,16 +5089,57 @@ def branch_delete(request, pk):
 
 
 @login_required(login_url="login")
+def branch_admin_branches(request, pk):
+    """Admin foydalanuvchini filiallarga biriktirish / ajratish."""
+    branch = get_object_or_404(Branch, pk=pk)
+    if not (request.user.is_superuser or has_permission(request.user, "admin.permissions.manage")):
+        raise PermissionDenied
+    if request.method == "POST":
+        AdminBranch.objects.filter(branch=branch).delete()
+        for raw in request.POST.getlist("admins"):
+            if not str(raw).isdigit():
+                continue
+            AdminBranch.objects.get_or_create(
+                user_id=int(raw), branch=branch, defaults={"granted_by": request.user}
+            )
+        messages.success(request, "Filialga biriktirilgan adminlar yangilandi")
+        return redirect("branch_list")
+    admins = User.objects.filter(is_staff=True).annotate(
+        has_branch=Count("admin_branches", filter=Q(admin_branches__branch=branch))
+    ).order_by("-is_superuser", "username")
+    return render(request, "branch/admins.html", {
+        "branch": branch,
+        "admins": admins,
+        "selected_ids": set(AdminBranch.objects.filter(branch=branch).values_list("user_id", flat=True)),
+        "title": f"{branch.name} — adminlar",
+    })
+
+
+@login_required(login_url="login")
+def branch_switch(request):
+    """Tanlagich orqali joriy filialni almashtiradi va foydalanuvchini
+    joriy sahifaga qaytaradi (form holatida saqlab qolmaydi)."""
+    target = request.POST.get("next") or request.GET.get("next") or request.META.get("HTTP_REFERER") or "/"
+    if not target.startswith("/"):
+        target = "/"
+    if request.method == "POST":
+        branch_scope.set_current_branch(request, request.POST.get("branch"))
+        return redirect(target)
+    return redirect(target)
+
+
+@login_required(login_url="login")
 def room_list(request):
-    rooms = Room.objects.filter(is_active=True).order_by("-created_at")
+    rooms = branch_scope.scope(request, Room.objects.filter(is_active=True)).order_by("-created_at")
     return render(request, "room/list.html", {"rooms": rooms})
 
 
 @login_required(login_url="login")
 def room_create(request):
-    form = RoomForm()
+    branches = _form_branches(request)
+    form = RoomForm(initial={"branch": branch_scope.get_current_branch(request)}, branches=branches)
     if request.method == "POST":
-        form = RoomForm(request.POST)
+        form = RoomForm(request.POST, branches=branches)
         if form.is_valid():
             form.save()
             messages.success(request, "Xona muvaffaqiyatli qo'shildi")
@@ -4695,10 +5149,11 @@ def room_create(request):
 
 @login_required(login_url="login")
 def room_update(request, pk):
-    room = get_object_or_404(Room, pk=pk)
-    form = RoomForm(instance=room)
+    room = _object_or_404_scoped(request, Room, pk)
+    branches = _form_branches(request)
+    form = RoomForm(instance=room, branches=branches)
     if request.method == "POST":
-        form = RoomForm(request.POST, instance=room)
+        form = RoomForm(request.POST, instance=room, branches=branches)
         if form.is_valid():
             form.save()
             messages.success(request, "Xona muvaffaqiyatli yangilandi")
@@ -4708,7 +5163,7 @@ def room_update(request, pk):
 
 @login_required(login_url="login")
 def room_delete(request, pk):
-    room = get_object_or_404(Room, pk=pk)
+    room = _object_or_404_scoped(request, Room, pk)
     if request.method == "POST":
         room.delete()
         messages.success(request, "Xona muvaffaqiyatli o'chirildi (faolligi bekor qilindi)")
@@ -4759,26 +5214,32 @@ def position_delete(request, pk):
 
 @login_required(login_url="login")
 def statistics(request):
-    total_courses = Course.objects.count()
-    total_groups = Group.objects.count()
-    total_students = Student.objects.count()
+    total_courses = branch_scope.scope_courses(request).count()
+    total_groups = branch_scope.scope(request, Group.objects.all()).count()
+    total_students = branch_scope.scope(request, Student.objects.all()).count()
     total_surveys = MarketingSurvey.objects.count()
-    pending_students = Student.objects.filter(groups__isnull=True, status="kutilyotgan").count()
-    active_groups = Group.objects.filter(status="aktiv").count()
-    pending_groups_count = Group.objects.filter(status="kutilyotgan").count()
-    online_groups = Group.objects.filter(education_type="onlayn").count()
-    offline_groups = Group.objects.filter(education_type="oflayn").count()
-    toq_groups = Group.objects.filter(day_type="toq").count()
-    juft_groups = Group.objects.filter(day_type="juft").count()
-    har_kun_groups = Group.objects.filter(day_type="har_kun").count()
+    pending_students = branch_scope.scope(request, Student.objects.filter(groups__isnull=True, status="kutilyotgan", is_deleted=False)).count()
+    active_groups = branch_scope.scope(request, Group.objects.filter(status="aktiv")).count()
+    pending_groups_count = branch_scope.scope(request, Group.objects.filter(status="kutilyotgan")).count()
+    online_groups = branch_scope.scope(request, Group.objects.filter(education_type="onlayn")).count()
+    offline_groups = branch_scope.scope(request, Group.objects.filter(education_type="oflayn")).count()
+    toq_groups = branch_scope.scope(request, Group.objects.filter(day_type="toq")).count()
+    juft_groups = branch_scope.scope(request, Group.objects.filter(day_type="juft")).count()
+    har_kun_groups = branch_scope.scope(request, Group.objects.filter(day_type="har_kun")).count()
 
-    group_students = Group.objects.annotate(count=Count("students")).values("name", "count")
+    group_students = branch_scope.scope(
+        request, Group.objects.annotate(count=Count("students"))
+    ).values("name", "count")
+    # So'rovnomadagi o'quvchilar soni ham filial bilan cheklanadi.
     survey_stats = MarketingSurvey.objects.annotate(
-        count=Count("students")
+        count=Count(
+            "students",
+            filter=branch_scope.branch_filter(request, prefix="students__"),
+        )
     ).order_by("-count")
     total_survey_students = sum(s.count for s in survey_stats)
 
-    recent_students = Student.objects.prefetch_related("groups", "marketing_survey").order_by("-created_at")[:10]
+    recent_students = branch_scope.scope(request, Student.objects.filter(is_deleted=False).prefetch_related("groups", "marketing_survey")).order_by("-created_at")[:10]
 
     return render(request, "statistics.html", {
         "total_courses": total_courses,
@@ -4926,7 +5387,7 @@ def payment_transfer_ajax(request):
     user = request.user
     is_boss = user.is_superuser
     if is_boss:
-        user_kassalar = Kassa.objects.filter(is_active=True)
+        user_kassalar = branch_scope.scope(request, Kassa.objects.filter(is_active=True))
     else:
         user_kassalar = Kassa.objects.filter(owner=user, is_active=True)
     if not user_kassalar.exists():
@@ -4945,7 +5406,9 @@ def payment_transfer_ajax(request):
     to_payment_method = request.POST.get("to_payment_method", "").strip()
     description = request.POST.get("description", "").strip() or f"O'tkazma: {from_kassa.name}"
     try:
-        to_kassa = Kassa.objects.get(pk=to_kassa_id, is_active=True)
+        to_kassa = _object_or_404_scoped(
+        request, Kassa.objects.filter(is_active=True), pk=to_kassa_id
+    )
     except (Kassa.DoesNotExist, ValueError, TypeError):
         return JsonResponse({"success": False, "error": "Qabul qiluvchi kassa topilmadi"})
     try:
@@ -4954,6 +5417,10 @@ def payment_transfer_ajax(request):
         return JsonResponse({"success": False, "error": "Noto'g'ri summa"})
     if amount <= 0:
         return JsonResponse({"success": False, "error": "Summa 0 dan katta bo'lishi kerak"})
+    if payment_method and not payment_scope.is_method_allowed(user, payment_method, kassa=from_kassa):
+        return JsonResponse({"success": False, "error": "Bu to'lov turidan foydalanishga ruxsatingiz yo'q."})
+    if to_payment_method and not payment_scope.is_method_allowed(user, to_payment_method, kassa=to_kassa):
+        return JsonResponse({"success": False, "error": "Qabul qiluvchi to'lov turidan foydalanishga ruxsatingiz yo'q."})
     if payment_method:
         k_tx = KassaTransaction.objects.filter(kassa=from_kassa)
         pm_inc = k_tx.filter(transaction_type__in=["payment", "income", "transfer_in"], payment_method__iexact=payment_method).aggregate(s=Sum("amount"))["s"] or 0
@@ -4994,7 +5461,7 @@ def payment_expense_ajax(request):
     user = request.user
     is_boss = user.is_superuser
     if is_boss:
-        user_kassalar = Kassa.objects.filter(is_active=True)
+        user_kassalar = branch_scope.scope(request, Kassa.objects.filter(is_active=True))
     else:
         user_kassalar = Kassa.objects.filter(owner=user, is_active=True)
     if not user_kassalar.exists():
@@ -5015,6 +5482,8 @@ def payment_expense_ajax(request):
         return JsonResponse({"success": False, "error": "Noto'g'ri summa"})
     if amount <= 0:
         return JsonResponse({"success": False, "error": "Summa 0 dan katta bo'lishi kerak"})
+    if not payment_scope.is_method_allowed(user, payment_method, kassa=kassa):
+        return JsonResponse({"success": False, "error": "Bu to'lov turidan foydalanishga ruxsatingiz yo'q."})
     if kassa.balance < amount:
         return JsonResponse({"success": False, "error": f"Kassada yetarli mablag' yo'q! Balans: {float(kassa.balance):,.0f} so'm"})
     final_category = ""
@@ -5043,7 +5512,7 @@ def payment_student_refund(request):
         return JsonResponse({"success": False, "error": "Sizga o'quvchiga pul qaytarishga ruxsat berilmagan."})
     is_boss = user.is_superuser
     if is_boss:
-        user_kassalar = Kassa.objects.filter(is_active=True)
+        user_kassalar = branch_scope.scope(request, Kassa.objects.filter(is_active=True))
     else:
         user_kassalar = Kassa.objects.filter(owner=user, is_active=True)
     if not user_kassalar.exists():
@@ -5067,7 +5536,9 @@ def payment_student_refund(request):
         return JsonResponse({"success": False, "error": "Noto'g'ri summa"})
     if amount <= 0:
         return JsonResponse({"success": False, "error": "Summa 0 dan katta bo'lishi kerak"})
-    student = get_object_or_404(Student, pk=student_id)
+    if not payment_scope.is_method_allowed(user, payment_method, kassa=kassa):
+        return JsonResponse({"success": False, "error": "Bu to'lov turidan foydalanishga ruxsatingiz yo'q."})
+    student = _object_or_404_scoped(request, Student, student_id)
     balance = get_or_create_balance(student)
     if balance.balance < amount:
         return JsonResponse({"success": False, "error": f"Balansda yetarli mablag' yo'q! Balans: {float(balance.balance):,.0f} so'm"})
@@ -5141,7 +5612,12 @@ def payment_create(request):
             return JsonResponse({"success": False, "error": "Noto'g'ri summa!"})
         if amount <= 0:
             return JsonResponse({"success": False, "error": "Summa musbat bo'lishi kerak!"})
-        student = get_object_or_404(Student, pk=student_id)
+        if not payment_scope.is_method_allowed(request.user, payment_method, kassa=user_kassa):
+            return JsonResponse({
+                "success": False,
+                "error": "Bu to'lov turidan foydalanishga ruxsatingiz yo'q (filial yoki xodim sozlamalarida yoqilmagan).",
+            })
+        student = _object_or_404_scoped(request, Student, student_id)
         employee = getattr(request.user, 'employee_profile', None)
         created_by = "Admin"
         if employee:
@@ -5278,7 +5754,7 @@ def payment_create(request):
         return JsonResponse(response_data)
     is_boss_admin = request.user.is_superuser
     if is_boss_admin:
-        user_kassalar = Kassa.objects.filter(is_active=True)
+        user_kassalar = branch_scope.scope(request, Kassa.objects.filter(is_active=True))
     else:
         user_kassalar = Kassa.objects.filter(owner=request.user, is_active=True)
     if not user_kassalar.exists():
@@ -5331,7 +5807,7 @@ def payment_create(request):
         transaction_type__in=[KassaTransaction.TransactionType.EXPENSE, KassaTransaction.TransactionType.REFUND],
     ).aggregate(total=Sum('amount'))['total'] or 0
     teachers_list = Employee.objects.filter(is_active=True).values('pk', 'first_name', 'last_name')
-    students = Student.objects.all().prefetch_related('groups').order_by("first_name", "last_name").distinct()
+    students = branch_scope.scope(request, Student.objects.filter(is_deleted=False)).prefetch_related('groups').order_by("first_name", "last_name").distinct()
     if filter_date:
         try:
             fd = datetime.strptime(filter_date, "%Y-%m-%d").date()
@@ -5451,7 +5927,7 @@ def payment_create(request):
             'last_pay_date': last_pay_date,
             'day_payments': day_payments_list,
         })
-    all_students_for_income = Student.objects.all().prefetch_related('groups').order_by("first_name", "last_name")
+    all_students_for_income = branch_scope.scope(request, Student.objects.filter(is_deleted=False)).prefetch_related('groups').order_by("first_name", "last_name")
     all_income_data = []
     for s in all_students_for_income:
         try:
@@ -5499,7 +5975,7 @@ def payment_create(request):
             'deferred_payments': deferred_data_inc,
             'groups': groups_info_inc,
         })
-    all_kassalar = Kassa.objects.filter(is_active=True).exclude(pk=main_kassa.pk)
+    all_kassalar = branch_scope.scope(request, Kassa.objects.filter(is_active=True)).exclude(pk=main_kassa.pk)
     all_kassa_pm_balances = {}
     for k in all_kassalar:
         k_tx = KassaTransaction.objects.filter(kassa=k)
@@ -5537,7 +6013,7 @@ def payment_create(request):
         "user_kassalar": user_kassalar,
         "all_kassalar": all_kassalar,
         "all_kassa_pm_balances": json.dumps(all_kassa_pm_balances),
-        "payment_methods": PaymentMethod.objects.filter(is_active=True),
+        "payment_methods": payment_scope.allowed_payment_methods(request.user, kassa=main_kassa),
         "filter_date": filter_date or today.strftime("%Y-%m-%d"),
         "filter_tx_type": filter_tx_type,
         "filter_payment_method": filter_payment_method,
@@ -5597,7 +6073,7 @@ def payment_history(request):
         "transactions": tx_list,
         "page_obj": page_obj,
         "search_query": search,
-        "students": Student.objects.all().order_by("first_name", "last_name"),
+        "students": branch_scope.scope(request, Student.objects.filter(is_deleted=False)).order_by("first_name", "last_name"),
         "payment_methods": PaymentMethod.objects.filter(is_active=True),
     })
 
@@ -5676,7 +6152,7 @@ def payments_all(request):
         "today_expense": today_expense,
         "month_income": month_income,
         "month_expense": month_expense,
-        "students": Student.objects.all().order_by("first_name", "last_name"),
+        "students": branch_scope.scope(request, Student.objects.filter(is_deleted=False)).order_by("first_name", "last_name"),
         "payment_methods": PaymentMethod.objects.filter(is_active=True),
     })
 
@@ -5709,7 +6185,7 @@ def payment_filter(request):
     tx_type = request.GET.get("tx_type", "")
     payment_method = request.GET.get("payment_method", "")
 
-    students = Student.objects.prefetch_related("groups", "groups__course", "groups__teacher").all()
+    students = branch_scope.scope(request, Student.objects.filter(is_deleted=False).prefetch_related("groups", "groups__course", "groups__teacher"))
 
     if search:
         q = Q(first_name__icontains=search) | Q(last_name__icontains=search)
@@ -5885,18 +6361,18 @@ def payment_filter(request):
     paginator = Paginator(transactions, 50)
     page_obj = paginator.get_page(page)
 
-    courses = Course.objects.all()
-    levels = CourseLevel.objects.all()
-    groups = Group.objects.filter(status__in=["aktiv", "kutilyotgan"]).order_by("name")
+    courses = branch_scope.scope_courses(request)
+    levels = branch_scope.scope_course_levels(request)
+    groups = branch_scope.scope(request, Group.objects.filter(status__in=["aktiv", "kutilyotgan"])).order_by("name")
     teachers = Employee.objects.filter(role__name__icontains="o'qituvchi").order_by("first_name") if Employee.objects.filter(role__name__icontains="o'qituvchi").exists() else Employee.objects.all().order_by("first_name")
     sources = MarketingSurvey.objects.all()
-    categories = Course.objects.all()
+    categories = branch_scope.scope_courses(request)
     moderators_list = (
         Transaction.objects.exclude(created_by="")
         .values_list("created_by", flat=True)
         .distinct()
     )
-    student_list = Student.objects.all().order_by("first_name", "last_name")
+    student_list = branch_scope.scope(request, Student.objects.filter(is_deleted=False)).order_by("first_name", "last_name")
 
     active_filters = {
         "search": search, "date_from": date_from, "date_to": date_to,
@@ -5939,10 +6415,10 @@ def debt_sms_page(request):
     from .models import SmsHistory
     from django.db.models import Q
 
-    debtors = Student.objects.filter(
+    debtors = branch_scope.scope(request, Student.objects.filter(
         is_active=True, is_deleted=False,
         balance__balance__lt=Decimal('0.00')
-    ).select_related('balance').prefetch_related('groups').order_by('first_name')
+    )).select_related('balance').prefetch_related('groups').order_by('first_name')
 
     debtor_list = []
     phone_filter = request.GET.get("phone", "")
@@ -6026,7 +6502,7 @@ def send_debt_reminders_to_all(request):
 
 @login_required(login_url="login")
 def student_balance_view(request, pk):
-    student = get_object_or_404(Student, pk=pk)
+    student = _object_or_404_scoped(request, Student, pk)
     balance = get_or_create_balance(student)
     transactions = Transaction.objects.filter(student=student).select_related("group").order_by("-created_at")
     total_income = sum(t.amount for t in transactions if t.amount > 0)
@@ -6054,7 +6530,7 @@ def balance_withdraw(request):
             return JsonResponse({"success": False, "error": "Noto'g'ri summa!"})
         if amount <= 0:
             return JsonResponse({"success": False, "error": "Summa musbat bo'lishi kerak!"})
-        student = get_object_or_404(Student, pk=student_id)
+        student = _object_or_404_scoped(request, Student, student_id)
         balance = get_or_create_balance(student)
         if balance.balance < amount:
             return JsonResponse({"success": False, "error": "Balansda yetarli mablag' mavjud emas!"})
@@ -6157,8 +6633,8 @@ def balance_transfer(request):
             return JsonResponse({"success": False, "error": "Noto'g'ri summa!"})
         if amount <= 0:
             return JsonResponse({"success": False, "error": "Summa musbat bo'lishi kerak!"})
-        from_student = get_object_or_404(Student, pk=student_id)
-        to_student = get_object_or_404(Student, pk=to_student_id)
+        from_student = _object_or_404_scoped(request, Student, student_id)
+        to_student = _object_or_404_scoped(request, Student, to_student_id)
         from_balance = get_or_create_balance(from_student)
         to_balance = get_or_create_balance(to_student)
         if from_balance.balance < amount:
@@ -6209,7 +6685,7 @@ def transfer_wrong_payment(request, pk):
             return JsonResponse({"success": False, "error": "Qaysi o'quvchiga o'tkazishni tanlang!"})
         if transaction.amount <= 0 or transaction.transaction_type != Transaction.Type.PAYMENT:
             return JsonResponse({"success": False, "error": "Faqat to'lov tranzaksiyalarini o'tkazish mumkin!"})
-        to_student = get_object_or_404(Student, pk=to_student_id)
+        to_student = _object_or_404_scoped(request, Student, to_student_id)
         from_student = transaction.student
         amount = transaction.amount
         employee = getattr(request.user, 'employee_profile', None)
@@ -6252,7 +6728,7 @@ def transfer_wrong_payment(request, pk):
         })
     return render(request, "payment/transfer_wrong.html", {
         "transaction": transaction,
-        "students": Student.objects.all().order_by("first_name", "last_name"),
+        "students": branch_scope.scope(request, Student.objects.filter(is_deleted=False)).order_by("first_name", "last_name"),
     })
 
 
@@ -6373,8 +6849,8 @@ def qr_settings(request):
 
 @login_required(login_url="login")
 def update_student_lesson_price(request, group_pk, student_pk):
-    group = get_object_or_404(Group, pk=group_pk)
-    student = get_object_or_404(Student, pk=student_pk)
+    group = _object_or_404_scoped(request, Group, group_pk)
+    student = _object_or_404_scoped(request, Student, student_pk)
     if request.method == "POST":
         price = request.POST.get("price", "").strip()
         try:
@@ -6806,7 +7282,7 @@ def api_update_deferred_reason(request):
     reason = data.get("reason", "").strip()
     if not student_id or not month:
         return JsonResponse({"success": False, "error": "student_id va month talab qilinadi"})
-    student = get_object_or_404(Student, pk=student_id)
+    student = _object_or_404_scoped(request, Student, student_id)
     tx = Transaction.objects.filter(
         student=student,
         transaction_type=Transaction.Type.PAYMENT,
@@ -6836,8 +7312,697 @@ def api_update_deferred_reason(request):
     return JsonResponse({"success": True})
 
 
+# ============================================================
+# COIN & SHOP boshqaruvi (Django web panel)
+# ============================================================
+
+@login_required(login_url="login")
+def coin_reason_list(request):
+    from coins.models import CoinReason
+    reasons = _apply_shop_branch_q(request, CoinReason.objects.all()).order_by("reason_type", "created_at")
+    holat = request.GET.get("holat", "")
+    if holat == "active":
+        reasons = reasons.filter(is_active=True)
+    elif holat == "inactive":
+        reasons = reasons.filter(is_active=False)
+    turi = request.GET.get("turi", "")
+    if turi in ("BONUS", "PENALTY"):
+        reasons = reasons.filter(reason_type=turi)
+    return render(request, "coins/reason_list.html", {
+        "reasons": reasons,
+        "bonus_count": reasons.filter(reason_type="BONUS").count(),
+        "penalty_count": reasons.filter(reason_type="PENALTY").count(),
+        "active_count": reasons.filter(is_active=True).count(),
+        "turi": turi,
+    })
+
+
+def _coin_reason_form_data(request):
+    name = (request.POST.get("name") or "").strip()
+    reason_type = request.POST.get("reason_type", "BONUS")
+    if reason_type not in ("BONUS", "PENALTY"):
+        reason_type = "BONUS"
+    try:
+        amount = int(request.POST.get("amount", "0"))
+    except (TypeError, ValueError):
+        amount = 0
+    amount = -abs(amount) if reason_type == "PENALTY" else abs(amount)
+    is_active = request.POST.get("is_active") == "on"
+    return name, reason_type, amount, is_active
+
+
+@login_required(login_url="login")
+def coin_reason_create(request):
+    from coins.models import CoinReason
+    if request.method == "POST":
+        name, reason_type, amount, is_active = _coin_reason_form_data(request)
+        if name:
+            CoinReason.objects.create(
+                name=name, reason_type=reason_type, amount=amount, is_active=is_active,
+                branch_id=_new_branch_id(request),
+            )
+            messages.success(request, "Coin sababi qo'shildi")
+        else:
+            messages.error(request, "Sabab nomini kiriting!")
+    return redirect("coin_reason_list")
+
+
+@login_required(login_url="login")
+def coin_reason_update(request, pk):
+    from coins.models import CoinReason
+    reason = _shop_object_or_403(request, CoinReason, pk)
+    if request.method == "POST":
+        name, reason_type, amount, is_active = _coin_reason_form_data(request)
+        if name:
+            reason.name = name
+            reason.reason_type = reason_type
+            reason.amount = amount
+            reason.is_active = is_active
+            if "branch_id" in request.POST:
+                reason.branch_id = _new_branch_id(request)
+            reason.save()
+            messages.success(request, "Coin sababi yangilandi")
+        else:
+            messages.error(request, "Sabab nomini kiriting!")
+    return redirect("coin_reason_list")
+
+
+@login_required(login_url="login")
+def coin_reason_toggle(request, pk):
+    from coins.models import CoinReason
+    reason = _shop_object_or_403(request, CoinReason, pk)
+    if request.method == "POST":
+        reason.is_active = not reason.is_active
+        reason.save(update_fields=["is_active"])
+        messages.success(request, "Sabab holati o'zgartirildi")
+    return redirect("coin_reason_list")
+
+
+@login_required(login_url="login")
+def coin_history_list(request):
+    from django.db.models import Q
+    from coins.models import CoinTransaction
+    transactions = _apply_shop_branch_q(
+        request,
+        CoinTransaction.objects.select_related(
+            "student", "reason", "created_by_employee"
+        ),
+        prefix="student__",
+    ).order_by("-created_at")
+    q = (request.GET.get("q") or "").strip()
+    employee = (request.GET.get("employee") or "").strip()
+    txn_type = request.GET.get("type", "")
+    coin_min = request.GET.get("coin_min", "")
+    coin_max = request.GET.get("coin_max", "")
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
+    if q:
+        transactions = transactions.filter(
+            Q(student__first_name__icontains=q)
+            | Q(student__last_name__icontains=q)
+            | Q(student__phone__icontains=q)
+        )
+    if employee:
+        transactions = transactions.filter(
+            Q(created_by__icontains=employee)
+            | Q(created_by_employee__first_name__icontains=employee)
+            | Q(created_by_employee__last_name__icontains=employee)
+        )
+    if txn_type in ("BONUS", "PENALTY", "ATTENDANCE", "SHOP", "ADJUSTMENT", "REVERSAL"):
+        transactions = transactions.filter(transaction_type=txn_type)
+    if coin_min.isdigit():
+        transactions = transactions.filter(amount__gte=int(coin_min))
+    if coin_max.isdigit():
+        transactions = transactions.filter(amount__lte=int(coin_max))
+    if date_from:
+        transactions = transactions.filter(created_at__date__gte=date_from)
+    if date_to:
+        transactions = transactions.filter(created_at__date__lte=date_to)
+    return render(request, "coins/history_list.html", {
+        "transactions": transactions[:500],
+    })
+
+
+@login_required(login_url="login")
+def shop_product_list(request):
+    from django.db.models import Count
+    from coins.models import ShopProduct, ShopCategory
+    from frontend.branch_scope import available_branches
+    products = _apply_shop_branch_q(
+        request,
+        ShopProduct.objects.select_related("category", "branch").annotate(
+            orders_count=Count("orders", distinct=True)
+        ),
+    )
+    category = request.GET.get("category", "")
+    if category.isdigit():
+        products = products.filter(category_id=int(category))
+    stock = request.GET.get("stock", "")
+    if stock.isdigit():
+        products = products.filter(stock=int(stock))
+    coin_min = request.GET.get("coin_min", "")
+    if coin_min.isdigit():
+        products = products.filter(coin_price__gte=int(coin_min))
+    coin_max = request.GET.get("coin_max", "")
+    if coin_max.isdigit():
+        products = products.filter(coin_price__lte=int(coin_max))
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
+    if date_from:
+        products = products.filter(created_at__date__gte=date_from)
+    if date_to:
+        products = products.filter(created_at__date__lte=date_to)
+    holat = request.GET.get("holat", "")
+    if holat == "sale":
+        products = products.filter(is_active=True, is_visible=True)
+    elif holat == "visible":
+        products = products.filter(is_active=False, is_visible=True)
+    elif holat == "pending":
+        products = products.filter(is_visible=False)
+    products = products.order_by("name")
+    categories = _apply_shop_branch_q(request, ShopCategory.objects.all()).order_by("name")
+    return render(request, "shop/product_list.html", {
+        "products": products,
+        "categories": categories,
+        "holat": holat,
+        "sale_count": products.filter(is_active=True, is_visible=True).count(),
+        "visible_count": products.filter(is_active=False, is_visible=True).count(),
+        "pending_count": products.filter(is_visible=False).count(),
+        "branch_options": available_branches(request.user),
+        "current_branch": branch_scope.get_current_branch(request),
+    })
+
+
+def _shop_product_apply(request, product):
+    from coins.models import ShopCategory, ShopProduct
+    product.name = (request.POST.get("name") or "").strip()
+    product.description = (request.POST.get("description") or "").strip()
+    raw_branch = (request.POST.get("branch_id") or "").strip()
+    # Filial ruxsat doirasiga qarab hal qilinadi:
+    # cheklangan foydalanuvchi «Barcha filiallar» yoki boshqa filialga qo'sha olmaydi.
+    product.branch = branch_scope.resolve_added_branch(
+        request.user, raw_branch, branch_scope.get_current_branch(request)
+    )
+    category_id = request.POST.get("category_id") or ""
+    new_category = (request.POST.get("new_category") or "").strip()
+    if new_category:
+        category, _ = ShopCategory.objects.get_or_create(
+            name=new_category, branch=product.branch
+        )
+        product.category = category
+    else:
+        product.category = ShopCategory.objects.filter(pk=category_id).first() if category_id.isdigit() else None
+    try:
+        product.coin_price = max(0, int(request.POST.get("coin_price", "0")))
+    except (TypeError, ValueError):
+        product.coin_price = 0
+    try:
+        product.stock = max(0, int(request.POST.get("stock", "0")))
+    except (TypeError, ValueError):
+        product.stock = 0
+    status = request.POST.get("status", "pending")
+    if status not in ("pending", "visible", "sale"):
+        status = "pending"
+    product.set_state(status)
+    product.show_price = request.POST.get("show_price") == "on"
+    if "image" in request.FILES:
+        product.image = request.FILES["image"]
+    return product
+
+
+@login_required(login_url="login")
+def shop_product_create(request):
+    from coins.models import ShopProduct
+    if request.method == "POST":
+        product = _shop_product_apply(request, ShopProduct())
+        if product.name:
+            product.save()
+            from coins.services import publish_product_news
+            publish_product_news(product, created_by=_news_author_name(request.user))
+            messages.success(request, "Mahsulot qo'shildi")
+        else:
+            messages.error(request, "Mahsulot nomini kiriting!")
+    return redirect("shop_product_list")
+
+
+@login_required(login_url="login")
+def shop_product_update(request, pk):
+    from coins.models import ShopProduct
+    product = _shop_object_or_403(request, ShopProduct, pk)
+    if request.method == "POST":
+        _shop_product_apply(request, product)
+        if product.name:
+            product.save()
+            messages.success(request, "Mahsulot yangilandi")
+        else:
+            messages.error(request, "Mahsulot nomini kiriting!")
+    return redirect("shop_product_list")
+
+
+@login_required(login_url="login")
+def shop_product_toggle(request, pk):
+    """Sotuvda <-> Kutayotgan. Sotuvdan olinsa ham ko'rinish yopiladi."""
+    from coins.models import ShopProduct
+    product = _shop_object_or_403(request, ShopProduct, pk)
+    if request.method == "POST":
+        if product.is_active:
+            product.set_state("pending")
+            product.save(update_fields=["is_active", "is_visible"])
+            messages.success(request, "Mahsulot sotuvdan olindi")
+        else:
+            product.set_state("sale")
+            product.save(update_fields=["is_active", "is_visible"])
+            messages.success(request, "Mahsulot sotuvga chiqarildi")
+    return redirect("shop_product_list")
+
+
+@login_required(login_url="login")
+def shop_product_visibility_toggle(request, pk):
+    """Ko'rinadi <-> Kutayotgan (o'quvchiga ko'rinishi yopiladi/ochiladi)."""
+    from coins.models import ShopProduct
+    product = _shop_object_or_403(request, ShopProduct, pk)
+    if request.method == "POST":
+        if product.is_visible:
+            product.set_state("pending")
+            product.save(update_fields=["is_active", "is_visible"])
+            messages.success(request, "Mahsulot o'quvchiga yashirildi")
+        else:
+            product.set_state("visible")
+            product.save(update_fields=["is_active", "is_visible"])
+            messages.success(request, "Mahsulot o'quvchiga ko'rsatildi")
+    return redirect("shop_product_list")
+
+
+@login_required(login_url="login")
+def shop_category_list(request):
+    from coins.models import ShopCategory
+    categories = _apply_shop_branch_q(request, ShopCategory.objects.all()).order_by("name")
+    return render(request, "shop/category_list.html", {
+        "categories": categories,
+        "active_count": categories.filter(is_active=True).count(),
+        "inactive_count": categories.filter(is_active=False).count(),
+    })
+
+
+@login_required(login_url="login")
+def shop_category_create(request):
+    from coins.models import ShopCategory
+    if request.method == "POST":
+        name = (request.POST.get("name") or "").strip()
+        if name:
+            branch_id = _new_branch_id(request)
+            category, created = ShopCategory.objects.get_or_create(
+                name=name, branch_id=branch_id
+            )
+            if not created and not category.is_active:
+                category.is_active = True
+                category.save(update_fields=["is_active"])
+            messages.success(request, "Kategoriya qo'shildi")
+        else:
+            messages.error(request, "Kategoriya nomini kiriting!")
+    return redirect("shop_category_list")
+
+
+@login_required(login_url="login")
+def shop_category_toggle(request, pk):
+    from coins.models import ShopCategory
+    category = _shop_object_or_403(request, ShopCategory, pk)
+    if request.method == "POST":
+        category.is_active = not category.is_active
+        category.save(update_fields=["is_active"])
+        messages.success(request, "Kategoriya holati o'zgartirildi")
+    return redirect("shop_category_list")
+
+
+@login_required(login_url="login")
+def shop_category_update(request, pk):
+    from coins.models import ShopCategory
+    category = _shop_object_or_403(request, ShopCategory, pk)
+    if request.method == "POST":
+        name = (request.POST.get("name") or "").strip()
+        if name:
+            category.name = name
+            update_fields = ["name"]
+            if "branch_id" in request.POST:
+                category.branch_id = _new_branch_id(request)
+                update_fields.append("branch_id")
+            category.save(update_fields=update_fields)
+            messages.success(request, "Kategoriya yangilandi")
+        else:
+            messages.error(request, "Kategoriya nomini kiriting!")
+    return redirect("shop_category_list")
+
+
+@login_required(login_url="login")
+def shop_order_list(request):
+    from django.db.models import Q
+    from coins.models import ShopCategory, ShopOrder, ShopProduct
+    status = request.GET.get("status", "")
+    q = (request.GET.get("q") or "").strip()
+    category = request.GET.get("category", "")
+    product = request.GET.get("product", "")
+    month = (request.GET.get("month") or "").strip()
+    orders = _apply_shop_branch_q(
+        request,
+        ShopOrder.objects.select_related("student", "product"),
+        prefix="student__",
+    ).order_by("-created_at")
+    if status in ("pending", "approved", "given", "cancelled"):
+        orders = orders.filter(status=status)
+    if q:
+        orders = orders.filter(
+            Q(student__first_name__icontains=q)
+            | Q(student__last_name__icontains=q)
+            | Q(student__phone__icontains=q)
+            | Q(product_name__icontains=q)
+        )
+    if len(month) == 7 and month[:4].isdigit() and month[5:7].isdigit():
+        orders = orders.filter(created_at__year=int(month[:4]), created_at__month=int(month[5:7]))
+    if category.isdigit():
+        orders = orders.filter(product__category_id=int(category))
+    if product.isdigit():
+        orders = orders.filter(product_id=int(product))
+    return render(request, "shop/order_list.html", {
+        "orders": orders[:500],
+        "status": status,
+        "month": month,
+        "categories": _apply_shop_branch_q(request, ShopCategory.objects.all()).order_by("name"),
+        "all_products": _apply_shop_branch_q(
+            request, ShopProduct.objects.filter(is_active=True)
+        ).order_by("name"),
+        "pending_count": orders.filter(status="pending").count(),
+        "approved_count": orders.filter(status="approved").count(),
+        "given_count": orders.filter(status="given").count(),
+        "cancelled_count": orders.filter(status="cancelled").count(),
+    })
+
+
+@login_required(login_url="login")
+def shop_order_action(request, pk):
+    from coins.models import ShopOrder
+    from coins.services import set_order_status
+    order = get_object_or_404(ShopOrder, pk=pk)
+    q = branch_scope.shop_branch_q(request, prefix="student__")
+    if q is not None and not ShopOrder.objects.filter(pk=pk).filter(q).exists():
+        raise PermissionDenied
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        status_map = {
+            "approve": ShopOrder.Status.APPROVED,
+            "given": ShopOrder.Status.GIVEN,
+            "reject": ShopOrder.Status.CANCELLED,
+            "pending": ShopOrder.Status.PENDING,
+        }
+        new_status = status_map.get(action)
+        if not new_status:
+            messages.error(request, "Noto'g'ri amal")
+        else:
+            employee = getattr(request.user, "employee_profile", None)
+            actor = (
+                f"{employee.first_name} {employee.last_name or ''}".strip()
+                if employee else request.user.username
+            )
+            try:
+                set_order_status(
+                    order=order,
+                    new_status=new_status,
+                    created_by=actor,
+                    created_by_user=request.user,
+                    created_by_employee=employee,
+                )
+                if action == "reject":
+                    messages.success(request, "Buyurtma rad etildi, coin qaytarildi va qoldiq tiklandi")
+                elif action == "given":
+                    messages.success(request, "Buyurtma berildi deb belgilandi")
+                elif action == "approve":
+                    messages.success(request, "Buyurtma tasdiqlandi")
+                else:
+                    messages.success(request, "Buyurtma holati yangilandi")
+            except ValueError:
+                messages.error(request, "Noto'g'ri holat")
+    return redirect("shop_order_list")
+
+
+# ============================================================
+# YANGILIKLAR (News) — web panel
+# ============================================================
+
+
+def _news_author_name(user):
+    try:
+        emp = user.employee_profile
+        return f"{emp.first_name} {emp.last_name}".strip()
+    except Exception:
+        return user.username
+
+
+def _news_category_values():
+    """Faol tur kodlari ro'yxati (bazadagi NewsCategory dan)."""
+    from .models import NewsCategory
+    return list(NewsCategory.objects.filter(is_active=True).values_list("value", flat=True))
+
+
+_DANGEROUS_LINK_PREFIXES = ("javascript:", "data:", "vbscript:", "file:")
+
+
+def _clean_news_link(raw):
+    """Havolani normalizatsiya qiladi. Noto'g'ri shakl uchun xato matni qaytaradi yoki None."""
+    from .models import normalize_link
+
+    url = (raw or "").strip()
+    if not url:
+        return "", None
+    if len(url) > 500:
+        return None, "Havola juda uzun (maksimal 500 belgi)"
+    if url.lower().startswith(_DANGEROUS_LINK_PREFIXES):
+        return None, "Xavfsizlik uchun bu havola turi ruxsat berilmaydi"
+    return normalize_link(url), None
+
+
+def _news_form_data(request, post):
+    """POST ma'lumotlarini tekshiradi. (model maydonlari dict, xato matni) qaytaradi."""
+    title = (post.get("title") or "").strip()
+    if not title:
+        return None, "Sarlavha kiritish shart"
+    if len(title) > 255:
+        return None, "Sarlavha juda uzun (maksimal 255 belgi)"
+
+    body = (post.get("body") or "").strip()
+    if len(body) > 20000:
+        return None, "Matn juda uzun (maksimal 20000 belgi)"
+
+    valid = _news_category_values()
+    category = (post.get("category") or "").strip()
+    if not category:
+        category = "yangilik" if "yangilik" in valid else (valid[0] if valid else "yangilik")
+    elif category not in valid:
+        return None, "Noto'g'ri tur tanlandi"
+
+    audience = (post.get("audience") or "").strip() or "barcha"
+    if audience not in ("barcha", "guruh"):
+        audience = "barcha"
+
+    is_published = post.get("is_published") in ("1", "on", "true", "True")
+
+    link, link_err = _clean_news_link(post.get("link"))
+    if link_err:
+        return None, link_err
+
+    return {
+        "title": title,
+        "body": body,
+        "category": category,
+        "audience": audience,
+        "link": link,
+        "link_text": (post.get("link_text") or "").strip()[:60],
+        "is_published": is_published,
+    }, None
+
+
+@login_required(login_url="login")
+def news_list(request):
+    from .models import News, NewsCategory
+    items = News.objects.all().prefetch_related("groups")
+    return render(request, "news/list.html", {
+        "news_items": items,
+        "categories": list(NewsCategory.objects.filter(is_active=True)),
+        "all_categories": list(NewsCategory.objects.all()),
+        "groups": branch_scope.scope(request, Group.objects.filter(status="aktiv")).order_by("name"),
+        "published_count": items.filter(is_published=True).count(),
+        "draft_count": items.filter(is_published=False).count(),
+    })
+
+
+@login_required(login_url="login")
+def news_create(request):
+    from .models import News
+    if request.method == "POST":
+        data, error = _news_form_data(request, request.POST)
+        if error:
+            messages.error(request, error)
+        else:
+            news = News(
+                title=data["title"],
+                body=data["body"],
+                category=data["category"],
+                audience=data["audience"],
+                link=data["link"],
+                link_text=data["link_text"],
+                is_published=data["is_published"],
+                is_pinned=request.POST.get("is_pinned") in ("1", "on", "true", "True"),
+                created_by=_news_author_name(request.user),
+            )
+            news.save()
+            if data["is_published"]:
+                news.groups.set(request.POST.getlist("groups"))
+            messages.success(request, "Yangilik yaratildi")
+            return redirect("news_list")
+    return redirect("news_list")
+
+
+@login_required(login_url="login")
+def news_update(request, pk):
+    from .models import News
+    news = get_object_or_404(News, pk=pk)
+    if request.method == "POST":
+        data, error = _news_form_data(request, request.POST)
+        if error:
+            messages.error(request, error)
+        else:
+            news.title = data["title"]
+            news.body = data["body"]
+            news.category = data["category"]
+            news.audience = data["audience"]
+            news.link = data["link"]
+            news.link_text = data["link_text"]
+            news.is_published = data["is_published"]
+            news.is_pinned = request.POST.get("is_pinned") in ("1", "on", "true", "True")
+            news.save()
+            news.groups.set(request.POST.getlist("groups"))
+            messages.success(request, "Yangilik yangilandi")
+            return redirect("news_list")
+    return redirect("news_list")
+
+
+@login_required(login_url="login")
+def news_delete(request, pk):
+    from .models import News
+    news = get_object_or_404(News, pk=pk)
+    if request.method == "POST":
+        news.delete()
+        messages.success(request, "Yangilik o'chirildi")
+    return redirect("news_list")
+
+
+@login_required(login_url="login")
+def news_toggle_publish(request, pk):
+    from .models import News
+    news = get_object_or_404(News, pk=pk)
+    if request.method == "POST":
+        news.is_published = not news.is_published
+        news.save(update_fields=["is_published"])
+        messages.success(request, "Yangilik holati o'zgartirildi")
+    return redirect("news_list")
+
+
+# ---- Yangilik turlari (kategoriyalar) boshqaruvi ----
+
+
+@login_required(login_url="login")
+def news_category_list(request):
+    from .models import News, NewsCategory
+    usage = {}
+    for n in News.objects.all():
+        usage[n.category] = usage.get(n.category, 0) + 1
+    rows = [
+        {"cat": c, "count": usage.get(c.value, 0)}
+        for c in NewsCategory.objects.all()
+    ]
+    return render(request, "news/categories.html", {
+        "rows": rows,
+    })
+
+
+@login_required(login_url="login")
+def news_category_create(request):
+    from .models import NewsCategory
+    if request.method == "POST":
+        label = (request.POST.get("label") or "").strip()
+        if not label:
+            messages.error(request, "Tur nomini kiriting!")
+            return redirect("news_category_list")
+        if len(label) > 100:
+            messages.error(request, "Tur nomi juda uzun (maksimal 100 belgi)")
+            return redirect("news_category_list")
+        cat = NewsCategory(label=label)
+        cat.value = (request.POST.get("value") or "").strip() or ""
+        try:
+            cat.save()
+        except Exception:
+            messages.error(request, "Bunday tur allaqachon mavjud")
+            return redirect("news_category_list")
+        messages.success(request, f"«{cat.label}» turi qo'shildi")
+        return redirect("news_category_list")
+    return redirect("news_category_list")
+
+
+@login_required(login_url="login")
+def news_category_update(request, pk):
+    from .models import NewsCategory
+    cat = get_object_or_404(NewsCategory, pk=pk)
+    if request.method == "POST":
+        label = (request.POST.get("label") or "").strip()
+        if not label:
+            messages.error(request, "Tur nomini kiriting!")
+        elif len(label) > 100:
+            messages.error(request, "Tur nomi juda uzun (maksimal 100 belgi)")
+        else:
+            cat.label = label
+            cat.save(update_fields=["label"])
+            messages.success(request, "Tur nomi yangilandi")
+        return redirect("news_category_list")
+    return redirect("news_category_list")
+
+
+@login_required(login_url="login")
+def news_category_toggle(request, pk):
+    from .models import NewsCategory
+    cat = get_object_or_404(NewsCategory, pk=pk)
+    if request.method == "POST":
+        cat.is_active = not cat.is_active
+        cat.save(update_fields=["is_active"])
+        messages.success(request, "Tur holati o'zgartirildi")
+    return redirect("news_category_list")
+
+
+@login_required(login_url="login")
+def news_category_delete(request, pk):
+    from .models import News, NewsCategory
+    cat = get_object_or_404(NewsCategory, pk=pk)
+    if request.method == "POST":
+        n = News.objects.filter(category=cat.value).count()
+        if n:
+            cat.is_active = False
+            cat.save(update_fields=["is_active"])
+            messages.warning(
+                request,
+                f"«{cat.label}» turida {n} ta yangilik bor, shuning uchun o'chirilmadi — faolsizlantirildi",
+            )
+        else:
+            cat.delete()
+            messages.success(request, "Tur o'chirildi")
+    return redirect("news_category_list")
+
+
 def additional_functions(request):
     functions = [
+        {"title": "Yangiliklar", "description": "O'quvchi ilovasidagi yangiliklarni yozish, nashr qilish, tahrirlash va o'chirish", "url": "news_list", "icon": "fa-newspaper", "color": "#2001FF"},
+        {"title": "Yangilik turlari", "description": "Yangilik kategoriyalarini boshqarish: yangi tur qo'shish, tahrirlash va o'chirish", "url": "news_category_list", "icon": "fa-tags", "color": "#7c3aed"},
+        {"title": "Coin sabablari", "description": "Coin berish/olish sabablarini boshqarish: qo'shish, tahrirlash va yoqish/o'chirish", "url": "coin_reason_list", "icon": "fa-coins", "color": "#f59e0b"},
+        {"title": "Coin tarixi", "description": "Barcha coin tranzaksiyalarini ko'rish: berilgan, yechilgan, davomat va xaridlar tarixi", "url": "coin_history_list", "icon": "fa-clock-rotate-left", "color": "#8b5cf6"},
+        {"title": "Shop mahsulotlari", "description": "Coin do'koni mahsulotlarini boshqarish: qo'shish, tahrirlash, qoldiq va narx", "url": "shop_product_list", "icon": "fa-shopping-bag", "color": "#2563eb"},
+        {"title": "Shop kategoriyalari", "description": "Do'kon kategoriyalarini boshqarish", "url": "shop_category_list", "icon": "fa-tags", "color": "#7c3aed"},
+        {"title": "Shop buyurtmalari", "description": "Kim nima sotib olgani — barcha do'kon buyurtmalari hisoboti", "url": "shop_order_list", "icon": "fa-receipt", "color": "#0ea5e9"},
         {"title": "Kirim kategoriyalari", "description": "Kirim kategoriyalarini boshqarish: qo'shish, tahrirlash va o'chirish", "url": "income_category_list", "icon": "fa-arrow-up", "color": "#059669"},
         {"title": "Chiqim kategoriyalari", "description": "Chiqim kategoriyalarini boshqarish: qo'shish, tahrirlash va o'chirish", "url": "expense_category_list", "icon": "fa-tags", "color": "#dc2626"},
         {"title": "Filiallar", "description": "Filiallar ro'yxatini boshqarish: qo'shish, tahrirlash va o'chirish", "url": "branch_list", "icon": "fa-building", "color": "#0891b2"},

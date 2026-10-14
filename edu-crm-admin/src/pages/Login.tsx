@@ -38,7 +38,7 @@ export default function Login() {
         setLoading(false)
         return
       }
-      storeEmployee(res.employee, true)
+      storeEmployee(res.employee, true, res.can_messaging)
       navigate("/today")
     } catch (err: any) {
       setError(err.message || "Xatolik yuz berdi")

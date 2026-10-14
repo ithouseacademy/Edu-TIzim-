@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load dict_filters %}
 {% block title %}Kassa Dashboard | Edu Tizim{% endblock %}
 {% block extra_css %}
 <style>
@@ -135,7 +136,7 @@
         {% endif %}
       </div>
       <div class="k-card-meta">
-        <span><i class="fas fa-user"></i> {% if item.kassa.owner %}{{ item.kassa.owner.get_full_name|default:item.kassa.owner.username }}{% else %}Noma'lum{% endif %}</span>
+        <span><i class="fas fa-user"></i> {% if item.kassa.owner %}{{ item.kassa.owner|user_name }}{% else %}Noma'lum{% endif %}</span>
       </div>
       <div class="k-card-balance {% if item.balance < 0 %}neg{% endif %}">
         {{ item.balance|floatformat:0 }} <small>so'm</small>

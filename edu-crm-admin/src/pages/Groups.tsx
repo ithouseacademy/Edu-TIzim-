@@ -47,6 +47,7 @@ export default function Groups() {
   const [dayOpen, setDayOpen] = useState(false)
   const [teacherOpen, setTeacherOpen] = useState(false)
   const [teacherFilter, setTeacherFilter] = useState("all")
+  const [filterOpen, setFilterOpen] = useState(false)
   const emp = loadEmployee()
   const initials = ((emp?.first_name?.[0] || "") + (emp?.last_name?.[0] || "")).toUpperCase()
 
@@ -85,6 +86,7 @@ export default function Groups() {
   ]
 
   const hasActiveFilters = query.trim() || dayFilter !== "all" || teacherFilter !== "all"
+  const activeFilterCount = (query.trim() ? 1 : 0) + (dayFilter !== "all" ? 1 : 0) + (teacherFilter !== "all" ? 1 : 0)
 
   const clearFilters = () => {
     setQuery("")
@@ -114,7 +116,44 @@ export default function Groups() {
           <div className="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-xs font-medium mb-3">{error}</div>
         )}
 
+        <div className="flex items-center gap-2 mb-3 animate-scale-in">
+          <button
+            type="button"
+            onClick={() => setFilterOpen((v) => !v)}
+            className={`h-10 flex-1 rounded-xl shadow-sm flex items-center justify-center gap-1.5 text-[13px] font-semibold transition-all active:scale-[0.98] ${
+              filterOpen ? "bg-[#2001FF] text-white" : "bg-white text-gray-900"
+            }`}
+          >
+            <Filter size={13} />
+            Filtr
+            {activeFilterCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-[#2001FF] text-white text-[9px] font-bold flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusOpen(true)}
+            className="h-10 flex-none px-3.5 bg-white rounded-xl shadow-sm flex items-center justify-center gap-1.5 text-[13px] font-semibold text-gray-900 transition-all active:scale-[0.98]"
+          >
+            <span>{chips.find((c) => c.key === statusFilter)?.label || "Barchasi"} · {chips.find((c) => c.key === statusFilter)?.count || 0}</span>
+            <ChevronDown size={15} className="text-gray-400" />
+          </button>
+        </div>
+
+        {filterOpen && (
         <div className="card-premium p-3 mb-3 animate-scale-in">
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-[12px] font-bold text-gray-900">Qidiruv va filtrlar</p>
+            <button
+              type="button"
+              onClick={() => setFilterOpen(false)}
+              className="w-6 h-6 rounded-full bg-[#F2F2F7] flex items-center justify-center text-gray-400 btn-hover"
+            >
+              <X size={13} />
+            </button>
+          </div>
             <div className="flex items-center gap-2 bg-[#F2F2F7] rounded-lg px-3 focus-within:ring-1.5 ring-[#2001FF]/40 transition-all">
               <Search size={14} className="text-gray-400 shrink-0" />
               <input
@@ -130,6 +169,16 @@ export default function Groups() {
                 </button>
               )}
             </div>
+
+            {dayFilter !== "all" && (
+              <button
+                type="button"
+                onClick={() => setDayFilter("all")}
+                className="mt-2.5 w-full h-8 bg-[#2001FF]/5 rounded-lg px-3 flex items-center justify-center gap-1 text-[11px] font-semibold text-[#2001FF] btn-hover"
+              >
+                <X size={11} /> Kun: {DAY_SHORT[dayFilter]} kuni
+              </button>
+            )}
 
             <div className="mt-3">
               <p className="text-[11px] text-gray-500 font-semibold mb-1.5">Kun</p>
@@ -166,21 +215,11 @@ export default function Groups() {
               onClick={clearFilters}
               className="mt-2 w-full flex items-center justify-center gap-1 text-[10px] font-semibold text-red-500 h-7 rounded-lg bg-red-50 btn-hover"
             >
-              <Filter size={11} /> Filtrlarni tozalash
+              <X size={11} /> Filtrlarni tozalash
             </button>
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={() => setStatusOpen(true)}
-          className="w-full h-10 bg-white rounded-xl shadow-sm px-3 flex items-center justify-between text-[13px] font-semibold text-gray-900 mb-3 transition-all active:scale-[0.98]"
-        >
-          <span>
-            {chips.find((c) => c.key === statusFilter)?.label || "Barchasi"} · {chips.find((c) => c.key === statusFilter)?.count || 0}
-          </span>
-          <ChevronDown size={15} className="text-gray-400 shrink-0 ml-2" />
-        </button>
+        )}
 
         {loading ? (
           <div className="card-premium p-6 flex items-center justify-center">

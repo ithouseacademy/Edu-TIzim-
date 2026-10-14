@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Kategoriyalar | Edu Tizim{% endblock %}
+{% block extra_css %}{% include "_ct_style.html" %}{% endblock %}
+{% block content %}
+
+<div class="ct-page">
+  <div class="ct-toolbar">
+    <button class="ct-btn" onclick="openCreateModal()"><i class="fas fa-circle-plus"></i> Kategoriya qo'shish</button>
+  </div>
+
+  <div class="ct-card">
+    <span class="ct-total">Umumiy soni: {{ categories|length }}</span>
+    <table class="ct-table">
+      <thead>
+        <tr>
+          <th style="width:70px;">№</th>
+          <th>Kategoriya nomi</th>
+          <th style="width:180px;">Filial</th>
+          <th style="width:110px;">Mahsulotlar</th>
+          <th style="width:140px;">Holati</th>
+          <th style="width:90px;text-align:right;">Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in categories %}
+        <tr>
+          <td class="ct-num">{{ forloop.counter }}</td>
+          <td class="ct-strong">{{ c.name }}</td>
+          <td>{{ c.branch.name|default:"Barchasi" }}</td>
+          <td>{{ c.products.count }} ta</td>
+          <td>
+            <span class="ct-status {% if not c.is_active %}off{% endif %}"><span class="ct-dot"></span>{% if c.is_active %}Aktiv{% else %}Aktiv emas{% endif %}</span>
+          </td>
+          <td>
+            <div class="ct-actions">
+              <button class="ct-act edit" title="Tahrirlash" onclick="openEditModal(this)"
+                data-id="{{ c.id }}"
+                data-name="{{ c.name }}"
+                data-branch="{{ c.branch_id|default_if_none:'' }}"
+                data-active="{% if c.is_active %}1{% else %}0{% endif %}"><i class="fas fa-pen"></i></button>
+              <form method="post" action="{% url 'panel_shop_category_toggle' pk=c.id %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="ct-act del" title="{% if c.is_active %}O'chirish{% else %}Yoqish{% endif %}"><i class="fas fa-trash"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6"><div class="ct-empty"><i class="fas fa-tags"></i>Kategoriyalar mavjud emas</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<button class="ct-fab" onclick="openCreateModal()" title="Kategoriya qo'shish"><i class="fas fa-bolt"></i></button>
+
+<!-- CREATE MODAL -->
+<div id="createModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:440px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px;"><i class="fas fa-plus-circle" style="color:var(--primary);"></i> Yangi kategoriya</h3>
+      <button onclick="closeCreateModal()" style="width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="post" action="{% url 'shop_category_create' %}">
+      <div style="padding:24px;">
+        {% csrf_token %}
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Kategoriya nomi</label>
+          <input type="text" name="name" class="form-control" required placeholder="Kategoriya nomi" autofocus>
+        </div>
+        <div class="form-group" style="margin-top:16px;margin-bottom:0;">
+          <label>Filial (o'quv markaz)</label>
+          <select name="branch_id" class="form-control">
+            {% if can_add_to_all_branches %}
+            <option value="">Barcha filiallar</option>
+            {% endif %}
+            {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if default_branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-actions" style="margin:0;padding:16px 24px;border-top:1px solid var(--border);background:#fafbfc;">
+        <button type="button" onclick="closeCreateModal()" class="btn btn-secondary"><i class="fas fa-times"></i> Bekor</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:440px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px;"><i class="fas fa-edit" style="color:var(--primary);"></i> Kategoriyani tahrirlash</h3>
+      <button onclick="closeEditModal()" style="width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="post" action="" id="editForm">
+      <div style="padding:24px;">
+        {% csrf_token %}
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Kategoriya nomi</label>
+          <input type="text" name="name" id="editName" class="form-control" required>
+        </div>
+        <div class="form-group" style="margin-top:16px;margin-bottom:0;">
+          <label>Filial (o'quv markaz)</label>
+          <select name="branch_id" id="editBranch" class="form-control">
+            {% if can_add_to_all_branches %}
+            <option value="">Barcha filiallar</option>
+            {% endif %}
+            {% for b in branch_options %}
+            <option value="{{ b.id }}">{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-actions" style="margin:0;padding:16px 24px;border-top:1px solid var(--border);background:#fafbfc;">
+        <button type="button" onclick="closeEditModal()" class="btn btn-secondary"><i class="fas fa-times"></i> Bekor</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openCreateModal(){document.getElementById('createModal').style.display='flex';}
+function closeCreateModal(){document.getElementById('createModal').style.display='none';}
+var eb="{% url 'shop_category_update' pk=0 %}";
+function openEditModal(btn){
+  var d=btn.dataset;
+  document.getElementById('editName').value=d.name||'';
+  document.getElementById('editBranch').value=d.branch||'';
+  document.getElementById('editForm').action=eb.replace('/0/','/'+d.id+'/');
+  document.getElementById('editModal').style.display='flex';
+}
+function closeEditModal(){document.getElementById('editModal').style.display='none';}
+</script>
+
+{% endblock %}

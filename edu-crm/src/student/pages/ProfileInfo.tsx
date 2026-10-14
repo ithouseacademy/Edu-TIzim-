@@ -28,6 +28,7 @@ export default function ProfileInfo() {
   const [error, setError] = useState("")
   const [ok, setOk] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [pickedFile, setPickedFile] = useState<File | null>(null)
 
   useEffect(() => {
     api.profile()
@@ -38,11 +39,12 @@ export default function ProfileInfo() {
       .catch(() => {})
   }, [])
 
-  const canSave = editing || stagedAvatar !== null
+  const canSave = editing || pickedFile !== null
 
   const handleAvatarPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setPickedFile(file)
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === "string") {
@@ -58,9 +60,14 @@ export default function ProfileInfo() {
     setSaving(true)
     setError("")
     try {
-      if (stagedAvatar) {
-        setAvatar(stagedAvatar)
+      if (pickedFile) {
+        const res = await api.uploadPhoto(pickedFile)
+        setPickedFile(null)
         setStagedAvatar(null)
+        if (res.photo) {
+          setAvatar(res.photo)
+          setStudent((s) => (s ? { ...s, photo: res.photo } : s))
+        }
       }
       if (editing) {
         const res = await api.updateProfile(birthDate)
@@ -103,8 +110,8 @@ export default function ProfileInfo() {
           <div className="w-[110px] h-[110px] rounded-full bg-[#0868E8] flex items-center justify-center overflow-hidden">
             {stagedAvatar ? (
               <img src={stagedAvatar} alt="Avatar" className="w-full h-full object-cover" />
-            ) : avatar ? (
-              <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+            ) : student?.photo || avatar ? (
+              <img src={student?.photo || avatar || ""} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
               <Smile size={60} className="text-white" />
             )}

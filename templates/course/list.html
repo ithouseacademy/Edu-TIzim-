@@ -13,6 +13,7 @@
 <div class="card">
     <div class="card-header between">
         <h3><i class="fas fa-book"></i> Barcha kurslar</h3>
+        <a href="{% url 'course_level_list' %}" class="btn btn-sm btn-secondary"><i class="fas fa-layer-group"></i> Darajalar</a>
     </div>
     <div class="card-body" style="padding: 0;">
         <table class="table">
@@ -20,7 +21,9 @@
                 <tr>
                     <th>#</th>
                     <th>Kurs nomi</th>
+                    <th>Filiallar</th>
                     <th>Guruhlar soni</th>
+                    <th>Darajalar soni</th>
                     <th>Yaratilgan sana</th>
                     <th>Amallar</th>
                 </tr>
@@ -30,7 +33,15 @@
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td><strong>{{ course.name }}</strong></td>
+                    <td>
+                        {% for branch in course.branches.all %}
+                        <span class="badge badge-blue">{{ branch.name }}</span>
+                        {% empty %}
+                        <span class="text-muted">biriktirilmagan</span>
+                        {% endfor %}
+                    </td>
                     <td><span class="badge badge-blue">{{ course.group_count }}</span></td>
+                    <td><span class="badge badge-blue">{{ course.levels.count }}</span></td>
                     <td>{{ course.created_at|date:"d.m.Y" }}</td>
                     <td class="actions">
                         <a href="{% url 'course_update' course.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
@@ -38,7 +49,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="5" class="empty">Hozircha kurslar mavjud emas</td></tr>
+                <tr><td colspan="7" class="empty">Hozircha kurslar mavjud emas</td></tr>
                 {% endfor %}
             </tbody>
         </table>

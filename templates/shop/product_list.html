@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block title %}Mahsulotlar | Edu Tizim{% endblock %}
+{% block extra_css %}{% include "_ct_style.html" %}{% endblock %}
+{% block content %}
+
+<div class="ct-page">
+  <div class="ct-toolbar">
+    <button class="ct-btn" onclick="openCreateModal()"><i class="fas fa-circle-plus"></i> Mahsulot qo'shish</button>
+    <form class="ct-group" method="get">
+      <div class="ct-datebox">
+        <i class="far fa-calendar"></i>
+        <input type="date" name="date_from" value="{{ request.GET.date_from }}" title="Dan">
+        <span class="ct-muted">—</span>
+        <input type="date" name="date_to" value="{{ request.GET.date_to }}" title="Gacha">
+      </div>
+      <select class="ct-field" name="category" style="width:110px;" onchange="this.form.submit()">
+        <option value="">Kategoriya</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {% if request.GET.category == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <select class="ct-field" name="holat" style="width:110px;" onchange="this.form.submit()">
+        <option value="">Holati</option>
+        <option value="sale" {% if holat == "sale" %}selected{% endif %}>Sotuvda</option>
+        <option value="visible" {% if holat == "visible" %}selected{% endif %}>Ko'rinadi</option>
+        <option value="pending" {% if holat == "pending" %}selected{% endif %}>Kutayotgan</option>
+      </select>
+      <input class="ct-field" style="width:115px;" type="number" name="stock" placeholder="Mahsulot soni" value="{{ request.GET.stock }}">
+      <input class="ct-field" style="width:78px;" type="number" name="coin_min" placeholder="Coin dan" value="{{ request.GET.coin_min }}">
+      <input class="ct-field" style="width:78px;" type="number" name="coin_max" placeholder="Coin gacha" value="{{ request.GET.coin_max }}">
+      <button class="ct-btn" type="submit" style="height:28px;"><i class="fas fa-magnifying-glass"></i></button>
+      {% if request.GET %}
+      <a href="{% url 'shop_product_list' %}" class="ct-btn" style="background:#fff;color:#6b7280;border:1px solid #e5e7eb;"><i class="fas fa-xmark"></i></a>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="ct-card">
+    <span class="ct-total">Umumiy soni: {{ products|length }}</span>
+    <table class="ct-table">
+      <thead>
+        <tr>
+          <th style="width:56px;">№</th>
+          <th>Mahsulot nomi</th>
+          <th style="width:105px;">Narxi (Coin)</th>
+          <th style="width:70px;">Soni</th>
+          <th style="width:92px;">Xarid soni</th>
+          <th style="width:110px;">Kategoriya</th>
+          <th style="width:110px;">Filial</th>
+          <th style="width:95px;">Holati</th>
+          <th>Izoh</th>
+          <th style="width:90px;text-align:right;">Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td class="ct-num">{{ forloop.counter }}</td>
+          <td class="ct-strong">{{ p.name }}</td>
+          <td class="ct-blue">{{ p.coin_price }}</td>
+          <td>{{ p.stock }}</td>
+          <td>{{ p.orders_count|default:0 }}</td>
+          <td>{{ p.category.name|default:"—" }}</td>
+          <td>{{ p.branch.name|default:"Barchasi" }}</td>
+          <td>
+            {% if p.is_visible and p.is_active %}
+            <span class="ct-status"><span class="ct-dot"></span>Sotuvda</span>
+            {% elif p.is_visible %}
+            <span class="ct-status" style="color:#2563eb;"><span class="ct-dot" style="background:#2563eb;"></span>Ko'rinadi{% if not p.show_price %} · narx yo'q{% endif %}</span>
+            {% else %}
+            <span class="ct-status off"><span class="ct-dot"></span>Kutayotgan</span>
+            {% endif %}
+          </td>
+          <td class="ct-muted">{{ p.description|truncatechars:48|default:"—" }}</td>
+          <td>
+            <div class="ct-actions">
+              <button class="ct-act edit" title="Tahrirlash" onclick="openEditModal(this)"
+                data-id="{{ p.id }}"
+                data-name="{{ p.name }}"
+                data-desc="{{ p.description }}"
+                data-category="{{ p.category_id|default_if_none:'' }}"
+                data-branch="{{ p.branch_id|default_if_none:'' }}"
+                data-price="{{ p.coin_price }}"
+                data-stock="{{ p.stock }}"
+                data-state="{{ p.state }}"
+                data-showprice="{% if p.show_price %}1{% else %}0{% endif %}"><i class="fas fa-pen"></i></button>
+              <form method="post" action="{% url 'shop_product_visibility_toggle' pk=p.id %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="ct-act edit" title="{% if p.is_visible %}O'quvchiga yashirish{% else %}O'quvchiga ko'rsatish{% endif %}" style="background:#eef2ff;">{% if p.is_visible %}<i class="fas fa-eye-slash"></i>{% else %}<i class="fas fa-eye"></i>{% endif %}</button>
+              </form>
+              <form method="post" action="{% url 'shop_product_toggle' pk=p.id %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="ct-act {% if p.is_active %}del{% else %}ok{% endif %}" title="{% if p.is_active %}Sotuvdan olish{% else %}Sotuvga chiqarish{% endif %}">{% if p.is_active %}<i class="fas fa-toggle-off"></i>{% else %}<i class="fas fa-toggle-on"></i>{% endif %}</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10"><div class="ct-empty"><i class="fas fa-box-open"></i>Mahsulotlar mavjud emas</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<button class="ct-fab" onclick="openCreateModal()" title="Mahsulot qo'shish"><i class="fas fa-bolt"></i></button>
+
+<!-- CREATE MODAL -->
+<div id="createModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:540px;max-width:94vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px;"><i class="fas fa-plus-circle" style="color:var(--primary);"></i> Yangi mahsulot</h3>
+      <button onclick="closeCreateModal()" style="width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="post" action="{% url 'shop_product_create' %}" enctype="multipart/form-data">
+      <div style="padding:24px;">
+        {% csrf_token %}
+        <div class="form-group">
+          <label>Mahsulot nomi</label>
+          <input type="text" name="name" class="form-control" required placeholder="Masalan: FIFA 25 disk">
+        </div>
+        <div class="form-group">
+          <label>Tavsif (ixtiyoriy)</label>
+          <textarea name="description" class="form-control" rows="2" placeholder="Qisqa tavsif"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Kategoriya</label>
+          <select name="category_id" class="form-control">
+            <option value="">Kategoriyasiz</option>
+            {% for c in categories %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Filial (o'quv markaz)</label>
+          <select name="branch_id" class="form-control">
+            {% if can_add_to_all_branches %}
+            <option value="">Barcha filiallar</option>
+            {% endif %}
+            {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if default_branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Yangi kategoriya (ixtiyoriy)</label>
+          <input type="text" name="new_category" class="form-control" placeholder="Yozsangiz, shu nomda kategoriya yaratiladi">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group">
+            <label>Narx (coin)</label>
+            <input type="number" name="coin_price" class="form-control" min="0" value="10" required>
+          </div>
+          <div class="form-group">
+            <label>Qoldiq</label>
+            <input type="number" name="stock" class="form-control" min="0" value="0" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Rasm (ixtiyoriy)</label>
+          <input type="file" name="image" class="form-control" accept="image/*">
+        </div>
+        <div class="form-group">
+          <label>Holati</label>
+          <select name="status" class="form-control" id="createStatus">
+            <option value="pending">Kutayotgan (o'quvchiga ko'rinmaydi)</option>
+            <option value="visible">Ko'rinadi (sotilmaydi)</option>
+            <option value="sale" selected>Sotuvda</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px 14px;border:2px solid var(--border);border-radius:8px;">
+            <input type="checkbox" name="show_price" checked style="width:16px;height:16px;accent-color:var(--primary);">
+            <i class="fas fa-coins" style="color:var(--primary);"></i> Narx o'quvchiga ko'rsatilsin
+          </label>
+        </div>
+      </div>
+      <div class="form-actions" style="margin:0;padding:16px 24px;border-top:1px solid var(--border);background:#fafbfc;">
+        <button type="button" onclick="closeCreateModal()" class="btn btn-secondary"><i class="fas fa-times"></i> Bekor</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:540px;max-width:94vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px;"><i class="fas fa-edit" style="color:var(--primary);"></i> Mahsulotni tahrirlash</h3>
+      <button onclick="closeEditModal()" style="width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="post" action="" id="editForm" enctype="multipart/form-data">
+      <div style="padding:24px;">
+        {% csrf_token %}
+        <div class="form-group">
+          <label>Mahsulot nomi</label>
+          <input type="text" name="name" id="editName" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Tavsif (ixtiyoriy)</label>
+          <textarea name="description" id="editDesc" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Kategoriya</label>
+          <select name="category_id" id="editCategory" class="form-control">
+            <option value="">Kategoriyasiz</option>
+            {% for c in categories %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Filial (o'quv markaz)</label>
+          <select name="branch_id" id="editBranch" class="form-control">
+            {% if can_add_to_all_branches %}
+            <option value="">Barcha filiallar</option>
+            {% endif %}
+            {% for b in branch_options %}
+            <option value="{{ b.id }}">{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Yangi kategoriya (ixtiyoriy)</label>
+          <input type="text" name="new_category" class="form-control" placeholder="Bo'sh qoldirsangiz, yuqoridagi tanlov ishlatiladi">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group">
+            <label>Narx (coin)</label>
+            <input type="number" name="coin_price" id="editPrice" class="form-control" min="0" required>
+          </div>
+          <div class="form-group">
+            <label>Qoldiq</label>
+            <input type="number" name="stock" id="editStock" class="form-control" min="0" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Rasmni almashtirish (ixtiyoriy)</label>
+          <input type="file" name="image" class="form-control" accept="image/*">
+        </div>
+        <div class="form-group">
+          <label>Holati</label>
+          <select name="status" id="editStatus" class="form-control">
+            <option value="pending">Kutayotgan (o'quvchiga ko'rinmaydi)</option>
+            <option value="visible">Ko'rinadi (sotilmaydi)</option>
+            <option value="sale">Sotuvda</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px 14px;border:2px solid var(--border);border-radius:8px;">
+            <input type="checkbox" name="show_price" id="editShowPrice" style="width:16px;height:16px;accent-color:var(--primary);">
+            <i class="fas fa-coins" style="color:var(--primary);"></i> Narx o'quvchiga ko'rsatilsin
+          </label>
+        </div>
+      </div>
+      <div class="form-actions" style="margin:0;padding:16px 24px;border-top:1px solid var(--border);background:#fafbfc;">
+        <button type="button" onclick="closeEditModal()" class="btn btn-secondary"><i class="fas fa-times"></i> Bekor</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openCreateModal(){document.getElementById('createModal').style.display='flex';}
+function closeCreateModal(){document.getElementById('createModal').style.display='none';}
+
+var eb="{% url 'shop_product_update' pk=0 %}";
+function openEditModal(btn){
+  var d=btn.dataset;
+  document.getElementById('editName').value=d.name||'';
+  document.getElementById('editDesc').value=d.desc||'';
+  document.getElementById('editCategory').value=d.category||'';
+  document.getElementById('editBranch').value=d.branch||'';
+  document.getElementById('editPrice').value=d.price||'0';
+  document.getElementById('editStock').value=d.stock||'0';
+  document.getElementById('editStatus').value=d.state||'pending';
+  document.getElementById('editShowPrice').checked=d.showprice==='1';
+  document.getElementById('editForm').action=eb.replace('/0/','/'+d.id+'/');
+  document.getElementById('editModal').style.display='flex';
+}
+function closeEditModal(){document.getElementById('editModal').style.display='none';}
+</script>
+
+{% endblock %}

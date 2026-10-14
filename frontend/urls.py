@@ -3,6 +3,7 @@ from . import views
 from . import student_api
 from . import employee_api
 from . import teacher_salary_api
+from . import branch_monitor_views
 from . import kassa_urls
 from . import admin_permission_views
 from . import feedback_views
@@ -95,6 +96,9 @@ urlpatterns = [
     path("branches/create/", views.branch_create, name="branch_create"),
     path("branches/<int:pk>/update/", views.branch_update, name="branch_update"),
     path("branches/<int:pk>/delete/", views.branch_delete, name="branch_delete"),
+    path("branches/<int:pk>/admins/", views.branch_admin_branches, name="branch_admin_branches"),
+    path("branch/switch/", views.branch_switch, name="branch_switch"),
+    path("branch/monitor/", branch_monitor_views.branch_monitor, name="branch_monitor"),
     path("rooms/", views.room_list, name="room_list"),
     path("rooms/export/excel/", views.room_export_excel, name="room_export_excel"),
     path("rooms/export/csv/", views.room_export_csv, name="room_export_csv"),
@@ -134,6 +138,10 @@ urlpatterns = [
     path("api/employee/roles/", employee_api.roles_list, name="employee_api_roles"),
     path("api/employee/positions/", employee_api.positions_list, name="employee_api_positions"),
     path("api/employee/branches/", employee_api.branches_list, name="employee_api_branches"),
+    path("api/employee/news/", employee_api.news_list, name="employee_api_news"),
+    path("api/employee/news/create/", employee_api.news_create, name="employee_api_news_create"),
+    path("api/employee/news/<int:news_id>/update/", employee_api.news_update, name="employee_api_news_update"),
+    path("api/employee/news/<int:news_id>/delete/", employee_api.news_delete, name="employee_api_news_delete"),
     path("api/employee/teacher-dashboard/", employee_api.teacher_dashboard_api, name="employee_api_dashboard"),
     path("api/employee/teacher-group/<int:pk>/", employee_api.teacher_group_detail_api, name="employee_api_group_detail"),
     path("api/employee/teacher-group/<int:pk>/update/", employee_api.teacher_group_update_api, name="employee_api_group_update"),
@@ -160,6 +168,7 @@ urlpatterns = [
     path("api/student/set-password/", student_api.set_password, name="student_set_password"),
     path("api/student/login/", student_api.student_login, name="student_login"),
     path("api/student/profile/", student_api.profile, name="student_api_profile"),
+    path("api/student/photo/", student_api.upload_photo, name="student_api_upload_photo"),
     path("api/student/profile/update/", student_api.update_profile, name="student_api_update_profile"),
     path("api/student/today-classes/", student_api.today_classes, name="student_today_classes"),
     path("api/student/schedule/", student_api.schedule, name="student_schedule"),
@@ -169,6 +178,7 @@ urlpatterns = [
     path("api/student/transactions/", student_api.student_transactions_api, name="student_transactions_api"),
     path("api/student/feedback/", student_api.my_feedbacks, name="student_feedback_list"),
     path("api/student/feedback/create/", student_api.create_feedback, name="student_feedback_create"),
+    path("api/student/news/", student_api.news, name="student_api_news"),
     path("api/student/sms/send/", views.student_send_sms, name="student_send_sms"),
     # === Xabarlar (Messaging) ===
     path("api/messaging/settings/", messaging_api.settings_api, name="messaging_settings_api"),
@@ -211,10 +221,40 @@ urlpatterns = [
     path("kassa/", include(kassa_urls)),
     # Qo'shimcha funksiyalar
     path("qoshimcha-funksiyalar/", views.additional_functions, name="additional_functions"),
+    # Yangiliklar (News)
+    path("yangiliklar/", views.news_list, name="news_list"),
+    path("yangiliklar/create/", views.news_create, name="news_create"),
+    path("yangiliklar/<int:pk>/update/", views.news_update, name="news_update"),
+    path("yangiliklar/<int:pk>/delete/", views.news_delete, name="news_delete"),
+    path("yangiliklar/<int:pk>/toggle/", views.news_toggle_publish, name="news_toggle_publish"),
+    path("yangiliklar/turlari/", views.news_category_list, name="news_category_list"),
+    path("yangiliklar/turlari/create/", views.news_category_create, name="news_category_create"),
+    path("yangiliklar/turlari/<int:pk>/update/", views.news_category_update, name="news_category_update"),
+    path("yangiliklar/turlari/<int:pk>/toggle/", views.news_category_toggle, name="news_category_toggle"),
+    path("yangiliklar/turlari/<int:pk>/delete/", views.news_category_delete, name="news_category_delete"),
+    # Coin & Shop boshqaruvi (Django panel)
+    path("coin-sabablari/", views.coin_reason_list, name="coin_reason_list"),
+    path("coin-sabablari/create/", views.coin_reason_create, name="coin_reason_create"),
+    path("coin-sabablari/<int:pk>/update/", views.coin_reason_update, name="coin_reason_update"),
+    path("coin-sabablari/<int:pk>/toggle/", views.coin_reason_toggle, name="panel_coin_reason_toggle"),
+    path("coin-tarixi/", views.coin_history_list, name="coin_history_list"),
+    path("shop/mahsulotlar/", views.shop_product_list, name="shop_product_list"),
+    path("shop/mahsulotlar/create/", views.shop_product_create, name="shop_product_create"),
+    path("shop/mahsulotlar/<int:pk>/update/", views.shop_product_update, name="shop_product_update"),
+    path("shop/mahsulotlar/<int:pk>/toggle/", views.shop_product_toggle, name="shop_product_toggle"),
+    path("shop/mahsulotlar/<int:pk>/visibility/", views.shop_product_visibility_toggle, name="shop_product_visibility_toggle"),
+    path("shop/kategoriyalar/", views.shop_category_list, name="shop_category_list"),
+    path("shop/kategoriyalar/create/", views.shop_category_create, name="shop_category_create"),
+    path("shop/kategoriyalar/<int:pk>/update/", views.shop_category_update, name="shop_category_update"),
+    path("shop/kategoriyalar/<int:pk>/toggle/", views.shop_category_toggle, name="panel_shop_category_toggle"),
+    path("shop/buyurtmalar/", views.shop_order_list, name="shop_order_list"),
+    path("shop/buyurtmalar/<int:pk>/action/", views.shop_order_action, name="shop_order_action"),
     # === Admin Permission System (Super Admin) ===
     path("admins/", admin_permission_views.admin_list, name="admin_list"),
     path("admins/create/", admin_permission_views.admin_create, name="admin_create"),
     path("admins/<int:pk>/permissions/", admin_permission_views.admin_permissions, name="admin_permissions"),
+    path("admins/<int:pk>/branch-permissions/", admin_permission_views.admin_branch_permissions, name="admin_branch_permissions"),
+    path("admins/<int:pk>/branch-permission-toggle/", admin_permission_views.admin_branch_permission_toggle, name="admin_branch_permission_toggle"),
     path("employees/<int:pk>/permissions/", admin_permission_views.employee_permissions, name="employee_permissions"),
     path("admins/<int:pk>/edit/", admin_permission_views.admin_update, name="admin_update"),
     path("admins/<int:pk>/delete/", admin_permission_views.admin_delete, name="admin_delete"),

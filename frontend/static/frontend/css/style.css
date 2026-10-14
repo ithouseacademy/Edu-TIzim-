@@ -331,6 +331,50 @@ body.sidebar-collapsed .main-content {
     font-size: 0.75rem;
 }
 
+/* ===== FILIAL TANLAGICH (branch switcher) ===== */
+.topbar-branch-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+    max-width: 220px;
+}
+.topbar-branch-form > i {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+.topbar-branch-select {
+    border: none;
+    outline: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    max-width: 160px;
+    padding: 2px 0;
+}
+.topbar-branch-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+.topbar-branch-apply {
+    border: none;
+    border-radius: 6px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    cursor: pointer;
+}
+
 .topbar-center {
     flex: 1;
     max-width: 400px;
@@ -1125,6 +1169,8 @@ select.form-control {
 
 .alert-success { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
 .alert-error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.alert-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.alert-warning { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
 .alert-info { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
 
 .alert-close {

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Coin tarixi | Edu Tizim{% endblock %}
+{% block extra_css %}{% include "_ct_style.html" %}{% endblock %}
+{% block content %}
+
+<div class="ct-page">
+  <div class="ct-toolbar">
+    <form class="ct-group" method="get" style="width:100%;justify-content:space-between;">
+      <div class="ct-search">
+        <i class="fas fa-magnifying-glass"></i>
+        <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Qidiruv...">
+      </div>
+      <div class="ct-group">
+        <div class="ct-datebox">
+          <i class="far fa-calendar"></i>
+          <input type="date" name="date_from" value="{{ request.GET.date_from }}" title="Dan">
+          <span class="ct-muted">—</span>
+          <input type="date" name="date_to" value="{{ request.GET.date_to }}" title="Gacha">
+        </div>
+        <input class="ct-field" style="width:130px;" type="text" name="employee" placeholder="Xodim" value="{{ request.GET.employee }}">
+        <select class="ct-field" name="type" style="width:110px;">
+          <option value="">Turi</option>
+          <option value="BONUS" {% if request.GET.type == "BONUS" %}selected{% endif %}>Bonus</option>
+          <option value="PENALTY" {% if request.GET.type == "PENALTY" %}selected{% endif %}>Penalty</option>
+          <option value="ATTENDANCE" {% if request.GET.type == "ATTENDANCE" %}selected{% endif %}>Davomat</option>
+          <option value="SHOP" {% if request.GET.type == "SHOP" %}selected{% endif %}>Shop</option>
+          <option value="ADJUSTMENT" {% if request.GET.type == "ADJUSTMENT" %}selected{% endif %}>Sozlash</option>
+          <option value="REVERSAL" {% if request.GET.type == "REVERSAL" %}selected{% endif %}>Reversal</option>
+        </select>
+        <input class="ct-field" style="width:78px;" type="number" name="coin_min" placeholder="Coin dan" value="{{ request.GET.coin_min }}">
+        <input class="ct-field" style="width:78px;" type="number" name="coin_max" placeholder="Coin gacha" value="{{ request.GET.coin_max }}">
+        <button class="ct-btn" type="submit" style="height:28px;"><i class="fas fa-magnifying-glass"></i></button>
+        {% if request.GET %}
+        <a href="{% url 'coin_history_list' %}" class="ct-btn" style="background:#fff;color:#6b7280;border:1px solid #e5e7eb;"><i class="fas fa-xmark"></i></a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <div class="ct-card">
+    <span class="ct-total">Umumiy soni: {{ transactions|length }}</span>
+    <table class="ct-table ct-dense">
+      <thead>
+        <tr>
+          <th style="width:56px;">№</th>
+          <th style="width:170px;">O'quvchi</th>
+          <th style="width:150px;">Filial</th>
+          <th style="width:110px;">Turi</th>
+          <th style="width:95px;">Miqdori</th>
+          <th style="width:150px;">Kim tomonidan</th>
+          <th style="width:180px;">Sababi</th>
+          <th style="width:130px;">Yaratildi</th>
+          <th>Izoh</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transactions %}
+        <tr>
+          <td class="ct-num">{{ forloop.counter }}</td>
+          <td class="ct-strong">
+            {% if t.student %}
+            <a href="{% url 'student_profile' t.student.pk %}" style="color:#2001FF;text-decoration:none;">{{ t.student.first_name }} {{ t.student.last_name }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td class="ct-muted">{{ t.student.branch.name|default:"—" }}</td>
+          <td>
+            {% if t.transaction_type == "BONUS" %}
+            <span class="ct-badge green">Bonus</span>
+            {% elif t.transaction_type == "PENALTY" %}
+            <span class="ct-badge red">Penalty</span>
+            {% elif t.transaction_type == "ATTENDANCE" %}
+            <span class="ct-badge blue">Davomat</span>
+            {% elif t.transaction_type == "SHOP" %}
+            <span class="ct-badge amber">Shop</span>
+            {% elif t.transaction_type == "REVERSAL" %}
+            <span class="ct-badge gray">Reversal</span>
+            {% else %}
+            <span class="ct-badge gray">Sozlash</span>
+            {% endif %}
+          </td>
+          <td class="ct-strong {% if t.amount >= 0 %}ct-green{% else %}ct-red{% endif %}">{% if t.amount >= 0 %}+{% endif %}{{ t.amount }}</td>
+          <td class="ct-muted">{{ t.created_by|default:"—" }}</td>
+          <td>{% firstof t.reason_name t.reason.name "—" %}</td>
+          <td class="ct-muted">{{ t.created_at|date:"d.m.Y H:i" }}</td>
+          <td class="ct-muted">{{ t.description|truncatechars:52|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9"><div class="ct-empty"><i class="fas fa-clock-rotate-left"></i>Coin tarixi mavjud emas</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

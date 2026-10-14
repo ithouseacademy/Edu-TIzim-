@@ -1,3 +1,21 @@
+def _feedback_or_403(request, pk):
+    """Shikoyatni filial chegarasini buzilmasdan oladi.
+
+    `Feedback.branch` maydoni yo'q, shuning uchun o'quvchining o'z
+    filiali orqali aniqlanadi.
+    """
+    feedback = get_object_or_404(Feedback.objects.select_related("student"), pk=pk)
+    ids = branch_scope.allowed_branch_ids(request.user)
+    if ids is not None:
+        student_branch = getattr(feedback.student, "branch_id", None)
+        if student_branch is None or student_branch not in ids:
+            from django.core.exceptions import PermissionDenied
+
+            raise PermissionDenied
+    return feedback
+
+
+from . import branch_scope
 """Taklif va shikoyatlar (Feedback) admin bo'limi.
 
 O'quvchilar mobil ilovadagi «Profil → Takliflar» orqali taklif / shikoyat
@@ -35,7 +53,9 @@ def feedback_list(request):
     category_filter = request.GET.get("category", "")
     q = request.GET.get("q", "").strip()
 
-    items = Feedback.objects.select_related("student").order_by("-created_at")
+    items = branch_scope.scope_related(
+        request, Feedback.objects.select_related("student"), "student"
+    ).order_by("-created_at")
     if status_filter in {s for s, _ in Feedback.Status.choices}:
         items = items.filter(status=status_filter)
     if category_filter in {c for c, _ in Feedback.Category.choices}:
@@ -47,7 +67,9 @@ def feedback_list(request):
             Q(student__last_name__icontains=q)
         )
 
-    new_count = Feedback.objects.filter(status=Feedback.Status.NEW).count()
+    new_count = branch_scope.scope_related(
+        request, Feedback.objects.filter(status=Feedback.Status.NEW), "student"
+    ).count()
 
     return render(request, "feedback/list.html", {
         "feedbacks": items[:200],
@@ -66,7 +88,7 @@ def feedback_detail(request, pk):
     if not _can_view(request.user):
         return redirect("dashboard")
 
-    feedback = get_object_or_404(Feedback.objects.select_related("student"), pk=pk)
+    feedback = _feedback_or_403(request, pk)
 
     if feedback.status == Feedback.Status.NEW:
         feedback.status = Feedback.Status.READ
@@ -109,5 +131,7 @@ def feedback_delete(request, pk):
 def feedback_badge(request):
     if not _can_view(request.user):
         return JsonResponse({"count": 0})
-    count = Feedback.objects.filter(status=Feedback.Status.NEW).count()
+    count = branch_scope.scope_related(
+        request, Feedback.objects.filter(status=Feedback.Status.NEW), "student"
+    ).count()
     return JsonResponse({"count": count})

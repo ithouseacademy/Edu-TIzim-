@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ admin.username }} — {{ branch.name }} ruxsatlari | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2><i class="fas fa-key"></i> {{ admin.get_full_name|default:admin.username }} — {{ branch.name }}</h2>
+        <span class="page-header-count">{{ granted_count }} / {{ total_count }} ruxsat</span>
+    </div>
+    <div class="page-header-right">
+        <a href="{% url 'admin_permissions' admin.pk %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> {{ back_label }}
+        </a>
+    </div>
+</div>
+
+<div class="alert alert-info" style="margin-bottom:16px;">
+    <i class="fas fa-info-circle"></i>
+    Bu ruxsatlar faqat <strong>{{ branch.name }}</strong> filiali uchun qo'llanadi.
+    Umumiy ruxsat ({{ admin.username }}) barcha filiallarda kuchli bo'ladi.
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% for mod in modules %}
+        <h4 style="margin:18px 0 8px;">{{ mod.label }}</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px;">
+            {% for p in mod.permissions %}
+            <label style="display:flex;gap:8px;align-items:center;padding:6px 10px;border:1px solid #eef2f7;border-radius:8px;cursor:{% if p.grantable %}pointer{% else %}not-allowed{% endif %};{% if not p.grantable %}opacity:.6;{% endif %}">
+                <input type="checkbox" class="bp-toggle" data-codename="{{ p.codename }}"
+                       {% if p.granted %}checked{% endif %}
+                       {% if not p.grantable %}disabled{% endif %}
+                       style="width:16px;height:16px;accent-color:var(--primary);">
+                <span style="font-size:.85rem;">{{ p.label }}{% if not p.grantable %} <i class="fas fa-lock" style="color:#94a3b8;"></i>{% endif %}</span>
+            </label>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const TOGGLE_URL = "{% url 'admin_branch_permission_toggle' pk=admin.pk %}";
+const BRANCH_ID = "{{ branch.pk }}";
+
+document.querySelectorAll('.bp-toggle').forEach(function(box){
+    box.addEventListener('change', async function(){
+        const data = new FormData();
+        data.append('codename', box.dataset.codename);
+        data.append('branch', BRANCH_ID);
+        data.append('state', box.checked ? 'true' : 'false');
+        try{
+            const res = await fetch(TOGGLE_URL, {
+                method:'POST', body:data,
+                headers:{'X-CSRFToken':'{{ csrf_token }}'}
+            });
+            const json = await res.json();
+            if(!json.ok){ box.checked = !box.checked; alert(json.error || 'Xatolik'); }
+        }catch(e){ box.checked = !box.checked; alert('Serverga ulanib bo\'lmadi'); }
+    });
+});
+</script>
+{% endblock %}

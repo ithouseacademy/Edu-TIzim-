@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load dict_filters %}
 {% block title %}Kassa tarixi | Edu Tizim{% endblock %}
 {% block extra_css %}
 <style>
@@ -154,7 +155,7 @@
         <tr>
           <td style="color:var(--text-muted);font-size:.78rem;">{{ forloop.counter }}</td>
           <td style="white-space:nowrap;">{{ tx.created_at|date:"d.m.Y H:i" }}</td>
-          <td><strong>{{ tx.kassa.name }}</strong><br><small style="color:var(--text-muted);font-size:.72rem;">{% if tx.kassa.owner %}{{ tx.kassa.owner.get_full_name|default:tx.kassa.owner.username }}{% else %}Noma'lum{% endif %}</small></td>
+          <td><strong>{{ tx.kassa.name }}</strong><br><small style="color:var(--text-muted);font-size:.72rem;">{% if tx.kassa.owner %}{{ tx.kassa.owner|user_name }}{% else %}Noma'lum{% endif %}</small></td>
           <td>
             {% if tx.transaction_type == 'payment' %}<span class="op-badge payment"><i class="fas fa-credit-card"></i> To'lov</span>
             {% elif tx.transaction_type == 'income' %}<span class="op-badge income"><i class="fas fa-plus"></i> Kirim</span>

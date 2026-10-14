@@ -1,0 +1,44 @@
+{% comment %}
+Qidiruvchi guruh tanlagichi.
+Kerakli parametrlar:
+  picker_uid     — noyob JS identifikatori (masalan "new" yoki "edit-5")
+  picker_groups  — guruhlar queryset'i
+  picker_selected — tanlangan guruhlar queryset'i yoki None
+{% endcomment %}
+<div class="ngp" id="ngp-{{ picker_uid }}" data-ngp="{{ picker_uid }}">
+  <div class="ngp-box" id="ngp-box-{{ picker_uid }}" onclick="ngpOpen('{{ picker_uid }}')">
+    <div class="ngp-chips" id="ngp-chips-{{ picker_uid }}">
+      <span class="ngp-ph" id="ngp-ph-{{ picker_uid }}"><i class="fas fa-search"></i> Guruh nomini yozib qidiring va tanlang</span>
+    </div>
+    <span class="ngp-caret"><i class="fas fa-chevron-down"></i></span>
+  </div>
+
+  <div class="ngp-menu" id="ngp-menu-{{ picker_uid }}">
+    <div class="ngp-search-wrap">
+      <i class="fas fa-search"></i>
+      <input type="text" class="ngp-search" placeholder="Qidirish..." autocomplete="off"
+             oninput="ngpFilter(this.value, '{{ picker_uid }}')">
+    </div>
+    <div class="ngp-list" id="ngp-list-{{ picker_uid }}">
+      {% for g in picker_groups %}
+      <button type="button" class="ngp-item"
+              data-val="{{ g.id }}"
+              data-label="{{ g.name|escapejs }}"
+              {% if picker_selected and g in picker_selected %}data-selected="1"{% endif %}
+              onclick="ngpToggle('{{ picker_uid }}', this)">
+        <span class="ngp-check"><i class="fas fa-check"></i></span>
+        <span class="ngp-item-name">{{ g.name }}</span>
+      </button>
+      {% empty %}
+      <div class="ngp-none">Faol guruh topilmadi</div>
+      {% endfor %}
+    </div>
+    <div class="ngp-foot">
+      <button type="button" class="ngp-clear" onclick="ngpClear('{{ picker_uid }}')">Tozalash</button>
+      <button type="button" class="ngp-all" onclick="ngpToggleAll('{{ picker_uid }}', this)">Barchasini tanlash</button>
+      <span class="ngp-count" id="ngp-count-{{ picker_uid }}">0 ta tanlangan</span>
+    </div>
+  </div>
+
+  <div id="ngp-inputs-{{ picker_uid }}"></div>
+</div>
